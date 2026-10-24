@@ -25,7 +25,7 @@ que corresponda antes de portar un módulo.
 | ----- | -------------------------------------- | ---------- | --------- |
 | E0    | Base del proyecto y exploración BLE    | —          | Verificada (salvo la prueba con el iPhone) |
 | E1    | Pantalla y touch                       | E0         | Verificada |
-| E2    | Transporte BLE con el ELM              | E0         | Pendiente |
+| E2    | Transporte BLE con el ELM              | E0         | Verificada |
 | E3    | El monitor completo en el auto         | E1, E2     | Pendiente |
 | E4    | Diseño de páginas y navegación táctil  | E3         | Pendiente |
 | E5    | Códigos de falla                       | E4         | Pendiente |
@@ -98,7 +98,7 @@ include/
   lv_conf.h         configuración de LVGL (E1)
 src/
   main.cpp          exploración (E0); máquina de estados (E3)
-  explorar.h/.cpp   !escanear, !explorar, !usar (E0)
+  explorar.h/.cpp   !escanear, !explorar (E0; !usar salió en E2)
   elm327.h/.cpp     transporte BLE con la interfaz del anterior (E2)
   consola.h/.cpp    consola por el USB (E0, E2)
   pantalla_hw.h/.cpp  QSPI, rotación, touch, brillo y puerto de LVGL (E1)
@@ -458,8 +458,9 @@ De esta placa y el adaptador nuevo:
 | Brillo cómodo de día / noche  |       | E1    |
 | Refresco de pantalla          | Completo (dibujar todo y mandarlo): 96–131 ms. Solo el envío al panel: 32–33 ms, se cambie lo que se cambie | E1    |
 | Memoria con pantalla y BLE    | RAM interna libre 164 KB (bloque mayor 123 KB); PSRAM libre 7972 KB | E1    |
-| Conexión guardada / buscando  |       | E2    |
-| Tiempo por comando AT         |       | E2    |
+| Conexión guardada / buscando  | Por dirección guardada: conecta en 389–1348 ms y queda listo en 974–1928 ms. Buscando: lo encuentra en 23–1526 ms y queda listo en 1536–1923 ms. Casi no hay diferencia, porque la búsqueda lo encuentra enseguida. De lo que tarda en quedar listo, ~530 ms son servicios, características y suscripción | E2    |
+| Parámetros de conexión        | Con 7,5–15 ms pedidos queda en 15 ms (latencia 0, supervisión 2 s). El adaptador pide 25–35 ms dos veces por conexión; se rechaza (ver notas de E2) | E2    |
+| Tiempo por comando AT         | Con 15 ms: `ATZ` 29–89, `ATE0` 59–89, `ATI` 35–90, `ATRV` 64–100 ms. Con 50 ms (E0): 70–390 ms. Con SPP era ~40 ms | E2    |
 | ¿Acepta `010C1`? ms con y sin |       | E3    |
 | Consultas por segundo         |       | E3    |
 
@@ -699,6 +700,115 @@ y de noche, ni si el brillo 0 apaga del todo. Se completan en E6 (brillo)
 y E7 (montaje).
 
 ### E2
+
+Hecho (salió de la rama de E1, antes de que E0 y E1 se mergearan a `main`):
+
+- `include/config.h`: el adaptador (`BLE_NOMBRE_REMOTO` `OBDBLE`,
+  `BLE_SERVICIO_ELM` `FFF0`, `BLE_NOTIFICACION_ELM` `FFF1`,
+  `BLE_ESCRITURA_ELM` `FFF2`), los parámetros de conexión que se piden
+  (`BLE_INTERVALO_MIN`/`MAX` 7,5–15 ms, `BLE_SUPERVISION` 2 s) y los
+  tiempos: `BUSQUEDA_ELM_S` 6, `TIMEOUT_CONEXION_MS` 4000,
+  `TIMEOUT_COMANDO_MS` 1000, `TIMEOUT_ATZ_MS` 3000, `REINTENTO_BT_MS`
+  5000, `REINTENTO_ELM_MS` 5000 y `PERIODO_ATRV_MS` 2000 (los nombres de
+  los que ya estaban en el anterior, para portar E3 más fácil).
+- `src/elm327.h/.cpp` con la interfaz del anterior:
+
+  ```cpp
+  enum class EstadoTransporte { OK, TIMEOUT, DESCONECTADO, RECHAZADO };
+  struct ResultadoComando { EstadoTransporte estado; String cruda; uint32_t ms; };
+  enum class FaseConexion { POR_DIRECCION, BUSCANDO };
+  class Elm327 {
+  public:
+    bool iniciar();  // nuevo: inicia el BLE; conectar() lo llama si hace falta
+    bool conectar(void (*aviso)(FaseConexion) = nullptr);
+    void olvidar();
+    bool conectado();
+    void desconectar();
+    ResultadoComando enviar(const char *comando, uint32_t timeoutMs, bool registrar = true);
+    void mientrasEspera(void (*funcion)());
+  };
+  const char *nombreEstado(EstadoTransporte estado);
+  ```
+
+  - `iniciar()` es nuevo y público: el `Explorador` usa el mismo BLE, así
+    que `main.cpp` lo llama en `setup()`. Configura el emparejamiento como
+    en E0: sin clave, sin vínculo y solo si el adaptador lo pide.
+  - `conectar()`: primero la dirección guardada en `Preferences`
+    (`obd`/`dir` como texto y `obd`/`tipo`). Va como texto porque, con
+    NimBLE, `BLEAddress` da vuelta los bytes al construirla desde un
+    arreglo y `getNative()` no. Si falla, busca durante hasta 6 s el
+    nombre `OBDBLE` (sin los bytes nulos del final) o el servicio `FFF0`,
+    corta la búsqueda apenas lo encuentra, conecta y guarda la dirección
+    si cambió. `aviso` se llama antes de cada fase. Peor caso con el
+    adaptador apagado: 4 s + 6 s.
+  - **Timeout de conexión:** `BLEClient::connect()` con NimBLE ignora el
+    timeout que se le pasa y espera 30 s. Un `esp_timer` de una vez
+    llama a `ble_gap_conn_cancel()` a los `TIMEOUT_CONEXION_MS`.
+    *Probado:* con una dirección falsa (versión temporal), "no conecto
+    (4001 ms)" y después encontró el adaptador por búsqueda.
+  - Al conectar: pide el intervalo corto (antes de leer los servicios),
+    lee los servicios una sola vez, se suscribe a `FFF1` y escribe en
+    `FFF2` sin respuesta.
+  - **El adaptador pide 25–35 ms dos veces por conexión y se rechaza.** Si
+    se aceptara, la biblioteca le contestaría con los parámetros con los
+    que conectó (30–50 ms, `m_pConnParams`, privado y sin setter) y se
+    perdería el intervalo corto. Con el rechazo no pasó nada malo.
+  - Las notificaciones se copian a un `StreamBuffer` de 4 KB desde la
+    tarea de NimBLE; `enviar()` es lo único que lo lee.
+  - `enviar()`: igual que el anterior. Valida con `comandoPermitido()`
+    antes de tocar el BLE, descarta y muestra lo que quedó (incluido lo
+    que llegue después del `>`, como el `UNABLE TO CONNECT` repetido de
+    E0), escribe el comando con `\r` y junta hasta el `>` o el timeout.
+    Mientras espera, llama a `mientrasEspera()` cada ~2 ms (también
+    mientras busca el adaptador, no mientras conecta). Antes de cada
+    comando informa lo que pasó en el BLE: emparejamientos, pedidos de
+    parámetros, cambios de intervalo y bytes perdidos.
+  - `conectado()` se entera de la desconexión por el callback del stack.
+  - `olvidar()`: desconecta, borra `obd`/`dir` y `obd`/`tipo`, y llama a
+    `ble_store_clear()` por si alguna vez quedó un vínculo.
+  - No está la recuperación automática del anterior
+    (`FALLAS_PARA_OLVIDAR`): era por el PIN de SPP, y acá no hay vínculo.
+- `src/explorar`: quedan `!escanear` y `!explorar N`. **Salió `!usar`**:
+  con su `enviar()` era un segundo camino hacia el ELM. `!explorar` usa
+  su propia conexión y la corta al terminar (con el timeout de 30 s de la
+  biblioteca).
+- `src/consola`: `Consola(Elm327&, Explorador&)`, portada del anterior:
+  `!reconectar`, `!olvidar`, `!log` y `detalle()`, más `!info`,
+  `!escanear`, `!explorar N`, `+` y `-`. Las líneas sin `!` van a
+  `Elm327::enviar()`. Antes de explorar suelta el ELM (el adaptador
+  acepta una sola conexión y, conectado, no se anuncia) y pide reconectar.
+- `src/main.cpp` de banco, como E1 del anterior: conecta, `ATZ`, `ATE0`,
+  `ATI`, `ATRV`; después `ATRV` cada 2 s, callado salvo que falle o con
+  `!log`. Si el ELM no contesta, reintenta la inicialización a los 5 s;
+  si se pierde la conexión, reconecta cada 5 s. La pantalla queda con una
+  línea gris con el estado de la conexión (`aviso` y `mientrasEspera`
+  la mantienen al día); las pantallas de estado son de E3.
+
+Probado por el agente en la placa (2026-10-24), con el adaptador en el
+banco: primera conexión buscando (1,5 s hasta quedar listo) y dirección
+guardada; `!reconectar` por dirección (~1–1,9 s); `ATZ`, `ATE0`, `ATI` y
+`ATRV` responden; `04` da `RECHAZADO`; `!escanear` y `!explorar 1`
+sueltan el ELM y se reconecta solo; `!olvidar` vuelve a buscar de cero.
+RAM interna libre 159 KB. Tiempos en **Datos descubiertos**.
+
+Para E3:
+
+- Mientras conecta (hasta 4 s por intento) la pantalla no se actualiza:
+  `connect()` bloquea. Mientras busca, sí.
+- Los comandos AT tardan 30–100 ms. `ATRV` es de los más lentos
+  (64–100 ms): parece que el clon tarda en medir.
+- `mientrasEspera()` llama a `lv_timer_handler()`, que puede tardar un
+  refresco (~33 ms) y sumarse al tiempo del comando.
+
+Verificado por el usuario en el banco (2026-10-24, "funciona todo"): al
+apagar el adaptador se informa la pérdida y al prenderlo reconecta solo.
+En su log, después de prenderlo, `ATZ` contesta con eco
+(`"ATZ\rELM327 v2.1\r\n"`, 104 ms) porque el ELM arranca de cero; los
+demás tiempos coinciden con los de arriba.
+
+Sin anotar: la prueba con el iPhone conectado al adaptador (de E0) y
+cuánto tarda cada intento con el adaptador apagado (tendría que ser ~10 s:
+4 s por dirección + 6 s buscando).
 
 ### E3
 

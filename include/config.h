@@ -41,15 +41,35 @@ constexpr uint8_t DIRECCION_EXPANSOR = 0x20; // TCA9554; su pin 6 sostiene la ba
 
 // BLE
 constexpr const char *BLE_NOMBRE_LOCAL = "DS3-Monitor";
-// Lo que marca un dispositivo como posible adaptador OBD: una parte del
-// nombre (sin distinguir mayúsculas) o un servicio anunciado.
+// Lo que !escanear marca como posible adaptador OBD: una parte del nombre
+// (sin distinguir mayúsculas) o un servicio anunciado.
 constexpr const char *BLE_NOMBRES_OBD[] = {"OBD",    "ELM",  "VGATE",   "VLINK",
                                            "V-LINK", "ICAR", "VEEPEAK", "KONNWEI"};
 constexpr const char *BLE_SERVICIOS_OBD[] = {"FFF0", "FFE0", "18F0",
                                              "E7810A71-73AE-499D-8C15-FAA9AEF0C3F2"};
 
-// Tiempos
-constexpr uint32_t BUSQUEDA_BLE_S = 10;        // !escanear (la biblioteca la toma en segundos)
+// El adaptador del DS3 (E0). Sin dirección guardada se busca por el nombre
+// o por el servicio.
+constexpr const char *BLE_NOMBRE_REMOTO = "OBDBLE";
+constexpr const char *BLE_SERVICIO_ELM = "FFF0";
+constexpr const char *BLE_NOTIFICACION_ELM = "FFF1";
+constexpr const char *BLE_ESCRITURA_ELM = "FFF2";
+// Parámetros de conexión que se piden al conectar. Con los de la biblioteca
+// (50 ms) un comando AT tardaba 70-390 ms (E0).
+constexpr uint16_t BLE_INTERVALO_MIN = 6;  // x 1,25 ms = 7,5 ms
+constexpr uint16_t BLE_INTERVALO_MAX = 12; // 15 ms
+constexpr uint16_t BLE_SUPERVISION = 200;  // x 10 ms = 2 s: lo que tarda en notar una pérdida
+
+// Tiempos en ms
+constexpr uint32_t BUSQUEDA_BLE_S = 10; // !escanear (la biblioteca la toma en segundos)
+constexpr uint32_t BUSQUEDA_ELM_S = 6;  // al conectar, si la dirección guardada no anduvo
+// Por intento de conexión. La biblioteca esperaría 30 s.
+constexpr uint32_t TIMEOUT_CONEXION_MS = 4000;
+constexpr uint32_t TIMEOUT_COMANDO_MS = 1000; // AT y PIDs comunes
+constexpr uint32_t TIMEOUT_ATZ_MS = 3000;
 constexpr uint32_t TIMEOUT_CONSOLA_MS = 10000; // comandos escritos a mano
+constexpr uint32_t REINTENTO_BT_MS = 5000;     // entre intentos de conexión
+constexpr uint32_t REINTENTO_ELM_MS = 5000;    // si el ELM no contesta la inicialización
+constexpr uint32_t PERIODO_ATRV_MS = 2000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
