@@ -4,36 +4,30 @@
 #include <esp_psram.h>
 #include <esp_system.h>
 #include <lvgl.h>
+#include <respuesta.h>
 
 #include "config.h"
 #include "consola.h"
+#include "elm327.h"
 #include "explorar.h"
 #include "pantalla_hw.h"
 
-// E1: prueba de pantalla y touch. La consola y la exploración BLE de E0
-// siguen andando.
+// E2: banco del transporte BLE, como E1 del anterior. Conecta, inicializa el
+// ELM (ATZ, ATE0, ATI, ATRV), lee ATRV cada PERIODO_ATRV_MS y reconecta solo.
+// La pantalla muestra solo el estado de la conexión: las pantallas son de E3.
 
+Elm327 elm;
 Explorador explorador;
-Consola consola(explorador);
+Consola consola(elm, explorador);
 PantallaHw pantalla;
 
-// Colores que se piensan usar, sobre fondo negro (para la noche)
-static const lv_color_t BLANCO = lv_color_hex(0xFFFFFF);
-static const lv_color_t GRIS = lv_color_hex(0x707070);
-static const lv_color_t VERDE = lv_color_hex(0x3CC864);
-static const lv_color_t AMBAR = lv_color_hex(0xFFB000);
-static const lv_color_t ROJO = lv_color_hex(0xFF3B30);
-static const lv_color_t CIAN = lv_color_hex(0x40C8E0);
-static const lv_color_t FONDO_BARRA = lv_color_hex(0x1A1A1A);
+static lv_obj_t *textoEstado = nullptr;
 
-static const int ALTO_BARRA = 28;
-static const uint32_t PERIODO_CONTADOR_MS = 100;
-static const uint32_t PERIODO_LOG_TOQUE_MS = 150;
-
-static lv_obj_t *textoToque = nullptr;
-static lv_obj_t *textoBrillo = nullptr;
-static lv_obj_t *contador = nullptr;
-static lv_obj_t *marca = nullptr;
+static bool estabaConectado = false;
+static bool elmIniciado = false;
+static uint32_t proximoIntento = 0;
+static uint32_t proximaInicializacion = 0;
+static uint32_t proximoAtrv = 0;
 
 static const char *motivoReinicio(esp_reset_reason_t motivo) {
   switch (motivo) {
@@ -102,116 +96,53 @@ static void imprimirInfo() {
   }
 }
 
-static void mostrarBrillo() {
-  uint8_t nivel = pantalla.brillo();
-  lv_label_set_text_fmt(textoBrillo, "Brillo %u", nivel);
-  Serial.printf("Brillo: %u (duty %u)\n", nivel, RETROILUMINACION_INVERTIDA ? 255 - nivel : nivel);
-}
-
-static void alTocar(lv_event_t *e) {
-  static uint32_t ultimoLog = 0;
-  lv_event_code_t codigo = lv_event_get_code(e);
-  lv_point_t p;
-  lv_indev_get_point(lv_indev_active(), &p);
-  uint16_t crudoX;
-  uint16_t crudoY;
-  pantalla.toqueCrudo(crudoX, crudoY);
-
-  if (codigo == LV_EVENT_PRESSED || codigo == LV_EVENT_PRESSING) {
-    lv_obj_remove_flag(marca, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_pos(marca, p.x - lv_obj_get_width(marca) / 2, p.y - lv_obj_get_height(marca) / 2);
-    lv_label_set_text_fmt(textoToque, "Toque x=%d y=%d", (int)p.x, (int)p.y);
-    if (codigo == LV_EVENT_PRESSED || millis() - ultimoLog >= PERIODO_LOG_TOQUE_MS) {
-      Serial.printf("Touch: x=%d y=%d (crudo %u, %u)\n", (int)p.x, (int)p.y, crudoX, crudoY);
-      ultimoLog = millis();
-    }
-  } else if (codigo == LV_EVENT_RELEASED) {
-    Serial.printf("Touch: suelto en x=%d y=%d\n", (int)p.x, (int)p.y);
+static void mostrarEstado(const char *texto) {
+  if (textoEstado != nullptr) {
+    lv_label_set_text(textoEstado, texto);
+    pantalla.atender();
   }
 }
 
-static void sinEstilo(lv_obj_t *obj) {
-  lv_obj_remove_style_all(obj);
-  lv_obj_remove_flag(obj, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
-}
-
-static lv_obj_t *etiqueta(lv_obj_t *padre, const lv_font_t *fuente, lv_color_t color,
-                          const char *texto) {
-  lv_obj_t *e = lv_label_create(padre);
-  lv_obj_set_style_text_font(e, fuente, 0);
-  lv_obj_set_style_text_color(e, color, 0);
-  lv_label_set_text(e, texto);
-  return e;
-}
-
-static void crearPrueba() {
+static void crearPantalla() {
   lv_obj_t *pantallaLv = lv_screen_active();
   lv_obj_remove_flag(pantallaLv, LV_OBJ_FLAG_SCROLLABLE);
-  lv_obj_set_style_bg_color(pantallaLv, lv_color_black(), 0);
-  lv_obj_add_event_cb(pantallaLv, alTocar, LV_EVENT_ALL, nullptr);
-
-  // Barra de estado
-  lv_obj_t *barra = lv_obj_create(pantallaLv);
-  sinEstilo(barra);
-  lv_obj_set_size(barra, 640, ALTO_BARRA);
-  lv_obj_set_style_bg_color(barra, FONDO_BARRA, 0);
-  lv_obj_set_style_bg_opa(barra, LV_OPA_COVER, 0);
-  lv_obj_t *titulo = etiqueta(barra, &lv_font_montserrat_20, BLANCO, "PRUEBA E1  21,5 °C");
-  lv_obj_align(titulo, LV_ALIGN_LEFT_MID, 8, 0);
-  textoToque = etiqueta(barra, &lv_font_montserrat_20, CIAN, "Toque --");
-  lv_obj_align(textoToque, LV_ALIGN_CENTER, 40, 0);
-  textoBrillo = etiqueta(barra, &lv_font_montserrat_20, AMBAR, "");
-  lv_obj_align(textoBrillo, LV_ALIGN_RIGHT_MID, -8, 0);
-  mostrarBrillo();
-
-  // Números grandes: un contador que cambia todo el tiempo, para ver si parpadea
-  contador = etiqueta(pantallaLv, &fuente_numeros_110, BLANCO, "0");
-  lv_obj_set_pos(contador, 8, ALTO_BARRA + 10);
-  lv_obj_t *nota = etiqueta(pantallaLv, &lv_font_montserrat_14, GRIS, "contador de prueba");
-  lv_obj_align(nota, LV_ALIGN_BOTTOM_LEFT, 8, -2);
-  lv_obj_t *grados = etiqueta(pantallaLv, &fuente_numeros_110, VERDE, "92°");
-  lv_obj_set_pos(grados, 300, ALTO_BARRA + 10);
-
-  // Muestras de color
-  struct Muestra {
-    lv_color_t color;
-    const char *nombre;
-  };
-  const Muestra muestras[] = {{BLANCO, "BLANCO"}, {GRIS, "GRIS"}, {VERDE, "VERDE"},
-                              {AMBAR, "AMBAR"},   {ROJO, "ROJO"}, {CIAN, "CIAN"}};
-  int y = ALTO_BARRA;
-  for (const Muestra &m : muestras) {
-    lv_obj_t *cuadro = lv_obj_create(pantallaLv);
-    sinEstilo(cuadro);
-    lv_obj_set_size(cuadro, 104, 24);
-    lv_obj_set_pos(cuadro, 536, y);
-    lv_obj_set_style_bg_color(cuadro, m.color, 0);
-    lv_obj_set_style_bg_opa(cuadro, LV_OPA_COVER, 0);
-    lv_obj_t *nombre = etiqueta(cuadro, &lv_font_montserrat_14, lv_color_black(), m.nombre);
-    lv_obj_center(nombre);
-    y += 24;
-  }
-
-  // Marca donde se toca
-  marca = lv_obj_create(pantallaLv);
-  sinEstilo(marca);
-  lv_obj_set_size(marca, 30, 30);
-  lv_obj_set_style_radius(marca, LV_RADIUS_CIRCLE, 0);
-  lv_obj_set_style_border_color(marca, AMBAR, 0);
-  lv_obj_set_style_border_width(marca, 3, 0);
-  lv_obj_add_flag(marca, LV_OBJ_FLAG_HIDDEN);
+  textoEstado = lv_label_create(pantallaLv);
+  lv_obj_set_style_text_color(textoEstado, lv_color_hex(0x707070), 0);
+  lv_obj_center(textoEstado);
 }
 
-static void actualizarContador() {
-  static uint32_t ultimo = 0;
-  static int valor = 0;
-  if (contador == nullptr || millis() - ultimo < PERIODO_CONTADOR_MS) {
-    return;
+static void alAvisar(FaseConexion fase) {
+  mostrarEstado(fase == FaseConexion::POR_DIRECCION ? "E2: conectando"
+                                                    : "E2: buscando el adaptador");
+}
+
+static void alEsperar() {
+  pantalla.atender();
+}
+
+static void leerVoltaje(bool registrar) {
+  ResultadoComando r = elm.enviar("ATRV", TIMEOUT_COMANDO_MS, registrar);
+  float voltios;
+  if (registrar && r.estado == EstadoTransporte::OK &&
+      interpretarVoltaje(r.cruda.c_str(), &voltios)) {
+    Serial.printf("ELM: %.1f V\n", voltios);
   }
-  ultimo = millis();
-  valor = (valor + 37) % 10000;
-  lv_label_set_text_fmt(contador, "%d", valor);
+}
+
+// ATZ reinicia el ELM, que vuelve con el eco prendido
+static bool inicializarElm() {
+  if (elm.enviar("ATZ", TIMEOUT_ATZ_MS).estado != EstadoTransporte::OK) {
+    return false;
+  }
+  elm.enviar("ATE0", TIMEOUT_COMANDO_MS);
+  ResultadoComando r = elm.enviar("ATI", TIMEOUT_COMANDO_MS);
+  char version[24];
+  if (r.estado == EstadoTransporte::OK &&
+      textoRespuesta(r.cruda.c_str(), "ATI", version, sizeof(version))) {
+    Serial.printf("ELM: version %s\n", version);
+  }
+  leerVoltaje(true);
+  return true;
 }
 
 void setup() {
@@ -221,33 +152,76 @@ void setup() {
     delay(10);
   }
   Serial.println();
-  Serial.println("Monitor OBDII DS3 - E1: prueba de pantalla y touch");
+  Serial.println("Monitor OBDII DS3 - E2: banco del transporte BLE");
 
   // La pantalla antes que el BLE: necesita RAM interna con DMA
   if (pantalla.iniciar()) {
-    crearPrueba();
+    crearPantalla();
   } else {
     Serial.println("Pantalla: no se pudo iniciar");
   }
-  explorador.iniciar();
+  elm.iniciar();
+  elm.mientrasEspera(alEsperar);
   imprimirInfo();
-  Serial.println("Comandos: + y - (brillo), !info, !escanear, !explorar N, !usar N [S], "
-                 "!desconectar.");
+  Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !log, !info, "
+                 "!escanear o !explorar N.");
 }
 
 void loop() {
   consola.atender();
+  if (consola.olvidoPedido()) {
+    elm.olvidar();
+    proximoIntento = millis();
+  }
+  if (consola.reconexionPedida()) {
+    elm.desconectar();
+    proximoIntento = millis();
+  }
   int ajuste = consola.ajusteBrillo();
   if (ajuste != 0 && pantalla.iniciada()) {
-    int nivel = constrain(pantalla.brillo() + ajuste * PASO_BRILLO, 0, 255);
-    pantalla.ponerBrillo(nivel);
-    mostrarBrillo();
+    pantalla.ponerBrillo(constrain(pantalla.brillo() + ajuste * PASO_BRILLO, 0, 255));
+    Serial.printf("Brillo: %u\n", pantalla.brillo());
   }
   if (consola.infoPedida()) {
     imprimirInfo();
   }
-  explorador.atender();
-  actualizarContador();
+
+  if (!elm.conectado()) {
+    if (estabaConectado) {
+      Serial.println("ELM: sin conexion");
+      estabaConectado = false;
+      elmIniciado = false;
+    }
+    if ((int32_t)(millis() - proximoIntento) >= 0) {
+      uint32_t inicio = millis();
+      if (elm.conectar(alAvisar)) {
+        Serial.printf("ELM: conectado en %lu ms\n", (unsigned long)(millis() - inicio));
+        mostrarEstado("E2: conectado");
+        estabaConectado = true;
+        proximaInicializacion = millis();
+      } else {
+        Serial.printf("ELM: no conecto (%lu ms); reintenta en %lu s\n",
+                      (unsigned long)(millis() - inicio), (unsigned long)(REINTENTO_BT_MS / 1000));
+        mostrarEstado("E2: sin conexion");
+        proximoIntento = millis() + REINTENTO_BT_MS;
+      }
+    }
+  } else if (!elmIniciado) {
+    if ((int32_t)(millis() - proximaInicializacion) >= 0) {
+      elmIniciado = inicializarElm();
+      if (!elmIniciado) {
+        Serial.printf("ELM: no contesta; reintenta en %lu s\n",
+                      (unsigned long)(REINTENTO_ELM_MS / 1000));
+        proximaInicializacion = millis() + REINTENTO_ELM_MS;
+      }
+      proximoAtrv = millis() + PERIODO_ATRV_MS;
+    }
+  } else if ((int32_t)(millis() - proximoAtrv) >= 0) {
+    // Callado salvo que falle o que !log pida el detalle
+    leerVoltaje(consola.detalle());
+    proximoAtrv = millis() + PERIODO_ATRV_MS;
+  }
+
   pantalla.atender();
   delay(1);
 }
