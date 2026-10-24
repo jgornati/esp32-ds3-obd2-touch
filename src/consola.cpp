@@ -5,7 +5,8 @@
 #include "config.h"
 
 static const char *const AYUDA =
-    "Comandos locales: !escanear, !explorar N, !usar N [S], !desconectar, !info";
+    "Comandos locales: !escanear, !explorar N, !usar N [S], !desconectar, !info; + y - para el "
+    "brillo";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -33,7 +34,17 @@ bool Consola::infoPedida() {
   return pedida;
 }
 
+int Consola::ajusteBrillo() {
+  int ajuste = brillo;
+  brillo = 0;
+  return ajuste;
+}
+
 void Consola::ejecutar(const char *linea) {
+  if (strcmp(linea, "+") == 0 || strcmp(linea, "-") == 0) {
+    brillo = linea[0] == '+' ? 1 : -1;
+    return;
+  }
   if (linea[0] != '!') {
     // enviar() ya deja el comando, la respuesta o el rechazo en el log
     explorador.enviar(linea, TIMEOUT_CONSOLA_MS);

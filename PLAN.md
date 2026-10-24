@@ -24,7 +24,7 @@ que corresponda antes de portar un módulo.
 | Etapa | Tema                                   | Depende de | Estado    |
 | ----- | -------------------------------------- | ---------- | --------- |
 | E0    | Base del proyecto y exploración BLE    | —          | Verificada (salvo la prueba con el iPhone) |
-| E1    | Pantalla y touch                       | E0         | Pendiente |
+| E1    | Pantalla y touch                       | E0         | Verificada |
 | E2    | Transporte BLE con el ELM              | E0         | Pendiente |
 | E3    | El monitor completo en el auto         | E1, E2     | Pendiente |
 | E4    | Diseño de páginas y navegación táctil  | E3         | Pendiente |
@@ -82,7 +82,7 @@ Según los ejemplos de Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-3.49`,
 | Chip                                   | ESP32-S3R8: 2 núcleos, 240 MHz, 8 MB de PSRAM (OPI), 16 MB de flash, Wi-Fi y BLE 5 |
 | Pantalla                               | IPS 3,49", 172×640, controlador AXS15231B por QSPI (`SPI3_HOST`) |
 | Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21                          |
-| Retroiluminación                       | GPIO8 con PWM (LEDC). Polaridad sin confirmar: los ejemplos usan duty = 255 − brillo (`lcd_bl_pwm_bsp.h`), pero con `HIGH` quedó prendida (E0). Se mide en E1 |
+| Retroiluminación                       | GPIO8 con PWM (LEDC), activa en bajo: duty = 255 − brillo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). Confirmado en E1 |
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) |
 | TCA9554, pin 6                         | Mantiene la alimentación desde la batería (ejemplo `07_BATT_PWR_Test`) |
@@ -107,6 +107,7 @@ src/
   datos, sondeo, descubrimiento   portados del anterior (E3)
 lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
+src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
 docs/descubrimiento/  logs crudos de las sesiones en el auto
 ```
@@ -455,6 +456,8 @@ De esta placa y el adaptador nuevo:
 | Tiempos BLE (E0)              | Conexión 456–753 ms y servicios 799 ms. Con intervalo de 50 ms, escribiendo en `FFF1`: `ATZ` 99, `ATI` 110, `ATRV` 70–238 ms; en `FFF2`: `ATZ` 261, `ATE0` 311, `ATI` 386, `ATRV` 119–173 ms (pocas muestras) | E0    |
 | Con el iPhone conectado       | Sin probar | E0    |
 | Brillo cómodo de día / noche  |       | E1    |
+| Refresco de pantalla          | Completo (dibujar todo y mandarlo): 96–131 ms. Solo el envío al panel: 32–33 ms, se cambie lo que se cambie | E1    |
+| Memoria con pantalla y BLE    | RAM interna libre 164 KB (bloque mayor 123 KB); PSRAM libre 7972 KB | E1    |
 | Conexión guardada / buscando  |       | E2    |
 | Tiempo por comando AT         |       | E2    |
 | ¿Acepta `010C1`? ms con y sin |       | E3    |
@@ -589,6 +592,111 @@ Sin probar: la prueba con el iPhone conectado al adaptador. Se puede
 hacer en E2, que es donde importa (reconexión).
 
 ### E1
+
+Hecho:
+
+- `lib/axs15231b/`: el driver `esp_lcd` del AXS15231B (Espressif,
+  Apache-2.0) copiado sin cambios del ejemplo `10_LVGL_V9_Test`, con
+  `esp_lcd_touch`, que el driver incluye. `LICENSE` y `README.md` dicen
+  de dónde sale.
+- `platformio.ini`: `lvgl/lvgl @ 9.3.0`, `-DLV_CONF_INCLUDE_SIMPLE`,
+  `-Iinclude` y `-DLV_KCONFIG_IGNORE`. Sin este último no compila: los
+  `.S` de LVGL incluyen `lv_conf_kconfig.h`, que con `ESP_PLATFORM` busca
+  `esp_attr.h`, y al ensamblador no le llegan las rutas del framework.
+- `include/lv_conf.h`: solo lo que cambia (lo demás queda por defecto).
+  RGB565, `malloc` del sistema, sin sistema operativo, avisos de LVGL al
+  monitor serie, un assert reinicia la placa con `abort()` en vez de
+  colgarla, tema oscuro, Montserrat 14 y 20 (traen el `°`) y solo la
+  etiqueta como widget. E4 prende los que necesite.
+- `src/fuentes/fuente_numeros_110.c`: Montserrat Medium (la de LVGL,
+  licencia OFL) a 110 px, 4 bpp, solo ` %+,-./0-9:°`. 31 KB de flash. Las
+  de LVGL llegan a 48 px (unos 5 mm acá); esta da dígitos de unos 10 mm.
+  Alto de línea 109 px: entra debajo de una barra de 28. Se generó con:
+
+  ```text
+  npx lv_font_conv@1.5.3 --font .pio/libdeps/esp32s3/lvgl/scripts/built_in_font/Montserrat-Medium.ttf \
+    --size 110 --bpp 4 --format lvgl --no-compress -r 0x20,0x25,0x2B-0x3A,0xB0 \
+    --lv-include lvgl.h --lv-font-name fuente_numeros_110 -o src/fuentes/fuente_numeros_110.c
+  ```
+
+- `include/config.h`: `PANTALLA_GIRADA` (gira la imagen 180°),
+  `RETROILUMINACION_INVERTIDA` (duty = 255 − brillo, como Waveshare),
+  `BRILLO_INICIAL` (128) y `PASO_BRILLO` (16).
+- `src/pantalla_hw.h/.cpp`, a partir del `lvgl_port.c` del ejemplo:
+
+  ```cpp
+  class PantallaHw {
+  public:
+    bool iniciar();          // panel, touch y LVGL; queda en negro con BRILLO_INICIAL
+    bool iniciada() const;
+    void atender();          // lv_timer_handler(); desde loop() y mientras se espera al ELM
+    void ponerBrillo(uint8_t nivel);  // 0-255
+    uint8_t brillo() const;
+    uint32_t medirRefresco(uint32_t &envio);  // ms del refresco completo y del envío
+    bool toqueCrudo(uint16_t &x, uint16_t &y) const;  // última lectura sin girar
+  };
+  ```
+
+  - Panel por QSPI (`SPI3_HOST`, 40 MHz) con el reset y los comandos del
+    ejemplo. En QSPI el driver solo manda `CASET`: no se puede elegir la
+    fila de inicio, así que la imagen va siempre entera, de arriba abajo
+    (`RAMWR` y después `RAMWRC`), en 10 tandas de 64 filas.
+  - **Cambio respecto del ejemplo:** LVGL en modo `DIRECT` con un solo
+    búfer de 640×172 en la PSRAM. Dibuja solo lo que cambió y, al
+    terminar la última zona, se manda la imagen entera. El ejemplo usa
+    `FULL` (redibuja todo cada vez) y gira el cuadro entero a un tercer
+    búfer.
+  - El giro se hace por tanda: cada columna de la imagen es una fila del
+    panel. De paso se dan vuelta los bytes del píxel (el panel espera
+    primero el alto). Hay dos búferes de tanda con DMA en la RAM interna
+    (2 × 22 KB): se prepara uno mientras se manda el otro. Un semáforo
+    contador, que da la interrupción de fin de envío, evita pisar uno que
+    todavía se está mandando.
+  - Touch: bus I2C propio (`I2C_NUM_1`, SDA 17 / SCL 18, 300 kHz,
+    `i2c_master`), con la lectura del ejemplo: 11 bytes de pedido y 14 de
+    respuesta (`[1]` dedos, `[2..5]` x e y de 12 bits). El crudo va a lo
+    largo del panel; se pasa a vertical como en el ejemplo
+    (`x = crudoY`, `y = 640 − crudoX`) y de ahí a horizontal con la misma
+    cuenta que la imagen, así que el touch gira junto con `PANTALLA_GIRADA`.
+  - Retroiluminación con `ledcAttach` a 50 kHz y 8 bits, como el ejemplo.
+    Queda en 0 hasta mandar el primer cuadro negro, para no mostrar la
+    basura del panel.
+  - Sin tarea de LVGL: tick con `millis()` (`lv_tick_set_cb`) y
+    `lv_timer_handler()` en `atender()`.
+- `src/consola`: `+` y `-` cambian el brillo (`ajusteBrillo()`).
+- `src/main.cpp` de prueba: barra de estado con el toque y el brillo, un
+  contador de prueba con los números grandes que cambia cada 100 ms,
+  `92°` en la fuente grande y `21,5 °C` en la chica, muestras de los
+  colores propuestos para la noche (blanco, gris, verde, ámbar, rojo y
+  cian sobre negro) y una marca que sigue al dedo. El monitor serie
+  muestra cada toque con las coordenadas giradas y crudas. `!info` agrega
+  el refresco y el brillo. La consola y la exploración BLE de E0 siguen.
+  La pantalla se inicia antes que el BLE, por la RAM interna con DMA.
+
+Medido por el agente en la placa (2026-10-24), sin poder ver la
+pantalla: arranca sin errores con pantalla, touch y BLE. Refresco
+completo 96–131 ms, envío 32–33 ms. RAM interna libre 164 KB (bloque
+mayor 123 KB), PSRAM libre 7972 KB. Flash 42 % de 3 MB. `+` y `-`
+cambian el duty. Al arrancar apareció un toque suelto que no se repitió
+en 15 s: puede ser una lectura falsa al iniciar.
+
+Para E3: cada cambio en pantalla cuesta unos 33 ms de envío más lo que
+tarde LVGL en dibujarlo, y bloquea `loop()`. Si molesta, se puede:
+
+- Mandar solo hasta la última fila del panel que cambió (siempre desde la
+  0). Ayuda solo si lo que cambia queda del lado del inicio del panel.
+- Acelerar el giro, que se lleva unos 20 de los 33 ms (el QSPI solo
+  serían ~11 ms), por ejemplo escribiendo dos píxeles por vez.
+
+Verificado por el usuario en la placa (2026-10-24, "funciona todo"):
+imagen derecha sin franjas ni parpadeo con `PANTALLA_GIRADA = false`,
+colores como dicen las muestras, touch en las cuatro esquinas, brillo con
+`+` y `-` en el sentido correcto (`RETROILUMINACION_INVERTIDA = true`) y
+el número grande legible.
+
+No quedaron anotados: de qué lado queda el USB-C, el brillo cómodo de día
+y de noche, ni si el brillo 0 apaga del todo. Se completan en E6 (brillo)
+y E7 (montaje).
 
 ### E2
 
