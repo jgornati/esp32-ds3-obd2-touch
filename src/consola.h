@@ -15,6 +15,8 @@ public:
 
   // true una sola vez después de un !info
   bool infoPedida();
+  // +1 o -1 una sola vez después de una línea "+" o "-"; si no, 0
+  int ajusteBrillo();
 
 private:
   void ejecutar(const char *linea);
@@ -24,4 +26,5 @@ private:
   size_t largo = 0;
   bool descartando = false;
   bool info = false;
+  int brillo = 0;
 };

@@ -14,9 +14,16 @@ constexpr uint8_t PIN_PANTALLA_D2 = 13;
 constexpr uint8_t PIN_PANTALLA_D3 = 14;
 constexpr uint8_t PIN_PANTALLA_RST = 21;
 
+// LVGL dibuja en horizontal (640x172) y pantalla_hw gira la imagen. true la
+// gira 180° más, para montarla con el USB-C del otro lado.
+constexpr bool PANTALLA_GIRADA = false;
+
 // Retroiluminación, con PWM. Los ejemplos de Waveshare usan duty = 255 - brillo
 // (lcd_bl_pwm_bsp.h), pero en E0 con HIGH quedó prendida. Se mide en E1.
 constexpr uint8_t PIN_RETROILUMINACION = 8;
+constexpr bool RETROILUMINACION_INVERTIDA = true; // duty = 255 - brillo
+constexpr uint8_t BRILLO_INICIAL = 128;           // 0-255
+constexpr uint8_t PASO_BRILLO = 16;               // + y - en la consola
 
 // Touch, en el mismo AXS15231B. I2C sin INT ni RST.
 constexpr uint8_t PIN_TOUCH_SDA = 17;
