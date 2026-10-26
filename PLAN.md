@@ -23,20 +23,30 @@ que corresponda antes de portar un módulo.
 
 | Etapa | Tema                                   | Depende de | Estado    |
 | ----- | -------------------------------------- | ---------- | --------- |
-| E0    | Base del proyecto y exploración BLE    | —          | Verificada (salvo la prueba con el iPhone) |
+| E0    | Base del proyecto y exploración BLE    | —          | Verificada |
 | E1    | Pantalla y touch                       | E0         | Verificada |
 | E2    | Transporte BLE con el ELM              | E0         | Verificada |
 | E3    | El monitor completo en el auto         | E1, E2     | Verificada |
 | E4    | Diseño de páginas y navegación táctil  | E3         | Verificada (salvo de noche) |
-| E5    | Códigos de falla                       | E4         | Verificada (salvo comparar con el iPhone) |
-| E6    | Brillo y ajustes                       | E4         | Hecha (falta verificar en hardware) |
-| E7    | Cierre e instalación                   | E5, E6     | Hecha (falta verificar en hardware) |
+| E5    | Códigos de falla                       | E4         | Verificada |
+| E6    | Brillo y ajustes                       | E4         | Verificada (sin brillo: la placa no lo regula) |
+| E7    | Cierre e instalación                   | E5, E6     | Verificada (salvo el cuelgue ocasional: E8) |
+| E8    | Conexión al prender y apagar el auto   | E7         | Pendiente |
+| E9    | Pantalla de espera con el DS3          | E7         | Pendiente |
+| E10   | Viaje: máximos y recorrido             | E9         | Pendiente |
+| E11   | Alarmas                                | E9         | Pendiente |
+| E12   | Fuerza G                               | E10        | Pendiente |
+| E13   | Registro del viaje en la microSD       | E10        | Pendiente |
+| E14   | Reloj                                  | —          | Pendiente (necesita un cambio de hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada.
 
 E1 y E2 tocan archivos distintos y se pueden hacer en paralelo. E5 y E6
-también.
+también. De E8 en adelante son pedidos del usuario del 2026-10-26, después
+de usarlo en el auto: E8 primero, porque su registro tiene que juntar
+datos varios días mientras se hace E9. E10 y E11 se pueden hacer en
+cualquier orden. E14 se decide aparte (ver la etapa).
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -58,7 +68,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Tema                   | Decisión                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------- |
 | Alcance                | Solo lectura, como el anterior. Todo comando pasa por `comandoPermitido()`; la lista blanca no se amplía sin pedido del usuario. El 2026-10-25 el usuario pidió permitir el servicio 01 con hasta 6 PIDs por pedido (`010C0D050F`), que sigue siendo lectura (ver notas de E3). |
-| Bluetooth              | **Solo BLE.** El ESP32-S3 no tiene Bluetooth clásico, así que el ELM anterior (`OBDII`, SPP) no sirve con esta placa. Se usa el adaptador nuevo, el que anda con iPhone. |
+| Bluetooth              | **Solo BLE.** El ESP32-S3 no tiene Bluetooth clásico, así que el ELM anterior (`OBDII`, SPP) no sirve con esta placa. Se usa el adaptador BLE nuevo. |
 | Plataforma             | `espressif32 @ 8.0.0` (Arduino-ESP32 3.3.x), la misma del anterior. Waveshare pide Arduino-ESP32 3.1.0 o más nuevo. |
 | Placa en PlatformIO    | No hay definición para la 3.49. Se usa `esp32-s3-devkitc-1` con lo que Waveshare indica para el Arduino IDE: flash 16 MB QIO 80 MHz, PSRAM OPI (`qio_opi`), USB CDC al arrancar, particiones `app3M_fat9M_16MB.csv`. Un programa de prueba con BLE, `esp_lcd` e `i2c_master` compiló así (2026-10-24); falta subirlo a la placa. |
 | Subir el firmware      | Por el USB-C, sin adaptador USB–TTL ni puente GPIO0–GND. Si no entra en modo de descarga: mantener BOOT, apretar RESET, soltar BOOT. |
@@ -72,7 +82,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep y sin batería en la placa (confirmado en E7). |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
-| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida.    |
+| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). |
 
 ## Hardware de la placa
 
@@ -86,11 +96,15 @@ Según los ejemplos de Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-3.49`,
 | Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21                          |
 | Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`) |
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
-| I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) |
-| TCA9554, pin 6                         | Mantiene la alimentación desde la batería (ejemplo `07_BATT_PWR_Test`) |
+| I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) y el códec de audio. Un solo bus para todos |
+| TCA9554 (expansor)                     | Según el esquemático (E6): EXIO0 `TP_INT`, EXIO1 `BL_EN` (encendido de la luz, con resistencia a `VSYS`), EXIO2 y EXIO3 interrupciones del IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE`, EXIO6 `SYS_EN` (mantiene la alimentación desde la batería, ejemplo `07_BATT_PWR_Test`) y EXIO7 `NS_MODE` (el amplificador del parlante, ejemplo `08_Audio_Test`) |
+| RTC                                    | PCF85063 alimentado de los 3,3 V por un diodo (D2) con C15 de 1 µF: **sin pila ni supercapacitor**. Con el USB cortado por la llave pierde la hora en cada apagado (ver E14) |
+| microSD                                | SPI: CS 38, MOSI 39, MISO 40, SCLK 41 |
+| Audio                                  | Códec ES8311 (salida al parlante) y ES7210 (micrófonos) por I2S: MCLK 7, SCLK 15, LRCK 46, salida 6, entrada 45; control por el I2C de la placa |
+| Batería                                | Su tensión se lee en GPIO4 (`BAT_ADC`). No se usa: va sin batería (E7) |
 | GPIO16                                 | El ejemplo 07 lo lee para saber si está prendida por batería. No usar. |
 | Botones                                | BOOT (GPIO0), PWR y RESET, atrás                           |
-| Otros                                  | Audio ES8311/ES7210 con parlante, microSD, conector de batería 3,7 V, 22 pines de expansión |
+| Otros                                  | Conector de batería 3,7 V y 22 pines de expansión |
 
 ## Arquitectura
 
@@ -208,12 +222,10 @@ el pin 16 y GND en los pines 4/5, o en el auto con contacto):
 - `!escanear` encuentra el adaptador.
 - `!explorar` y `!usar`: `ATZ`, `ATI` y `ATRV` responden.
 - `04` responde `RECHAZADO`.
-- Con el iPhone conectado al adaptador (la app abierta), ¿la ESP32 lo
-  ve y se puede conectar? Lo esperable es que no.
 
 **Traspaso:** completar en **Datos descubiertos** nombre, dirección,
 servicio, características, MTU, tamaño de las notificaciones, si pidió
-emparejamiento, tiempos por comando y qué pasa con el iPhone conectado.
+emparejamiento y tiempos por comando.
 Decidir con el usuario si `!escanear` y `!explorar` quedan en el
 firmware (como `!descubrir` en el anterior).
 
@@ -381,8 +393,7 @@ verificar en el auto; acá se verifica por primera vez.
    rechazado.
 
 **Verificación del usuario:** en el auto se ve `Sin fallas` como en el
-relevamiento. Si se puede, comparar con la app del iPhone (de a uno: el
-adaptador acepta una sola conexión).
+relevamiento.
 
 ### E6 — Brillo y ajustes
 
@@ -416,17 +427,254 @@ andan y no se disparan sin querer.
 4. README final: hardware, uso y páginas.
 5. Limpiar warnings propios.
 
+### E8 — Conexión al prender y apagar el auto
+
+**Objetivo:** que al poner el contacto siempre llegue a los datos y que
+nunca quede trabado. Primero hay que saber qué pasa: en el auto no hay
+monitor serie, así que la placa guarda lo que hace en su propia flash.
+
+Lo que contó el usuario (2026-10-26): "a veces como que se cuelga entre
+que lo prendo y apago el auto, no se conecta".
+
+Posibles causas, para revisar con el registro (no darlas por buenas):
+
+- La placa y el adaptador arrancan juntos con la llave. El intento por la
+  dirección guardada (hasta 4 s, sin atender la pantalla ni el touch)
+  puede caer antes de que el adaptador se anuncie; después busca 6 s y
+  espera 5 s: hasta ~15 s por vuelta.
+- En la primera posición de la llave (accesorios) el USB puede tener
+  tensión y el pin 1 del adaptador no: la placa queda reintentando sin
+  adaptador.
+- Al dar arranque se pueden cortar el USB, el pin 1 o los dos (no se
+  anotó en E5 ni en E7).
+- Un corte de luz justo mientras se escribe en `Preferences` (la dirección
+  guardada).
+- Un cuelgue de verdad (BLE o LVGL): la pantalla queda quieta y no
+  responde al touch.
+
+**Tareas:**
+
+1. Registro de eventos que sobreviva a los cortes de luz, en la partición
+   FAT de 9 MB que ya está en la tabla (`app3M_fat9M_16MB.csv`, con
+   `FFat`): cada arranque con el motivo del reinicio, cada cambio de
+   estado, cada intento de conexión (fase, ms y resultado), cada pérdida y
+   cada brownout, con los ms desde el arranque. Tamaño acotado (los
+   últimos ~200 KB) y escrito de a poco, para no frenar el sondeo.
+   Comandos `!historial` y `!borrarhistorial`.
+2. Watchdog de tareas: si la placa se cuelga, que se reinicie sola y
+   quede registrado (`watchdog de tareas` como motivo del reinicio).
+3. El usuario usa el auto normalmente unos días. Después se lee el
+   historial por el USB y se arregla lo que muestre, con el usuario.
+4. Anotar en **Datos descubiertos**: cuánto tarda en llegar a los datos al
+   poner el contacto, qué se corta al dar arranque y qué pasa en la
+   posición de accesorios.
+
+**Verificación del usuario:** varios días de uso sin que se trabe; en el
+historial, cada vez que se puso el contacto se llegó a los datos.
+
+### E9 — Pantalla de espera con el DS3
+
+**Objetivo:** cambiar las pantallas de estado por una imagen de un
+Citroën DS3 rojo, con muy poca información, y que tocar la pantalla
+reintente.
+
+Lo que pidió el usuario (2026-10-26): hay mucha información que no le
+importa. "Que sea más user friendly: en vez de mostrar eso cuando está en
+contacto sin ECU o apenas prende el USB, que aparezca la imagen de un
+Citroën DS3 rojo. Que si aprieto la pantalla reintente conectar o resetee
+la conexión."
+
+**Antes de programar, decidir con el usuario:**
+
+- **La imagen.** *Propuesta:* una foto del DS3 del usuario, de costado,
+  recortada a 640×172 (o a 640×144 debajo de la barra). No usar fotos de
+  internet ni el logo de Citroën: son de otros. Otra opción: una
+  ilustración hecha para esto.
+- **Qué más se ve.** *Propuesta:* solo una línea chica en gris abajo
+  (`Conectando...`, `Esperando la ECU...`, `Toca para reintentar`). El
+  detalle sigue en el monitor serie y en el historial de E8.
+- **El toque.** *Propuesta:* tocar = reintentar ya, sin esperar los 5 o
+  10 s; mantener 3 s = reiniciar la placa, por si quedó trabada.
+- **Qué pantallas reemplaza.** *Propuesta:* `CONECTANDO`,
+  `BUSCANDO ADAPTADOR`, `SIN ADAPTADOR`, `INICIANDO ELM`, `BUSCANDO ECU` y
+  `SIN ECU`. `ALIMENTACION` (rojo) queda, porque es una falla de verdad.
+  Si se pierde la ECU con el motor andando, ¿imagen o aviso?
+
+**Tareas:**
+
+1. La imagen como arreglo de C para LVGL (`lv_image_dsc_t`). A 640×172 en
+   RGB565 son 220 KB de flash (quedan ~1,5 MB libres); con paleta, menos.
+   Prender `LV_USE_IMAGE` en `lv_conf.h`. La conversión, con un script en
+   `herramientas/` para poder cambiar la foto.
+2. `pantalla`: una función de espera que reemplaza a las de estado, con
+   sus casos en el render.
+3. El toque en la pantalla de espera deja un pedido, como los botones de
+   Info: reintentar (adelanta el próximo intento) o reiniciar. No usa el
+   ELM de otra forma.
+
+**Verificación del usuario:** al poner el contacto se ve el DS3 hasta que
+aparecen los datos, y tocar la pantalla reintenta.
+
+### E10 — Viaje: máximos y recorrido
+
+**Objetivo:** una página nueva, `VIAJE`, con lo del viaje en curso.
+
+**Antes de programar, decidir con el usuario:**
+
+- **Qué datos.** *Propuesta:* duración, distancia, velocidad máxima y
+  promedio, RPM máxima, refrigerante máximo y voltaje mínimo y máximo con
+  el motor en marcha. El consumo no: el DS3 no da MAF (`10`) ni MAP
+  (`0B`).
+- **Cuándo empieza un viaje.** *Propuesta:* al poner el contacto. La placa
+  arranca con la llave, así que no hace falta guardar nada. ¿Guardar el
+  último viaje para verlo después?
+- **Reiniciar a mano.** *Propuesta:* un botón que hay que mantener
+  apretado 3 s, como Olvidar adaptador.
+- El diseño, con una maqueta antes, como en E4.
+
+**Tareas:**
+
+1. Los acumuladores en `lib/obd`, sin Arduino y con tests: la distancia
+   integrando la velocidad entre lecturas, sin sumar huecos de más de
+   `VIGENCIA_MS`.
+2. La velocidad entra en cada consulta aunque no se vea, para que la
+   distancia salga bien (hoy, fuera de Motor, se lee cada 2,5 s). Entra en
+   los 6 PIDs por consulta.
+3. La página, con sus casos en el render. Con VIAJE y FUERZA G (E12) son 8
+   páginas: es lo que entra en los puntos de la barra (`MAX_PAGINAS`).
+
+**Verificación del usuario:** en un viaje, la distancia contra el
+parcial del tablero y los máximos contra lo que se vio.
+
+### E11 — Alarmas
+
+**Objetivo:** avisar con color, y si el usuario quiere con sonido, cuando
+algo está fuera de lo normal, en cualquier página.
+
+**Antes de programar, decidir con el usuario:**
+
+- **Cuáles y con qué umbral.** *Propuesta:* refrigerante de 105 °C o más;
+  voltaje con el motor en marcha por debajo de 13,0 V o por encima de
+  15,0 V durante más de 10 s (falla de carga); luz de falla encendida
+  (leer `01011` cada tanto aunque no se vea Fallas). ¿RPM altas?
+- **Cómo se ve.** *Propuesta:* la barra de arriba en rojo con el texto de
+  la alarma, sobre cualquier página, y el valor en rojo en su página.
+  Tocar la barra la silencia por unos minutos.
+- **Sonido.** El parlante de la placa necesita el códec ES8311, el I2S y
+  el amplificador (`NS_MODE`, EXIO7 del TCA9554): se levanta para esta
+  etapa la regla de no inicializar el audio ni el expansor. *Propuesta:*
+  un pitido generado por el programa, sin archivos de sonido.
+
+**Tareas:**
+
+1. La lógica en `lib/obd`, con tests: umbral, histéresis y tiempo mínimo
+   para no saltar por un dato suelto ni por un `NO DATA`.
+2. El dibujo, sobre las páginas, con sus casos en el render.
+3. El sonido, si se elige.
+4. Para probar: umbrales bajos en `config.h` (por ejemplo, refrigerante de
+   40 °C) y después los de verdad.
+
+**Verificación del usuario:** con los umbrales bajos, cada alarma sale y
+se apaga cuando corresponde; con los de verdad, no salta en un viaje
+normal.
+
+### E12 — Fuerza G
+
+**Objetivo:** una página nueva, `FUERZA G`, con la aceleración lateral y
+la longitudinal, medidas con el IMU de la placa (QMI8658).
+
+**Antes de programar, decidir con el usuario:**
+
+- **Cómo se ve.** *Propuesta:* un círculo con un punto que se mueve, como
+  los medidores de G, y los máximos del viaje para cada lado. Maqueta
+  antes.
+- **La calibración del montaje.** *Propuesta:* al arrancar, con el auto
+  quieto, la gravedad marca "abajo"; "adelante" sale de cómo está montada
+  la placa (en `config.h`) o de la primera frenada en línea recta.
+
+**Tareas:**
+
+1. El I2C de la placa (SDA 47 / SCL 48, compartido con el RTC, el audio y
+   el expansor) y el QMI8658 en `0x6B`, leído a ~50 Hz sin frenar el
+   sondeo (su FIFO o lecturas cortas también mientras se espera al ELM).
+2. Las cuentas en `lib/obd` con tests: llevar la medición a los ejes del
+   auto y filtrar las vibraciones.
+3. La página, con sus casos en el render. Los máximos se suman a VIAJE
+   (E10).
+
+**Verificación del usuario:** con el auto quieto marca 0; al frenar y en
+las curvas, el punto va para el lado que corresponde.
+
+### E13 — Registro del viaje en la microSD
+
+**Objetivo:** guardar cada viaje en la microSD, para verlo después en la
+PC.
+
+**Antes de programar, decidir con el usuario:**
+
+- **Qué se guarda.** *Propuesta:* un CSV con una línea por segundo, como
+  la tabla del monitor (tiempo desde el arranque, todas las magnitudes y
+  las consultas por segundo), y los eventos (fallas leídas, alarmas,
+  pérdidas de conexión). Un archivo por viaje (`VIAJE001.CSV`), con el
+  número en `Preferences`. Sin hora real, salvo que se haga E14.
+- **El corte de luz.** El USB se corta con la llave, a veces mientras se
+  escribe, y la tarjeta puede quedar dañada. *Propuesta:* escribir de a
+  bloques cada pocos segundos, con `flush` después de cada uno, y aceptar
+  que se pierdan los últimos segundos del viaje.
+
+**Tareas:**
+
+1. La microSD por SPI (CS 38, MOSI 39, MISO 40, SCLK 41). La escritura no
+   puede frenar el sondeo (una tarjeta puede tardar decenas de ms): con un
+   búfer o una tarea aparte.
+2. `!sd` en la consola: si hay tarjeta, el espacio libre y el archivo
+   actual.
+3. El formato del CSV, en el README.
+
+**Verificación del usuario:** después de un viaje, el CSV se abre en la
+PC. Sacar la llave varias veces con el auto andando y que la tarjeta se
+siga leyendo.
+
+### E14 — Reloj
+
+**Objetivo:** la hora en la barra de arriba (y en el registro de E13).
+
+**El problema es de hardware:** el RTC (PCF85063, `0x51`) se alimenta de
+los 3,3 V de la placa por un diodo (D2) y solo tiene un capacitor de 1 µF
+(C15): no tiene pila ni supercapacitor. Como el USB se corta con la llave,
+pierde la hora cada vez que se apaga el auto.
+
+**Antes de programar, decidir con el usuario:**
+
+- **(a) Agregarle respaldo:** un supercapacitor (de 0,22 a 1 F, 5,5 V) o
+  una pila, en el VDD del RTC (pata 10, en paralelo con C15). D2 ya evita
+  que ese respaldo alimente al resto de la placa. Hay que soldar en la
+  placa. Con 0,47 F debería aguantar varios días.
+- **(b) Sin tocar la placa:** tomar la hora de internet por Wi-Fi (la
+  placa tiene Wi-Fi), con el hotspot del celular prendido cada vez que se
+  sube al auto.
+- **(c) No hacer el reloj.**
+
+**Tareas, si se hace:**
+
+1. El PCF85063 en el I2C de la placa.
+2. Poner la hora con `!hora AAAA-MM-DD HH:MM` en la consola o desde la
+   pantalla.
+3. Mostrarla en la barra. Si el RTC perdió la hora (el bit `OS` del
+   PCF85063 avisa que el oscilador se detuvo), no mostrar una hora falsa:
+   `--:--`.
+
+**Verificación del usuario:** después de una noche con el auto apagado,
+la hora sigue bien.
+
 ## Ideas para después
 
-Fuera del plan; solo si el usuario las pide. Lo que sigue usa hardware
-que la placa ya trae:
+Fuera del plan; solo si el usuario las pide:
 
-- Alarmas en color (y con el parlante) para refrigerante alto o voltaje
-  de carga bajo.
-- Máximos del viaje (RPM, temperatura).
-- Registro del viaje en la microSD.
-- Reloj con el RTC.
-- Fuerza G con el acelerómetro.
+- Oscurecer la imagen de noche, ya que la luz queda siempre al máximo
+  (E6).
+- Revisar con un tester por qué el GPIO8 no regula la luz (los puntos a
+  medir están en las notas de E6).
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
@@ -459,7 +707,6 @@ De esta placa y el adaptador nuevo:
 | ¿Pide emparejamiento?         | No: conecta, se suscribe y escribe sin cifrar | E0    |
 | Respuestas del ELM            | `ELM327 v2.1` (clon). Tras `ATZ` el eco queda activo. Las líneas terminan en `\r\n` (el anterior, `\r\r`); el parser ya lo acepta. `ATZ` sin el `\r\r` inicial. `ATRV` 11,9 V en el banco. `0100` sin ECU: `SEARCHING...` y `UNABLE TO CONNECT` en 4,4 s, y en la misma notificación vino `UNABLE TO CONNECT\r\n>` repetido: **puede llegar texto después del `>`** | E0    |
 | Tiempos BLE (E0)              | Conexión 456–753 ms y servicios 799 ms. Con intervalo de 50 ms, escribiendo en `FFF1`: `ATZ` 99, `ATI` 110, `ATRV` 70–238 ms; en `FFF2`: `ATZ` 261, `ATE0` 311, `ATI` 386, `ATRV` 119–173 ms (pocas muestras) | E0    |
-| Con el iPhone conectado       | Sin probar | E0    |
 | Brillo cómodo de día / noche  | No se pudo medir: con esta placa la luz no se regula (fila siguiente). Queda siempre al máximo | E1, E6 |
 | ¿El brillo 0 apaga la pantalla? | Según el esquemático, sí (IO8 en alto apaga el AP3032). Pero en esta placa, hoy, ningún valor cambia la luz. Probado el 2026-10-26 (el agente por el USB, el usuario mirando la pantalla): PWM en GPIO8 de 0 a 255 (con el LEDC del core y con el del ESP-IDF, señal 74 en el pin), GPIO8 fijo en alto y en bajo sin PWM (la pata los lee bien), `0x53`/`0x51` al AXS15231B y un firmware mínimo con el código de la luz de Waveshare. La luz queda igual. La demo de fábrica sí regulaba: parece hardware (ver notas de E6) | E0, E6 |
 | Refresco de pantalla          | Completo (dibujar todo y mandarlo): 96–131 ms. Solo el envío al panel: 32–33 ms, se cambie lo que se cambie | E1    |
@@ -603,9 +850,6 @@ PSRAM y 16 MB de flash. `!escanear` encuentra el adaptador (`OBDBLE`,
 
 Decidido con el usuario: `!escanear` y `!explorar` quedan en el firmware
 (E2 los suma a la consola, como `!descubrir` en el anterior).
-
-Sin probar: la prueba con el iPhone conectado al adaptador. Se puede
-hacer en E2, que es donde importa (reconexión).
 
 ### E1
 
@@ -821,9 +1065,8 @@ En su log, después de prenderlo, `ATZ` contesta con eco
 (`"ATZ\rELM327 v2.1\r\n"`, 104 ms) porque el ELM arranca de cero; los
 demás tiempos coinciden con los de arriba.
 
-Sin anotar: la prueba con el iPhone conectado al adaptador (de E0) y
-cuánto tarda cada intento con el adaptador apagado (tendría que ser ~10 s:
-4 s por dirección + 6 s buscando).
+Sin anotar: cuánto tarda cada intento con el adaptador apagado (tendría
+que ser ~10 s: 4 s por dirección + 6 s buscando).
 
 ### E3
 
@@ -1562,10 +1805,9 @@ apagado; el agente subió el firmware con permiso del usuario). Log:
   Es lo esperado: el usuario ya había pasado la alimentación del adaptador
   al pin 1, que se corta con la llave (ver **Decisiones tomadas**).
 
-Sin probar con el cambio: comparar con la app del iPhone (de a uno: el
-adaptador acepta una sola conexión). Con el adaptador alimentado por el
-contacto, sacar la llave lleva a `SIN CONEXION`; `SIN ECU` queda para el
-contacto puesto sin respuesta de la ECU.
+Con el adaptador alimentado por el contacto, sacar la llave lleva a
+`SIN CONEXION`; `SIN ECU` queda para el contacto puesto sin respuesta de
+la ECU.
 
 **Pruebas del usuario que faltan, por el adaptador en el pin 1** (para E7,
 que revisa la alimentación con la placa instalada):
@@ -1757,6 +1999,10 @@ Para E7:
 - De noche la pantalla queda al máximo: si molesta, se puede oscurecer la
   imagen (los colores) en vez de la luz.
 
+**Verificado por el usuario en el auto** (2026-10-26, con el firmware de
+E7: "ya lo probé todo ok"): Info, Reconectar, Olvidar adaptador y
+`SIN ADAPTADOR`.
+
 ### E7
 
 Hecho (rama `e7-cierre-e-instalacion`, desde `main` con E6). Antes de
@@ -1820,3 +2066,30 @@ placa se alimenta de ella y no se ve lo del USB del auto):
 5. Ya montada: que se lea bien de día (lejos del sol directo) y que de
    noche no encandile (la luz queda al máximo; si molesta, se puede
    oscurecer la imagen).
+
+**Verificado por el usuario en el auto** (2026-10-26, con la placa en el
+USB del auto: "ya lo probé todo ok"), salvo una cosa: "a veces como que se
+cuelga entre que lo prendo y apago el auto, no se conecta". Eso pasa a E8.
+No quedaron anotados cuánto tarda en llegar a los datos al poner el
+contacto ni qué se corta al dar arranque: los va a mostrar el registro de
+E8. El usuario no mencionó `ALIMENTACION`: el detector de brownout queda
+activo, y el capacitor se decide con el registro de E8, que anota los
+brownouts.
+
+El usuario pidió además (2026-10-26) una pantalla de espera con un DS3 en
+vez de las de estado, y pasar a etapas las ideas que había: quedaron
+E8–E14. Se sacaron del plan las pruebas con el iPhone (no tiene).
+
+### E8
+
+### E9
+
+### E10
+
+### E11
+
+### E12
+
+### E13
+
+### E14
