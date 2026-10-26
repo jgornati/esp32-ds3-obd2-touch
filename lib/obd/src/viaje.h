@@ -30,9 +30,14 @@ public:
   // El tiempo en marcha suma lo que pasa entre dos lecturas en marcha seguidas
   void rpm(float valor, uint32_t ahora);
   void refrigerante(float grados);
-  // Cuenta solo con el motor en marcha desde hace esperaVoltajeMs, y con la
-  // última RPM de hace menos de huecoMaximoMs
+  // Cuenta solo con enMarchaDesdeHace(ahora, esperaVoltajeMs)
   void voltaje(float volts, uint32_t ahora);
+
+  // La última RPM, de hace menos de huecoMaximoMs, es de marcha, y está en
+  // marcha desde hace ms o más (sin huecos). Lo usa también la alarma de
+  // voltaje (E11). Después de reiniciar(), vuelve a contar desde la RPM
+  // siguiente.
+  bool enMarchaDesdeHace(uint32_t ahora, uint32_t ms) const;
 
   double distanciaKm() const;
   uint32_t tiempoEnMarchaMs() const;

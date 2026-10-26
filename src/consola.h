@@ -23,6 +23,8 @@ public:
   bool descubrimientoPedido();
   // true una sola vez después de un !info
   bool infoPedida();
+  // true una sola vez después de un !pitar (los pitidos de una alarma)
+  bool pitidoPedido();
   // !log lo cambia: con true se ve cada consulta periódica, no solo las fallas
   bool detalle() const {
     return conDetalle;
@@ -46,6 +48,7 @@ private:
   bool olvidar = false;
   bool descubrir = false;
   bool info = false;
+  bool pitido = false;
   bool conDetalle = false;
   void (*alSoltar)() = nullptr;
 };
