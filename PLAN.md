@@ -30,8 +30,8 @@ que corresponda antes de portar un módulo.
 | E4    | Diseño de páginas y navegación táctil  | E3         | Verificada (salvo de noche) |
 | E5    | Códigos de falla                       | E4         | Verificada |
 | E6    | Brillo y ajustes                       | E4         | Verificada (sin brillo: la placa no lo regula) |
-| E7    | Cierre e instalación                   | E5, E6     | Verificada (salvo el cuelgue ocasional: E8) |
-| E8    | Conexión al prender y apagar el auto   | E7         | Pendiente |
+| E7    | Cierre e instalación                   | E5, E6     | Verificada (salvo el cuelgue ocasional, sin investigar) |
+| E8    | Conexión al prender y apagar el auto   | E7         | Descartada |
 | E9    | Pantalla de espera con el DS3          | E7         | Pendiente |
 | E10   | Viaje: máximos y recorrido             | E9         | Pendiente |
 | E11   | Alarmas                                | E9         | Pendiente |
@@ -40,13 +40,13 @@ que corresponda antes de portar un módulo.
 | E14   | Reloj                                  | —          | Pendiente (necesita un cambio de hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
-hardware), Verificada.
+hardware), Verificada, Descartada.
 
 E1 y E2 tocan archivos distintos y se pueden hacer en paralelo. E5 y E6
 también. De E8 en adelante son pedidos del usuario del 2026-10-26, después
-de usarlo en el auto: E8 primero, porque su registro tiene que juntar
-datos varios días mientras se hace E9. E10 y E11 se pueden hacer en
-cualquier orden. E14 se decide aparte (ver la etapa).
+de usarlo en el auto. E8 se descartó (ver la etapa): se sigue por E9. E10
+y E11 se pueden hacer en cualquier orden. E14 se decide aparte (ver la
+etapa).
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -429,48 +429,11 @@ andan y no se disparan sin querer.
 
 ### E8 — Conexión al prender y apagar el auto
 
-**Objetivo:** que al poner el contacto siempre llegue a los datos y que
-nunca quede trabado. Primero hay que saber qué pasa: en el auto no hay
-monitor serie, así que la placa guarda lo que hace en su propia flash.
-
-Lo que contó el usuario (2026-10-26): "a veces como que se cuelga entre
-que lo prendo y apago el auto, no se conecta".
-
-Posibles causas, para revisar con el registro (no darlas por buenas):
-
-- La placa y el adaptador arrancan juntos con la llave. El intento por la
-  dirección guardada (hasta 4 s, sin atender la pantalla ni el touch)
-  puede caer antes de que el adaptador se anuncie; después busca 6 s y
-  espera 5 s: hasta ~15 s por vuelta.
-- En la primera posición de la llave (accesorios) el USB puede tener
-  tensión y el pin 1 del adaptador no: la placa queda reintentando sin
-  adaptador.
-- Al dar arranque se pueden cortar el USB, el pin 1 o los dos (no se
-  anotó en E5 ni en E7).
-- Un corte de luz justo mientras se escribe en `Preferences` (la dirección
-  guardada).
-- Un cuelgue de verdad (BLE o LVGL): la pantalla queda quieta y no
-  responde al touch.
-
-**Tareas:**
-
-1. Registro de eventos que sobreviva a los cortes de luz, en la partición
-   FAT de 9 MB que ya está en la tabla (`app3M_fat9M_16MB.csv`, con
-   `FFat`): cada arranque con el motivo del reinicio, cada cambio de
-   estado, cada intento de conexión (fase, ms y resultado), cada pérdida y
-   cada brownout, con los ms desde el arranque. Tamaño acotado (los
-   últimos ~200 KB) y escrito de a poco, para no frenar el sondeo.
-   Comandos `!historial` y `!borrarhistorial`.
-2. Watchdog de tareas: si la placa se cuelga, que se reinicie sola y
-   quede registrado (`watchdog de tareas` como motivo del reinicio).
-3. El usuario usa el auto normalmente unos días. Después se lee el
-   historial por el USB y se arregla lo que muestre, con el usuario.
-4. Anotar en **Datos descubiertos**: cuánto tarda en llegar a los datos al
-   poner el contacto, qué se corta al dar arranque y qué pasa en la
-   posición de accesorios.
-
-**Verificación del usuario:** varios días de uso sin que se trabe; en el
-historial, cada vez que se puso el contacto se llegó a los datos.
+**Descartada** por el usuario (2026-10-26): no es tan importante. No se
+hacen el registro de eventos en la flash ni el watchdog. El cuelgue
+ocasional al prender y apagar el auto ("a veces como que se cuelga entre
+que lo prendo y apago el auto, no se conecta") queda sin investigar; lo
+que se sabía está en las notas de E8.
 
 ### E9 — Pantalla de espera con el DS3
 
@@ -492,7 +455,7 @@ la conexión."
   ilustración hecha para esto.
 - **Qué más se ve.** *Propuesta:* solo una línea chica en gris abajo
   (`Conectando...`, `Esperando la ECU...`, `Toca para reintentar`). El
-  detalle sigue en el monitor serie y en el historial de E8.
+  detalle sigue en el monitor serie.
 - **El toque.** *Propuesta:* tocar = reintentar ya, sin esperar los 5 o
   10 s; mantener 3 s = reiniciar la placa, por si quedó trabada.
 - **Qué pantallas reemplaza.** *Propuesta:* `CONECTANDO`,
@@ -2069,18 +2032,42 @@ placa se alimenta de ella y no se ve lo del USB del auto):
 
 **Verificado por el usuario en el auto** (2026-10-26, con la placa en el
 USB del auto: "ya lo probé todo ok"), salvo una cosa: "a veces como que se
-cuelga entre que lo prendo y apago el auto, no se conecta". Eso pasa a E8.
-No quedaron anotados cuánto tarda en llegar a los datos al poner el
-contacto ni qué se corta al dar arranque: los va a mostrar el registro de
-E8. El usuario no mencionó `ALIMENTACION`: el detector de brownout queda
-activo, y el capacitor se decide con el registro de E8, que anota los
-brownouts.
+cuelga entre que lo prendo y apago el auto, no se conecta". Eso pasó a E8,
+que después se descartó. No quedaron anotados cuánto tarda en llegar a los
+datos al poner el contacto ni qué se corta al dar arranque. El usuario no
+mencionó `ALIMENTACION`: el detector de brownout queda activo, y el
+capacitor solo si aparece.
 
 El usuario pidió además (2026-10-26) una pantalla de espera con un DS3 en
 vez de las de estado, y pasar a etapas las ideas que había: quedaron
 E8–E14. Se sacaron del plan las pruebas con el iPhone (no tiene).
 
 ### E8
+
+Descartada antes de programar (2026-10-26). Lo que se había visto, por si
+el cuelgue vuelve a molestar (no está confirmado con datos del auto):
+
+- Posibles causas que tenía el plan: el intento por la dirección guardada
+  antes de que el adaptador se anuncie (hasta ~15 s por vuelta entre
+  dirección, búsqueda y espera); la posición de accesorios con el USB
+  prendido y el pin 1 apagado; un corte del USB o del pin 1 al dar
+  arranque; un corte de luz mientras se escribe la dirección en
+  `Preferences`; un cuelgue de verdad del BLE o de LVGL.
+- **Esperas largas en la biblioteca `BLE` del core (NimBLE).** Si el
+  adaptador conecta pero no contesta, `BLEClient::connect()` espera el
+  intercambio de MTU hasta 31 s (`m_connectTimeout` + 1 s): el
+  temporizador de `TIMEOUT_CONEXION_MS` ya no sirve, porque
+  `ble_gap_conn_cancel()` solo cancela una conexión que no se estableció.
+  `getServices()` y `subscribe()` esperan sin límite propio (cortan con el
+  timeout de ATT, 30 s). Mientras tanto `loop()` no corre: la pantalla
+  queda quieta y el touch no responde.
+- **El watchdog de tareas del core no vigila `loop()`:** está prendido
+  (5 s, con pánico) pero solo con la tarea idle del núcleo 0. Hoy un
+  cuelgue de `loop()` no reinicia la placa. Se agrega con
+  `enableLoopWDT()` (y `esp_task_wdt_reconfigure()` para otro tiempo).
+- El core guarda un volcado de memoria en la partición `coredump` en cada
+  pánico (`CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH`); se lee con
+  `esp_core_dump_get_summary()`.
 
 ### E9
 
