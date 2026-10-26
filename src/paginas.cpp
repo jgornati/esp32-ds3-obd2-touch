@@ -16,6 +16,7 @@ enum : uint8_t {
   PAGINA_MEZCLA,
   PAGINA_FALLAS,
   PAGINA_INFO,
+  PAGINA_VIAJE,
   PAGINA_DS3,
   CANT_PAGINAS
 };
@@ -45,6 +46,7 @@ static const Definicion PAGINAS[] = {
     {"MEZCLA", DE_MEZCLA, largo(DE_MEZCLA)},
     {"FALLAS", nullptr, 0},
     {"INFO", nullptr, 0},
+    {"VIAJE", nullptr, 0},
     {"DS3", nullptr, 0},
 };
 static_assert(sizeof(PAGINAS) / sizeof(PAGINAS[0]) == CANT_PAGINAS,
@@ -64,12 +66,10 @@ static const float LAMBDA_RICA = 0.8f;
 static const float LAMBDA_POBRE = 1.2f;
 static const float LAMBDA_TOLERANCIA = 0.03f;
 
-// Fondos: la zona roja de las RPM, las mitades rica y pobre de lambda y los
-// botones de Info apretados
-static const lv_color_t ROJO_OSCURO = lv_color_hex(0x5A1A17);
+// Fondos: las mitades rica y pobre de lambda y Reconectar apretado. La zona
+// roja de las RPM y Olvidar van en ROJO_OSCURO, de dibujo.h.
 static const lv_color_t AMBAR_OSCURO = lv_color_hex(0x3D2A00);
 static const lv_color_t CIAN_OSCURO = lv_color_hex(0x0E3238);
-static const lv_color_t ROJO_CLARO = lv_color_hex(0xFF6B60); // el texto de Olvidar
 
 // Medidas de la maqueta de E4, en el área de 640x144 debajo de la barra.
 // Las y de los textos son de la base de las letras: así quedan alineados
@@ -167,6 +167,13 @@ static void ponerValor(Valor &v, const char *texto, bool actual) {
     mostrar(v.unidad, conUnidad);
     ponerPosicion(v.unidad, x + ancho, yDeBase(NORMAL, v.base));
   }
+}
+
+// Para una unidad que cambia (el tiempo del viaje: min o h). Antes de
+// ponerValor(), que la acomoda.
+static void ponerUnidad(Valor &v, const char *unidad) {
+  ponerTexto(v.unidad, unidad);
+  v.anchoUnidad = lv_text_get_width(unidad, strlen(unidad), NORMAL, 0);
 }
 
 // El texto de la magnitud según las convenciones de pantalla. true si es un
@@ -695,6 +702,115 @@ static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
   }
 }
 
+// Viaje: ocho casillas de 160x72, como en la maqueta B de E10. Mantener
+// apretada la página MANTENER_VIAJE_MS reinicia el viaje: mientras tanto la
+// barra de arriba se llena de rojo.
+
+static const int32_t ANCHO_CASILLA = ANCHO / 4;
+static const int32_t ALTO_CASILLA = ALTO / 2;
+static const int32_t RELLENO_CASILLA = 12;
+
+static Valor distanciaViaje, tiempoViaje, promedioViaje, velocidadMaxima;
+static Valor rpmMaxima, refrigeranteMaximo, voltajeMinimo, voltajeMaximo;
+
+// La pantalla apretada, en cualquier página: en Viaje, mantenerla reinicia
+static bool mantenida = false;
+static uint32_t mantenidaDesde = 0;
+static bool reinicioPedido = false; // ya se pidió en esta apretada
+static bool toqueLargo = false;     // el último toque duró AVISO_MANTENER_MS o más
+
+// Casilla 0 a 7, de izquierda a derecha y de arriba abajo: nombre y valor
+static Valor casilla(lv_obj_t *v, uint8_t numero, const char *nombre,
+                     const char *unidad = nullptr) {
+  int32_t x = (numero % 4) * ANCHO_CASILLA + RELLENO_CASILLA;
+  int32_t y = (numero / 4) * ALTO_CASILLA;
+  fijo(v, nombre, NORMAL, ETIQUETA, x, y + 25);
+  return crearValor(v, &lv_font_montserrat_36, x, y + 63, false, unidad);
+}
+
+static void armarViaje(lv_obj_t *v) {
+  for (int32_t i = 1; i < 4; i++) {
+    rectangulo(v, i * ANCHO_CASILLA - 1, 0, 1, ALTO, FONDO_ESCALA);
+  }
+  rectangulo(v, 0, ALTO_CASILLA - 1, ANCHO, 1, FONDO_ESCALA);
+  distanciaViaje = casilla(v, 0, "Distancia", " km");
+  tiempoViaje = casilla(v, 1, "Tiempo", " min");
+  promedioViaje = casilla(v, 2, "Promedio", " km/h");
+  velocidadMaxima = casilla(v, 3, "Vel. max", " km/h");
+  rpmMaxima = casilla(v, 4, "RPM max");
+  refrigeranteMaximo = casilla(v, 5, "Refrig. max", " °C");
+  voltajeMinimo = casilla(v, 6, "Volt. min", " V");
+  voltajeMaximo = casilla(v, 7, "Volt. max", " V");
+}
+
+static bool soportada(Magnitud m) {
+  return dato(m).estado != EstadoDato::NO_SOPORTADO;
+}
+
+// Un dato del viaje: "N/D" si la ECU no da lo que hace falta para sacarlo, y
+// "..." si todavía no hay nada que mostrar
+static void ponerDelViaje(Valor &v, bool sePuede, bool hay, const char *texto) {
+  if (!sePuede) {
+    ponerValor(v, "N/D", false);
+  } else {
+    ponerValor(v, hay ? texto : "...", hay);
+  }
+}
+
+static void ponerExtremo(Valor &v, bool sePuede, const Extremo &e, uint8_t decimales) {
+  char texto[16];
+  snprintf(texto, sizeof(texto), "%.*f", decimales, e.valor);
+  ponerDelViaje(v, sePuede, e.hay, texto);
+}
+
+// La distancia y la velocidad máxima salen de la velocidad; el tiempo en
+// marcha y los voltajes, de la RPM; el promedio, de las dos
+static void dibujarViaje(const Viaje &viaje) {
+  bool conVelocidad = soportada(VELOCIDAD);
+  bool conRpm = soportada(RPM);
+  // La velocidad máxima dice si ya hubo alguna velocidad, y la RPM máxima,
+  // alguna RPM
+  bool velocidadLeida = viaje.velocidadMaxima().hay;
+  char texto[16];
+  textoDistancia(viaje.distanciaKm(), texto, sizeof(texto));
+  ponerDelViaje(distanciaViaje, conVelocidad, velocidadLeida, texto);
+
+  char unidad[8];
+  snprintf(unidad, sizeof(unidad), " %s",
+           textoTiempo(viaje.tiempoEnMarchaMs(), texto, sizeof(texto)));
+  ponerUnidad(tiempoViaje, unidad);
+  ponerDelViaje(tiempoViaje, conRpm, viaje.rpmMaxima().hay, texto);
+
+  float kmh = 0;
+  bool conPromedio = velocidadLeida && viaje.promedio(&kmh);
+  snprintf(texto, sizeof(texto), "%.0f", kmh);
+  ponerDelViaje(promedioViaje, conVelocidad && conRpm, conPromedio, texto);
+
+  ponerExtremo(velocidadMaxima, conVelocidad, viaje.velocidadMaxima(), 0);
+  ponerExtremo(rpmMaxima, conRpm, viaje.rpmMaxima(), 0);
+  ponerExtremo(refrigeranteMaximo, soportada(REFRIGERANTE), viaje.refrigeranteMaximo(), 0);
+  ponerExtremo(voltajeMinimo, conRpm, viaje.voltajeMinimo(), 1);
+  ponerExtremo(voltajeMaximo, conRpm, viaje.voltajeMaximo(), 1);
+}
+
+// Lo que lleva apretada, de 0 a 1, para la barra; 0 si todavía es un toque
+static float fraccionMantenida(uint32_t ahora) {
+  int32_t tiempo = mantenida ? (int32_t)(ahora - mantenidaDesde) : 0;
+  return tiempo >= (int32_t)AVISO_MANTENER_MS ? fraccion(tiempo, 0, MANTENER_VIAJE_MS) : 0;
+}
+
+// Los toques que llegan a la raíz. Al soltar, LVGL manda RELEASED antes que
+// el CLICKED de alTocar.
+static void alApretar(lv_event_t *e) {
+  if (lv_event_get_code(e) == LV_EVENT_PRESSED) {
+    mantenida = true;
+    mantenidaDesde = lv_tick_get();
+    reinicioPedido = false;
+  } else {
+    mantenida = false;
+  }
+}
+
 // DS3: el paseo, a pantalla completa (sin la barra)
 
 static Paseo paseoDs3;
@@ -713,6 +829,7 @@ static void alTocar(lv_event_t *) {
   lv_point_t punto;
   lv_indev_get_point(lv_indev_active(), &punto);
   toque = punto.x < ANCHO / 2 ? -1 : 1;
+  toqueLargo = lv_tick_get() - mantenidaDesde >= AVISO_MANTENER_MS;
 }
 
 void Paginas::iniciar() {
@@ -732,9 +849,16 @@ void Paginas::iniciar() {
   armarMezcla(vistas[PAGINA_MEZCLA]);
   armarFallas(vistas[PAGINA_FALLAS]);
   armarInfo(vistas[PAGINA_INFO]);
+  armarViaje(vistas[PAGINA_VIAJE]);
   paseoDs3.crear(vistas[PAGINA_DS3]);
   lv_timer_create(alAnimarPaseo, paseo.ms_cuadro, nullptr);
-  lv_obj_add_event_cb(lv_screen_active(), alTocar, LV_EVENT_CLICKED, nullptr);
+  lv_obj_t *raiz = lv_screen_active();
+  lv_obj_add_event_cb(raiz, alTocar, LV_EVENT_CLICKED, nullptr);
+  static const lv_event_code_t EVENTOS[] = {LV_EVENT_PRESSED, LV_EVENT_RELEASED,
+                                            LV_EVENT_PRESS_LOST};
+  for (lv_event_code_t codigo : EVENTOS) {
+    lv_obj_add_event_cb(raiz, alApretar, codigo, nullptr);
+  }
   armadas = true;
 }
 
@@ -771,6 +895,10 @@ bool Paginas::muestraInfo() const {
 
 int8_t Paginas::tomarToque() {
   int8_t paso = toque;
+  // En Viaje, soltarla después de mantenerla no cambia la página
+  if (toqueLargo && actual == PAGINA_VIAJE) {
+    paso = 0;
+  }
   toque = 0;
   return paso;
 }
@@ -781,13 +909,18 @@ Accion Paginas::tomarAccion(uint32_t ahora) {
     olvidoPedido = true;
     accion = Accion::OLVIDAR;
   }
+  if (mantenida && !reinicioPedido && actual == PAGINA_VIAJE &&
+      (int32_t)(ahora - mantenidaDesde) >= (int32_t)MANTENER_VIAJE_MS) {
+    reinicioPedido = true;
+    accion = Accion::REINICIAR_VIAJE;
+  }
   Accion pedida = accion;
   accion = Accion::NINGUNA;
   return pedida;
 }
 
 void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-                      uint32_t reintento) {
+                      uint32_t reintento, const Viaje &viaje) {
   if (!armadas) {
     return;
   }
@@ -795,6 +928,7 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
     mostrar(vistas[i], i == actual);
   }
   const char *titulo = PAGINAS[actual].titulo;
+  float apretada = 0;
   switch (actual) {
   case PAGINA_MOTOR:
     dibujarMotor(ahora);
@@ -814,10 +948,17 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
   case PAGINA_INFO:
     dibujarInfo(ahora, info);
     break;
+  case PAGINA_VIAJE:
+    dibujarViaje(viaje);
+    apretada = fraccionMantenida(ahora);
+    if (apretada > 0) {
+      titulo = reinicioPedido ? "Viaje reiniciado" : "Mantener para reiniciar el viaje";
+    }
+    break;
   case PAGINA_DS3:
     // Se mueve sola, con alAnimarPaseo
     pantalla.paginaCompleta();
     return;
   }
-  pantalla.pagina(titulo, actual, CANT_PAGINAS);
+  pantalla.pagina(titulo, actual, CANT_PAGINAS, apretada);
 }

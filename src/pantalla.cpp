@@ -24,10 +24,9 @@ static const int Y_AUTO = 5;
 static const int BASE_ESPERA = 160;
 static const int Y_REINICIO = 167;
 static const int ALTO_REINICIO = 5;
-// Apretada menos que esto es un toque: no cambia el texto
-static const uint32_t AVISO_MANTENER_MS = 500;
 
 static lv_obj_t *fondoBarra = nullptr;
+static lv_obj_t *rellenoBarra = nullptr; // mantener apretado
 static lv_obj_t *titulo = nullptr;
 static lv_obj_t *puntos[MAX_PAGINAS];
 // Pantallas de estado: RENGLONES líneas de texto
@@ -58,10 +57,17 @@ static void ver(lv_obj_t *vista) {
   mostrar(fondoBarra, vista == vistaEstado || vista == vistaPaginas);
 }
 
-// Con total > 0, un punto por página pegado al margen derecho, numero en blanco
-static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8_t total = 0) {
+// Con total > 0, un punto por página pegado al margen derecho, numero en
+// blanco. Con mantenida > 0, el relleno rojo hasta esa fracción del ancho.
+static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8_t total = 0,
+                  float mantenida = 0) {
   ponerTexto(titulo, texto);
   ponerColor(titulo, color);
+  int32_t lleno = lroundf(ANCHO * fminf(1, mantenida));
+  mostrar(rellenoBarra, lleno > 0);
+  if (lleno > 0) {
+    ponerAncho(rellenoBarra, lleno);
+  }
   int x = ANCHO - MARGEN - total * (PUNTO + ENTRE_PUNTOS) + ENTRE_PUNTOS;
   for (uint8_t i = 0; i < MAX_PAGINAS; i++) {
     bool visible = i < total;
@@ -160,6 +166,9 @@ void Pantalla::iniciar() {
   lv_obj_set_style_bg_color(raiz, lv_color_black(), 0);
 
   fondoBarra = rectangulo(raiz, 0, 0, ANCHO, ALTO_BARRA, FONDO_BARRA);
+  // Antes que el título y los puntos, para quedar abajo
+  rellenoBarra = rectangulo(fondoBarra, 0, 0, 0, ALTO_BARRA, ROJO_OSCURO);
+  lv_obj_add_flag(rellenoBarra, LV_OBJ_FLAG_HIDDEN);
   titulo = etiqueta(fondoBarra, &lv_font_montserrat_20, BLANCO);
   lv_obj_align(titulo, LV_ALIGN_LEFT_MID, MARGEN, 0);
   for (lv_obj_t *&punto : puntos) {
@@ -220,11 +229,12 @@ void Pantalla::descubriendo(uint16_t hechos, uint16_t total) {
   armarEstado("DESCUBRIENDO", CIAN, lineas);
 }
 
-void Pantalla::pagina(const char *texto, uint8_t numero, uint8_t total) {
+void Pantalla::pagina(const char *texto, uint8_t numero, uint8_t total, float mantenida) {
   if (!lista) {
     return;
   }
-  barra(texto, BLANCO, numero, total < MAX_PAGINAS ? total : MAX_PAGINAS);
+  barra(texto, mantenida > 0 ? ROJO_CLARO : BLANCO, numero,
+        total < MAX_PAGINAS ? total : MAX_PAGINAS, mantenida);
   ver(vistaPaginas);
 }
 

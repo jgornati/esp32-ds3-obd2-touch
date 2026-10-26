@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include <dtc.h>
+#include <viaje.h>
 
 #include "datos.h"
 #include "pantalla.h"
@@ -17,18 +18,19 @@ struct DatosInfo {
   int16_t rssi;                // dBm; 0: sin medir (siempre es negativo)
 };
 
-// Lo que se pide con los botones de Info
-enum class Accion : uint8_t { NINGUNA, RECONECTAR, OLVIDAR };
+// Lo que se pide con los botones de Info y manteniendo apretada Viaje
+enum class Accion : uint8_t { NINGUNA, RECONECTAR, OLVIDAR, REINICIAR_VIAJE };
 
 // Magnitudes de una página: entran en una sola consulta de varios PIDs
 constexpr uint8_t MAX_VISIBLES = 6;
 
 // Las páginas de LEYENDO, como en la maqueta de E4: Motor, Aire/Volt,
-// Carga, Mezcla, Fallas e Info, y al final DS3 (E9), una animación a
-// pantalla completa. Se pasa a la anterior o a la siguiente tocando la
-// mitad izquierda o derecha de la pantalla; después de la última vuelve a
-// la primera. Los botones de Info se quedan con su toque y no
-// cambian la página. Los toques llegan en eventos de LVGL, dentro de
+// Carga, Mezcla, Fallas e Info, después Viaje (E10) y al final DS3 (E9), una
+// animación a pantalla completa. Se pasa a la anterior o a la siguiente
+// tocando la mitad izquierda o derecha de la pantalla; después de la última
+// vuelve a la primera. Los botones de Info se quedan con su toque y no
+// cambian la página; en Viaje, soltarla después de mantenerla apretada
+// tampoco. Los toques llegan en eventos de LVGL, dentro de
 // PantallaHw::atender(), que también corre mientras se espera al ELM:
 // quedan como pedidos (tomarToque() y tomarAccion()) y quien llama actúa.
 class Paginas {
@@ -51,16 +53,18 @@ public:
   // En Info, quien llama mide el RSSI
   bool muestraInfo() const;
   // -1 o +1 si se tocó la mitad izquierda o derecha desde la última
-  // llamada; 0 si no. Solo cuenta con las páginas a la vista.
+  // llamada; 0 si no. Solo cuenta con las páginas a la vista. En Viaje, un
+  // toque de AVISO_MANTENER_MS o más no cuenta: es para reiniciar.
   int8_t tomarToque();
-  // El botón que se tocó desde la última llamada. Reconectar cuenta al
-  // soltarlo; Olvidar, una vez por apretada, cuando lleva
-  // MANTENER_OLVIDAR_MS apretado (ahora es la hora de millis()).
+  // Lo que se pidió desde la última llamada. Reconectar cuenta al soltarlo;
+  // Olvidar, una vez por apretada, cuando lleva MANTENER_OLVIDAR_MS
+  // apretado, y reiniciar el viaje, cuando la página Viaje lleva
+  // MANTENER_VIAJE_MS apretada (ahora es la hora de millis()).
   Accion tomarAccion(uint32_t ahora);
   // fallas: la última lectura de la página Fallas. reintento: segundos
   // hasta volver a leerla, que se muestran si falló y no hay códigos.
   void dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-               uint32_t reintento);
+               uint32_t reintento, const Viaje &viaje);
 
 private:
   Pantalla &pantalla;

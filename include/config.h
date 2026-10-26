@@ -93,8 +93,18 @@ constexpr uint32_t MANTENER_OLVIDAR_MS = 3000;
 // Pantalla de espera: el DS3 entra a los ESPERA_ENTRADA_MS de prender la
 // pantalla (si para entonces llegaron los datos, no se ve). Tocarla
 // reintenta ya; mantenerla apretada MANTENER_REINICIO_MS reinicia la placa.
-constexpr uint32_t ESPERA_ENTRADA_MS = 5000;
+constexpr uint32_t ESPERA_ENTRADA_MS = 0;
 constexpr uint32_t MANTENER_REINICIO_MS = 3000;
+// Apretada menos que esto, la espera o la página Viaje es un toque: no
+// aparece la barra de mantener apretado
+constexpr uint32_t AVISO_MANTENER_MS = 500;
+// Página Viaje: el motor está en marcha desde RPM_EN_MARCHA (ralentí
+// 890-1190), y el voltaje mínimo y máximo cuentan después de
+// ESPERA_VOLTAJE_VIAJE_MS en marcha, sin la caída del arranque. Mantener
+// apretada la página MANTENER_VIAJE_MS reinicia el viaje.
+constexpr float RPM_EN_MARCHA = 500;
+constexpr uint32_t ESPERA_VOLTAJE_VIAJE_MS = 5000;
+constexpr uint32_t MANTENER_VIAJE_MS = 3000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se
