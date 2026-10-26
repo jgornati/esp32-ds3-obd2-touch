@@ -1,0 +1,298 @@
+{
+  "screen": [
+    640,
+    172
+  ],
+  "frame_ms": 40,
+  "frame_count": 40,
+  "play_once": true,
+  "hold_last_frame": true,
+  "sprite_size": [
+    334,
+    146
+  ],
+  "sheet_columns": 8,
+  "sheet_rows": 5,
+  "positions": [
+    {
+      "frame": 0,
+      "time_ms": 0,
+      "x": -334,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": -0.0
+    },
+    {
+      "frame": 1,
+      "time_ms": 40,
+      "x": -297,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 75.71228007085878
+    },
+    {
+      "frame": 2,
+      "time_ms": 80,
+      "x": -263,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 145.28572662245872
+    },
+    {
+      "frame": 3,
+      "time_ms": 120,
+      "x": -230,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 212.81289533430578
+    },
+    {
+      "frame": 4,
+      "time_ms": 160,
+      "x": -199,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 276.2475083666469
+    },
+    {
+      "frame": 5,
+      "time_ms": 200,
+      "x": -170,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 335.58956571948215
+    },
+    {
+      "frame": 6,
+      "time_ms": 240,
+      "x": -142,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 392.8853452325645
+    },
+    {
+      "frame": 7,
+      "time_ms": 280,
+      "x": -116,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 446.0885690661409
+    },
+    {
+      "frame": 8,
+      "time_ms": 320,
+      "x": -92,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 495.19923722021144
+    },
+    {
+      "frame": 9,
+      "time_ms": 360,
+      "x": -69,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 542.2636275345291
+    },
+    {
+      "frame": 10,
+      "time_ms": 400,
+      "x": -47,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 587.2817400090938
+    },
+    {
+      "frame": 11,
+      "time_ms": 440,
+      "x": -27,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 628.2072968041525
+    },
+    {
+      "frame": 12,
+      "time_ms": 480,
+      "x": -9,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 665.0402979197055
+    },
+    {
+      "frame": 13,
+      "time_ms": 520,
+      "x": 9,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 701.8732990352585
+    },
+    {
+      "frame": 14,
+      "time_ms": 560,
+      "x": 25,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 734.6137444713054
+    },
+    {
+      "frame": 15,
+      "time_ms": 600,
+      "x": 40,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 765.3079120675995
+    },
+    {
+      "frame": 16,
+      "time_ms": 640,
+      "x": 53,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 791.9095239843878
+    },
+    {
+      "frame": 17,
+      "time_ms": 680,
+      "x": 66,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 818.5111359011761
+    },
+    {
+      "frame": 18,
+      "time_ms": 720,
+      "x": 77,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 841.0201921384585
+    },
+    {
+      "frame": 19,
+      "time_ms": 760,
+      "x": 87,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 861.4829705359879
+    },
+    {
+      "frame": 20,
+      "time_ms": 800,
+      "x": 97,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 881.9457489335172
+    },
+    {
+      "frame": 21,
+      "time_ms": 840,
+      "x": 105,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 898.3159716515407
+    },
+    {
+      "frame": 22,
+      "time_ms": 880,
+      "x": 113,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 914.6861943695642
+    },
+    {
+      "frame": 23,
+      "time_ms": 920,
+      "x": 119,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 926.9638614080818
+    },
+    {
+      "frame": 24,
+      "time_ms": 960,
+      "x": 125,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 939.2415284465995
+    },
+    {
+      "frame": 25,
+      "time_ms": 1000,
+      "x": 130,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 949.4729176453643
+    },
+    {
+      "frame": 26,
+      "time_ms": 1040,
+      "x": 135,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 959.704306844129
+    },
+    {
+      "frame": 27,
+      "time_ms": 1080,
+      "x": 139,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 967.8894182031407
+    },
+    {
+      "frame": 28,
+      "time_ms": 1120,
+      "x": 142,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 974.0282517223995
+    },
+    {
+      "frame": 29,
+      "time_ms": 1160,
+      "x": 145,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 980.1670852416582
+    },
+    {
+      "frame": 30,
+      "time_ms": 1200,
+      "x": 147,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 984.2596409211641
+    },
+    {
+      "frame": 31,
+      "time_ms": 1240,
+      "x": 149,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 988.35219660067
+    },
+    {
+      "frame": 32,
+      "time_ms": 1280,
+      "x": 150,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 990.3984744404229
+    },
+    {
+      "frame": 33,
+      "time_ms": 1320,
+      "x": 151,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 992.4447522801761
+    },
+    {
+      "frame": 34,
+      "time_ms": 1360,
+      "x": 152,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 994.4910301199288
+    },
+    {
+      "frame": 35,
+      "time_ms": 1400,
+      "x": 152,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 994.4910301199288
+    },
+    {
+      "frame": 36,
+      "time_ms": 1440,
+      "x": 153,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 996.5373079596818
+    },
+    {
+      "frame": 37,
+      "time_ms": 1480,
+      "x": 153,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 996.5373079596818
+    },
+    {
+      "frame": 38,
+      "time_ms": 1520,
+      "x": 153,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 996.5373079596818
+    },
+    {
+      "frame": 39,
+      "time_ms": 1560,
+      "x": 153,
+      "y": 13,
+      "wheel_angle_degrees_clockwise": 996.5373079596818
+    }
+  ]
+}

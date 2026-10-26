@@ -90,6 +90,11 @@ constexpr uint32_t PERIODO_GRUPO_FALLAS_MS = 3000;
 // adaptador se activa después de MANTENER_OLVIDAR_MS apretado.
 constexpr uint32_t PERIODO_RSSI_MS = 2000;
 constexpr uint32_t MANTENER_OLVIDAR_MS = 3000;
+// Pantalla de espera: el DS3 entra a los ESPERA_ENTRADA_MS de prender la
+// pantalla (si para entonces llegaron los datos, no se ve). Tocarla
+// reintenta ya; mantenerla apretada MANTENER_REINICIO_MS reinicia la placa.
+constexpr uint32_t ESPERA_ENTRADA_MS = 5000;
+constexpr uint32_t MANTENER_REINICIO_MS = 3000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se

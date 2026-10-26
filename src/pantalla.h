@@ -6,23 +6,13 @@
 
 #include "pantalla_hw.h"
 
-// Una línea: etiqueta a la izquierda y valor a la derecha. Cualquiera de
-// los dos puede ser "".
-struct LineaDato {
-  const char *etiqueta;
-  const char *valor;
-  // false: el valor no es válido y actual ("--", "...", "N/D") y va en gris
-  bool actual;
-};
-
 // Puntos de página que caben en la barra
 constexpr uint8_t MAX_PAGINAS = 8;
 
-// Pantallas de estado (E3) y el marco de las páginas (E4), con LVGL. Barra
-// de estado arriba y debajo hasta 4 líneas, o el área de las páginas. Cada
-// función arma una pantalla completa; LVGL la dibuja en el próximo
-// PantallaHw::atender(), y solo si algo cambió. Los valores llegan ya como
-// texto: quien llama decide si están vigentes.
+// La pantalla de espera (E9), las de estado que quedan (E3) y el marco de
+// las páginas (E4), con LVGL. Cada función arma una pantalla completa; LVGL
+// la dibuja en el próximo PantallaHw::atender(), y solo si algo cambió. Los
+// valores llegan ya como texto: quien llama decide si están vigentes.
 class Pantalla {
 public:
   explicit Pantalla(PantallaHw &hardware) : hw(hardware) {}
@@ -30,18 +20,19 @@ public:
   // Crea los objetos. Si la pantalla no se pudo iniciar, las demás no hacen nada.
   void iniciar();
 
-  void inicio();
+  // Mientras no hay datos (adaptador, ELM y ECU): negra, con el estado abajo
+  // a la izquierda, en gris o, si es un problema, en ámbar. A los
+  // ESPERA_ENTRADA_MS de iniciar() entra el DS3, una sola vez, y queda quieto
+  // con "Toca para reintentar" abajo a la derecha. Si en ese momento no se ve
+  // la espera, después aparece directamente quieto.
+  void espera(const char *estado, bool problema = false);
+  // Un toque en la espera desde la última llamada (reintentar ya)
+  bool tomarReintento();
+  // funcion se llama cuando la espera lleva MANTENER_REINICIO_MS apretada
+  // (reiniciar la placa). Corre dentro de PantallaHw::atender(), que también
+  // atiende la otra tarea mientras se conecta.
+  void alMantenerApretada(void (*funcion)());
   void alimentacionBaja();
-  // Se dibuja en el acto: conectar bloquea sin atender la pantalla
-  void conectando(bool buscando);
-  // Sin el adaptador, perdido o sin aparecer. Con la llave sacada se apaga
-  // (va en el pin 1), así que es lo normal: en gris, no en rojo. segundos:
-  // hasta el próximo intento; 0 mientras se lo busca.
-  void sinAdaptador(uint32_t segundos);
-  void iniciandoElm(const char *comando);
-  void elmNoResponde(uint32_t segundos);
-  void buscandoEcu(const char *version);
-  void sinEcu(const char *version, const LineaDato &voltaje, const char *motivo, uint32_t segundos);
   void descubriendo(uint16_t hechos, uint16_t total);
 
   // Para Paginas: la barra con el título y un punto por página (numero, de
@@ -50,6 +41,10 @@ public:
   // Donde Paginas arma las suyas: 640x144, debajo de la barra. Se ve solo
   // después de pagina(). nullptr sin pantalla.
   lv_obj_t *areaPaginas() const;
+  // Una página de 640x172, sin la barra (DS3). Se ve solo después de
+  // paginaCompleta(). nullptr sin pantalla.
+  void paginaCompleta();
+  lv_obj_t *areaCompleta() const;
 
 private:
   PantallaHw &hw;

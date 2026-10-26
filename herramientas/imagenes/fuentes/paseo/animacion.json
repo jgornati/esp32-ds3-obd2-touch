@@ -1,0 +1,8 @@
+{
+  "width": 640,
+  "height": 172,
+  "frames": 60,
+  "frame_ms": 50,
+  "loop": true,
+  "duration_ms": 3000
+}

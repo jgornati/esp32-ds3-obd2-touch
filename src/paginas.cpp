@@ -4,8 +4,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "animaciones.h"
 #include "config.h"
 #include "dibujo.h"
+#include "imagenes/imagenes.h"
 
 enum : uint8_t {
   PAGINA_MOTOR,
@@ -14,6 +16,7 @@ enum : uint8_t {
   PAGINA_MEZCLA,
   PAGINA_FALLAS,
   PAGINA_INFO,
+  PAGINA_DS3,
   CANT_PAGINAS
 };
 
@@ -42,6 +45,7 @@ static const Definicion PAGINAS[] = {
     {"MEZCLA", DE_MEZCLA, largo(DE_MEZCLA)},
     {"FALLAS", nullptr, 0},
     {"INFO", nullptr, 0},
+    {"DS3", nullptr, 0},
 };
 static_assert(sizeof(PAGINAS) / sizeof(PAGINAS[0]) == CANT_PAGINAS,
               "PAGINAS tiene que seguir el orden del enum");
@@ -72,6 +76,7 @@ static const lv_color_t ROJO_CLARO = lv_color_hex(0xFF6B60); // el texto de Olvi
 // aunque cambie la fuente.
 static const int32_t ANCHO = 640;
 static const int32_t ALTO = 144;
+static const int32_t ALTO_COMPLETA = 172; // DS3, sin la barra
 static const int32_t MARGEN = 8;
 static const int32_t BORDE_DERECHO = ANCHO - MARGEN;
 // Motor y Aire: el número grande alineado a la derecha en 310 px, para que
@@ -95,6 +100,7 @@ static const lv_font_t *const CHICA = &lv_font_montserrat_14;
 static const lv_font_t *const NORMAL = &lv_font_montserrat_20;
 
 static lv_obj_t *area = nullptr;
+static lv_obj_t *areaCompleta = nullptr;
 static lv_obj_t *vistas[CANT_PAGINAS];
 static int8_t toque = 0;
 
@@ -689,10 +695,19 @@ static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
   }
 }
 
+// DS3: el paseo, a pantalla completa (sin la barra)
+
+static Paseo paseoDs3;
+
+static void alAnimarPaseo(lv_timer_t *) {
+  paseoDs3.mover(lv_tick_get());
+}
+
 // Cuenta toda la pantalla, también la barra: los objetos de las páginas y de
 // la barra no reciben toques, así que el evento llega a la raíz.
 static void alTocar(lv_event_t *) {
-  if (lv_obj_has_flag(area, LV_OBJ_FLAG_HIDDEN)) {
+  if (lv_obj_has_flag(area, LV_OBJ_FLAG_HIDDEN) &&
+      lv_obj_has_flag(areaCompleta, LV_OBJ_FLAG_HIDDEN)) {
     return;
   }
   lv_point_t punto;
@@ -702,11 +717,13 @@ static void alTocar(lv_event_t *) {
 
 void Paginas::iniciar() {
   area = pantalla.areaPaginas();
+  areaCompleta = pantalla.areaCompleta();
   if (area == nullptr) {
     return;
   }
   for (uint8_t i = 0; i < CANT_PAGINAS; i++) {
-    vistas[i] = caja(area, 0, 0, ANCHO, ALTO);
+    vistas[i] = i == PAGINA_DS3 ? caja(areaCompleta, 0, 0, ANCHO, ALTO_COMPLETA)
+                                : caja(area, 0, 0, ANCHO, ALTO);
     lv_obj_add_flag(vistas[i], LV_OBJ_FLAG_HIDDEN);
   }
   armarMotor(vistas[PAGINA_MOTOR]);
@@ -715,6 +732,8 @@ void Paginas::iniciar() {
   armarMezcla(vistas[PAGINA_MEZCLA]);
   armarFallas(vistas[PAGINA_FALLAS]);
   armarInfo(vistas[PAGINA_INFO]);
+  paseoDs3.crear(vistas[PAGINA_DS3]);
+  lv_timer_create(alAnimarPaseo, paseo.ms_cuadro, nullptr);
   lv_obj_add_event_cb(lv_screen_active(), alTocar, LV_EVENT_CLICKED, nullptr);
   armadas = true;
 }
@@ -795,6 +814,10 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
   case PAGINA_INFO:
     dibujarInfo(ahora, info);
     break;
+  case PAGINA_DS3:
+    // Se mueve sola, con alAnimarPaseo
+    pantalla.paginaCompleta();
+    return;
   }
   pantalla.pagina(titulo, actual, CANT_PAGINAS);
 }

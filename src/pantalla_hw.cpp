@@ -32,6 +32,10 @@ static const uint32_t RELOJ_TOUCH_HZ = 300000;
 static const int TIMEOUT_TOUCH_MS = 20;
 // Si una tanda no se terminó de mandar en esto, se sigue igual
 static const uint32_t TIMEOUT_TANDA_MS = 100;
+// La tarea que atiende LVGL mientras loop() bloquea: entre una atención y
+// la siguiente deja correr a las demás
+static const uint32_t PILA_APARTE = 8192;
+static const uint32_t PAUSA_APARTE_MS = 5;
 
 // Los del ejemplo: salir del modo sueño y prender la imagen. El driver
 // manda antes MADCTL y COLMOD.
@@ -44,6 +48,8 @@ static const axs15231b_lcd_init_cmd_t COMANDOS_PANEL[] = {
 static bool lista = false;
 static uint32_t ultimaAtencion = 0;
 static uint32_t hueco = 0;
+// LVGL: lo tiene loop(), salvo entre soltar() y tomar()
+static SemaphoreHandle_t cerrojo = nullptr;
 
 static esp_lcd_panel_handle_t panel = nullptr;
 static i2c_master_dev_handle_t touch = nullptr;
@@ -177,6 +183,26 @@ static uint32_t milisegundos() {
   return millis();
 }
 
+// Con LVGL tomado
+static void atenderLvgl() {
+  uint32_t ahora = millis();
+  if (ultimaAtencion != 0 && ahora - ultimaAtencion > hueco) {
+    hueco = ahora - ultimaAtencion;
+  }
+  ultimaAtencion = ahora;
+  lv_timer_handler();
+}
+
+// Corre solo cuando loop() soltó LVGL; el resto del tiempo espera el cerrojo
+static void atenderAparte(void *) {
+  for (;;) {
+    xSemaphoreTakeRecursive(cerrojo, portMAX_DELAY);
+    atenderLvgl();
+    xSemaphoreGiveRecursive(cerrojo);
+    vTaskDelay(pdMS_TO_TICKS(PAUSA_APARTE_MS));
+  }
+}
+
 static bool iniciarPanel() {
   spi_bus_config_t bus = {};
   bus.sclk_io_num = PIN_PANTALLA_CLK;
@@ -300,6 +326,16 @@ bool PantallaHw::iniciar() {
     return false;
   }
   iniciarLvgl();
+  cerrojo = xSemaphoreCreateRecursiveMutex();
+  if (cerrojo == nullptr) {
+    Serial.println("Pantalla: falta memoria");
+    return false;
+  }
+  xSemaphoreTakeRecursive(cerrojo, portMAX_DELAY);
+  if (xTaskCreatePinnedToCore(atenderAparte, "pantalla", PILA_APARTE, nullptr, 1, nullptr,
+                              ARDUINO_RUNNING_CORE) != pdPASS) {
+    Serial.println("Pantalla: no se pudo crear la tarea; mientras conecta, queda quieta");
+  }
   lista = true;
 
   // Primero el negro y después la luz, al máximo
@@ -316,12 +352,21 @@ void PantallaHw::atender() {
   if (!lista) {
     return;
   }
-  uint32_t ahora = millis();
-  if (ultimaAtencion != 0 && ahora - ultimaAtencion > hueco) {
-    hueco = ahora - ultimaAtencion;
+  tomar();
+  atenderLvgl();
+  soltar();
+}
+
+void PantallaHw::soltar() {
+  if (cerrojo != nullptr) {
+    xSemaphoreGiveRecursive(cerrojo);
   }
-  ultimaAtencion = ahora;
-  lv_timer_handler();
+}
+
+void PantallaHw::tomar() {
+  if (cerrojo != nullptr) {
+    xSemaphoreTakeRecursive(cerrojo, portMAX_DELAY);
+  }
 }
 
 uint32_t PantallaHw::huecoMaximo() {
@@ -332,7 +377,9 @@ uint32_t PantallaHw::huecoMaximo() {
 
 void PantallaHw::dibujarYa() {
   if (lista) {
+    tomar();
     lv_refr_now(display);
+    soltar();
   }
 }
 
@@ -341,10 +388,12 @@ uint32_t PantallaHw::medirRefresco(uint32_t &envio) {
   if (!lista) {
     return 0;
   }
+  tomar();
   lv_obj_invalidate(lv_screen_active());
   uint32_t inicio = millis();
   lv_refr_now(display);
   envio = ultimoEnvioMs;
+  soltar();
   return millis() - inicio;
 }
 

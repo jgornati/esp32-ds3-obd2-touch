@@ -1,0 +1,5 @@
+Fondo animado DS3 — 640 x 172
+60 cuadros PNG, 50 ms por cuadro (20 fps), bucle de 3 segundos.
+Auto rojo con techo negro, llantas girando, nubes y marcas del camino desplazándose hacia la izquierda.
+Repetir frame_000.png a frame_059.png continuamente, sin pausa al volver al primero.
+El GIF también se repite continuamente. Integrar estos recursos en el programa de la placa para mostrarlos en pantalla.
