@@ -30,7 +30,7 @@ que corresponda antes de portar un módulo.
 | E4    | Diseño de páginas y navegación táctil  | E3         | Verificada (salvo de noche) |
 | E5    | Códigos de falla                       | E4         | Verificada (salvo comparar con el iPhone) |
 | E6    | Brillo y ajustes                       | E4         | Hecha (falta verificar en hardware) |
-| E7    | Cierre e instalación                   | E5, E6     | Pendiente |
+| E7    | Cierre e instalación                   | E5, E6     | Hecha (falta verificar en hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada.
@@ -64,12 +64,12 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Subir el firmware      | Por el USB-C, sin adaptador USB–TTL ni puente GPIO0–GND. Si no entra en modo de descarga: mantener BOOT, apretar RESET, soltar BOOT. |
 | Biblioteca BLE         | *Propuesta:* la `BLE` del core (viene con la plataforma, sin dependencia nueva). Si da problemas, NimBLE-Arduino con versión fijada. E0 ya la usa: en el S3 corre sobre NimBLE, no Bluedroid (ver notas de E0). |
 | Gráficos               | *Propuesta:* LVGL 9.3.0 (la versión de los ejemplos de Waveshare) y el driver `esp_lcd_axs15231b` del ejemplo `10_LVGL_V9_Test`. |
-| Orientación            | *Propuesta:* horizontal, 640×172, con rotación por software como en el ejemplo de Waveshare. El sentido (USB-C a la izquierda o a la derecha) queda en `config.h`. |
+| Orientación            | Horizontal, 640×172, con rotación por software como en el ejemplo de Waveshare. Montada como en el banco: `PANTALLA_GIRADA = false` en `config.h` (confirmado en E7). |
 | Concurrencia           | *Propuesta:* la lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer (único punto concurrente). LVGL no tiene tarea propia: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. |
 | Protocolo              | `ATSP6` (CAN 11 bit 500 kbaud), confirmado en el DS3. Heredada.                                |
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
-| Alimentación           | 5 V desde un USB del auto que se corta al apagarlo. Sin deep sleep. *Propuesta:* sin batería en la placa (ver E7). |
+| Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep y sin batería en la placa (confirmado en E7). |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
 | Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida.    |
@@ -1758,3 +1758,65 @@ Para E7:
   imagen (los colores) en vez de la luz.
 
 ### E7
+
+Hecho (rama `e7-cierre-e-instalacion`, desde `main` con E6). Antes de
+empezar, el usuario decidió (2026-10-26):
+
+- **Montaje** como en el banco: `PANTALLA_GIRADA = false`, sin cambios.
+- **La placa en un USB del auto que se corta con la llave, sin batería.**
+  No se toca el TCA9554 (`SYS_EN` es su EXIO6).
+- **Sin la prueba larga** (la memoria cada minuto durante 30 min): el
+  usuario la descartó. Lo que se sabe de la memoria: sin pérdidas con 6
+  reconexiones seguidas (E3) y 128 KB de RAM interna libre con el motor
+  andando (E5).
+
+Lo que se hizo:
+
+- **Warnings:** con `-Wall -Wextra -Wshadow` quedaban 5, todos de un
+  parámetro con el nombre de un miembro: los constructores de `Consola`,
+  `Paginas` y `Pantalla`, y `Consola::ejecutar()`. Se renombraron los
+  parámetros. No quedan warnings propios, ni en `src/` ni en `lib/obd`
+  (también en los tests nativos). Los de LVGL y del driver del panel no
+  son propios.
+- **README final:** qué muestra cada página, cómo se ve cada dato, el uso
+  (páginas, pantallas de estado, Fallas, Info y consola), el hardware, la
+  instalación (alimentación de la placa y del adaptador, montaje), el
+  desarrollo, los tests y el render. Incluye lo que pedían las notas de E5
+  y E6.
+- **Detector de brownout:** sigue activo, como desde E3. En esta placa no
+  hubo ningún reinicio por brownout (siempre `encendido` o `USB`). Se
+  decide con la prueba en el auto (abajo): si aparece `ALIMENTACION`,
+  primero el capacitor del anterior (470–1000 µF entre 5 V y GND), y
+  desactivar el detector, como hizo el anterior, solo si sigue pasando.
+
+Verificado por el agente: `pio run` compila (RAM 10,0 %, flash 50,2 % de
+3 MB) sin warnings propios, también con `-Wall -Wextra -Wshadow`.
+`pio test -e native` 57/57. Render: 54 revisiones, todas bien.
+
+Sin probar: la placa alimentada desde el USB del auto. Hasta ahora siempre
+se probó con la notebook.
+
+**Pruebas del usuario, en el auto y sin la notebook** (con la notebook, la
+placa se alimenta de ella y no se ve lo del USB del auto):
+
+1. Poner el contacto: la placa y el adaptador arrancan juntos. ¿Cuánto
+   tarda en aparecer MOTOR con datos? Puede que el primer intento por la
+   dirección guardada falle porque el adaptador todavía no se anuncia, y
+   lo encuentre buscando.
+2. Dar arranque y mirar la pantalla:
+   - Sigue en MOTOR con datos: no se cortó nada.
+   - Pasa a `SIN ADAPTADOR` y vuelve sola: se cortó el adaptador (el pin 1),
+     no la placa. Anotar cuánto tarda en volver.
+   - Se apaga y vuelve con `DS3 OBDII`: el USB se cortó durante el
+     arranque (muchos autos cortan los accesorios mientras se da arranque).
+     Vuelve sola; anotar cuánto tarda en llegar a MOTOR.
+   - Aparece `ALIMENTACION` (rojo): reinicio por brownout. Hace falta el
+     capacitor.
+3. Con el motor andando un rato, que no se reinicie ni se cuelgue (las RPM
+   siguen a la aguja).
+4. Lo que quedó de E6: los botones de Info (que respondan bien y no se
+   disparen sin querer) y el RSSI. Al sacar la llave se apaga todo, así que
+   `SIN ADAPTADOR` casi no se va a ver.
+5. Ya montada: que se lea bien de día (lejos del sol directo) y que de
+   noche no encandile (la luz queda al máximo; si molesta, se puede
+   oscurecer la imagen).

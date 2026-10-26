@@ -32,7 +32,7 @@ constexpr uint8_t MAX_VISIBLES = 6;
 // quedan como pedidos (tomarToque() y tomarAccion()) y quien llama actúa.
 class Paginas {
 public:
-  explicit Paginas(Pantalla &pantalla) : pantalla(pantalla) {}
+  explicit Paginas(Pantalla &marco) : pantalla(marco) {}
 
   // Arma las páginas, después de Pantalla::iniciar(). Sin pantalla, dibujar()
   // no hace nada; lo demás anda igual.

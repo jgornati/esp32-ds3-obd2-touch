@@ -25,7 +25,7 @@ constexpr uint8_t MAX_PAGINAS = 8;
 // texto: quien llama decide si están vigentes.
 class Pantalla {
 public:
-  explicit Pantalla(PantallaHw &hw) : hw(hw) {}
+  explicit Pantalla(PantallaHw &hardware) : hw(hardware) {}
 
   // Crea los objetos. Si la pantalla no se pudo iniciar, las demás no hacen nada.
   void iniciar();
