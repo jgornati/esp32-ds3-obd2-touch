@@ -14,6 +14,9 @@
 
 - Compilar: `~/.platformio/penv/bin/pio run`
 - Tests nativos: `~/.platformio/penv/bin/pio test -e native`
+- Ver las pantallas en la PC: `make -C herramientas/render -j8` (después
+  de un `pio run`). Deja PNG en `herramientas/render/salida/` y revisa
+  redibujos y toques; ver `herramientas/render/render.cpp`.
 
 Subir y probar en el hardware lo hace el usuario, por el USB-C. Lo que
 no se pudo verificar en hardware se deja como pendiente de

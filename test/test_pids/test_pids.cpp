@@ -15,10 +15,12 @@ static void verificarPid(uint8_t pid, const uint8_t (&datos)[N], float esperado)
 }
 
 static void test_tabla_minima() {
-  // Los que pide el plan, más los mapas de sondas completos
-  const uint8_t pids[] = {0x01, 0x03, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0F, 0x13, 0x14, 0x15, 0x16,
-                          0x17, 0x18, 0x19, 0x1A, 0x1B, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A,
-                          0x2B, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x42, 0x44};
+  // Los que pide el plan, más los mapas de sondas completos y los de la
+  // página Carga (E4)
+  const uint8_t pids[] = {0x01, 0x03, 0x04, 0x05, 0x06, 0x07, 0x0C, 0x0D, 0x0E, 0x0F,
+                          0x11, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B,
+                          0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x34, 0x35,
+                          0x36, 0x37, 0x38, 0x39, 0x3A, 0x3B, 0x42, 0x44};
   for (uint8_t pid : pids) {
     char mensaje[16];
     snprintf(mensaje, sizeof(mensaje), "PID %02X", pid);
@@ -46,6 +48,11 @@ static void test_formulas() {
   verificarPid(0x0C, {0x1A, 0xF8}, 1726);
   verificarPid(0x0C, {0x0B, 0xB8}, 750);
   verificarPid(0x0D, {0x32}, 50);
+  verificarPid(0x0E, {0x80}, 0);
+  verificarPid(0x0E, {0x98}, 12);
+  verificarPid(0x0E, {0x6C}, -10);
+  verificarPid(0x0E, {0xFF}, 63.5f);
+  verificarPid(0x0E, {0x00}, -64);
   verificarPid(0x0F, {0x41}, 25);
   verificarPid(0x10, {0x01, 0xF4}, 5);
   verificarPid(0x11, {0x80}, 50.2f);
@@ -169,6 +176,13 @@ static void test_separar_pids() {
   TEST_ASSERT_EQUAL_HEX8(0x34, pids[1].pid);
   TEST_ASSERT_EQUAL_UINT8(4, pids[1].largo);
   TEST_ASSERT_EQUAL_HEX8(0x5B, pids[2].datos[0]);
+
+  // Carga, avance y acelerador (página Carga, E4): un byte cada uno
+  const uint8_t carga[] = {0x04, 0x3B, 0x0E, 0x98, 0x11, 0x24};
+  TEST_ASSERT_EQUAL_UINT8(3, separarPids(carga, sizeof(carga), pids, 6));
+  TEST_ASSERT_TRUE(calcularPid(pids[1].pid, pids[1].datos, pids[1].largo, &v));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 12, v);
+  TEST_ASSERT_EQUAL_HEX8(0x24, pids[2].datos[0]);
 
   // Hasta max
   TEST_ASSERT_EQUAL_UINT8(2, separarPids(datos, sizeof(datos), pids, 2));

@@ -26,6 +26,9 @@ enum Magnitud : uint8_t {
   LAZO,
   LAMBDA,
   SONDA_POST,
+  CARGA,
+  AVANCE,
+  ACELERADOR,
   CANT_MAGNITUDES
 };
 
@@ -51,6 +54,10 @@ bool valorDesdePid(Magnitud m, const uint8_t *datos, uint8_t largo, float *valor
 bool valorActual(Magnitud m, uint32_t ahora, float *valor);
 
 // Texto según las convenciones de pantalla: valor y unidad, "N/D", "..." o
-// "--" (vencido o sin conexión). pantalla: con "°C" (UTF-8, para LVGL) en
-// vez de "C" y el estado del lazo abreviado.
+// "--" (vencido o sin conexión). pantalla: con "°C" y "°" (UTF-8, para LVGL)
+// en vez de "C" y "grad".
 void textoDato(Magnitud m, uint32_t ahora, bool pantalla, char *salida, size_t tam);
+
+// Para las páginas, que ponen la unidad aparte: el número sin la unidad (el
+// estado del lazo en texto), o "N/D", "..." o "--". true si es un valor actual.
+bool textoValor(Magnitud m, uint32_t ahora, char *salida, size_t tam);

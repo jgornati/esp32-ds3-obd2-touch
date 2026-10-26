@@ -24,9 +24,12 @@
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 #define LV_LOG_PRINTF 0
 
-/* Fuentes: Montserrat (traen el °) y los números grandes de src/fuentes */
+/* Fuentes: Montserrat (traen el °, pero no tildes) y los números grandes de src/fuentes */
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_28 1
+#define LV_FONT_MONTSERRAT_36 1
+#define LV_FONT_MONTSERRAT_48 1
 #define LV_FONT_CUSTOM_DECLARE LV_FONT_DECLARE(fuente_numeros_110)
 #define LV_FONT_DEFAULT &lv_font_montserrat_20
 

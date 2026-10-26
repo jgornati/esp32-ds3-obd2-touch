@@ -39,6 +39,10 @@ constexpr uint8_t DIRECCION_EXPANSOR = 0x20; // TCA9554; su pin 6 sostiene la ba
 
 // GPIO16 no se usa: el ejemplo 07 lo lee para saber si está prendida por batería.
 
+// Botón BOOT, atrás de la placa: pasa a la página siguiente. Es pin de
+// arranque; después del boot se lee como cualquier entrada (apretado = LOW).
+constexpr uint8_t PIN_BOTON = 0;
+
 // BLE
 constexpr const char *BLE_NOMBRE_LOCAL = "DS3-Monitor";
 // Lo que !escanear marca como posible adaptador OBD: una parte del nombre
@@ -77,6 +81,7 @@ constexpr uint32_t PERIODO_ATRV_MS = 2000;
 constexpr uint32_t PERIODO_LENTO_MS = 2500;
 constexpr uint32_t PERIODO_PANTALLA_MS = 500;
 constexpr uint32_t PERIODO_TABLA_MS = 1000; // tabla de datos en el monitor serie
+constexpr uint32_t ANTIRREBOTE_MS = 30;     // el botón tiene que quedar estable este tiempo
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se

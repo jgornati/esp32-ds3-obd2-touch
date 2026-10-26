@@ -43,6 +43,15 @@ en la PC. Desde la carpeta del proyecto (`pio` no está en el PATH):
 ~/.platformio/penv/bin/pio test -e native
 ```
 
+Las pantallas también se pueden ver en la PC, con el mismo LVGL y el
+mismo código de dibujo (hace falta un `pio run` antes, clang y zlib):
+
+```text
+make -C herramientas/render -j8
+```
+
+Deja un PNG por pantalla en `herramientas/render/salida/`.
+
 ## Alcance
 
 Solo lectura y visualización. No borra fallas ni envía comandos que

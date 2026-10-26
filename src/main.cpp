@@ -7,12 +7,14 @@
 #include <pids.h>
 #include <respuesta.h>
 
+#include "boton.h"
 #include "config.h"
 #include "consola.h"
 #include "datos.h"
 #include "descubrimiento.h"
 #include "elm327.h"
 #include "explorar.h"
+#include "paginas.h"
 #include "pantalla.h"
 #include "pantalla_hw.h"
 #include "sondeo.h"
@@ -33,12 +35,6 @@ enum class Estado { CONECTANDO_BT, INICIANDO_ELM, BUSCANDO_ECU, LEYENDO, SIN_ECU
 static const char *const INICIALIZACION[] = {"ATZ",  "ATE0",  "ATL0", "ATS0",
                                              "ATH0", "ATSP6", "ATAT1"};
 
-// Pantalla provisoria (E3): RPM en grande y estas a la derecha. El sondeo
-// consulta las visibles en cada vuelta; VOLT_ELM va siempre cada PERIODO_ATRV_MS.
-static const Magnitud VISIBLES[] = {RPM, REFRIGERANTE, VELOCIDAD, ADMISION};
-static const Magnitud A_LA_DERECHA[] = {REFRIGERANTE, VELOCIDAD, ADMISION, VOLT_ELM};
-static const uint8_t CANT_VISIBLES = sizeof(VISIBLES) / sizeof(VISIBLES[0]);
-static const uint8_t CANT_A_LA_DERECHA = sizeof(A_LA_DERECHA) / sizeof(A_LA_DERECHA[0]);
 static_assert(PIDS_POR_CONSULTA >= 2 && PIDS_POR_CONSULTA <= MAX_PIDS_POR_PEDIDO,
               "PIDS_POR_CONSULTA va de 2 a MAX_PIDS_POR_PEDIDO");
 
@@ -47,6 +43,8 @@ Explorador explorador;
 Consola consola(elm, explorador);
 PantallaHw pantallaHw;
 Pantalla pantalla(pantallaHw);
+Paginas paginas(pantalla);
+Boton boton;
 PidsSoportados soportados;
 Sondeo sondeo;
 
@@ -55,9 +53,10 @@ static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
 static uint32_t ultimaLectura = 0;  // ATRV en SIN_ECU
 static uint32_t ultimoDibujo = 0;
 static uint32_t ultimaTabla = 0;
-static uint16_t consultas = 0;   // desde la última tabla
-static uint32_t msConsultas = 0; // lo que tardaron, para el promedio
-static uint16_t lecturasRpm = 0; // desde la última tabla
+static uint16_t consultas = 0;           // desde la última tabla
+static uint32_t msConsultas = 0;         // lo que tardaron, para el promedio
+static uint16_t lecturasRpm = 0;         // desde la última tabla
+static int16_t consultasPorSegundo = -1; // de la última tabla, para Info; -1 sin medir
 static const char *motivo = "";
 static uint8_t fallasEcu = 0;
 static uint32_t ultimaRespuestaEcu = 0; // la última consulta a la ECU que salió bien
@@ -196,17 +195,6 @@ static LineaDato lineaDe(Magnitud m, uint32_t ahora, char *texto, size_t tam) {
   return {etiquetaDe(m), texto, valorActual(m, ahora, &valor)};
 }
 
-static void dibujarDatos(uint32_t ahora) {
-  char rpm[16];
-  LineaDato principal = lineaDe(RPM, ahora, rpm, sizeof(rpm));
-  char textos[CANT_A_LA_DERECHA][16];
-  LineaDato lineas[CANT_A_LA_DERECHA];
-  for (uint8_t i = 0; i < CANT_A_LA_DERECHA; i++) {
-    lineas[i] = lineaDe(A_LA_DERECHA[i], ahora, textos[i], sizeof(textos[i]));
-  }
-  pantalla.datos(version, principal, lineas, CANT_A_LA_DERECHA);
-}
-
 // Las pantallas de CONECTANDO_BT, de INICIANDO_ELM mientras configura y de
 // !descubrir las dibujan esos pasos.
 static void dibujar() {
@@ -230,7 +218,7 @@ static void dibujar() {
     pantalla.buscandoEcu(version);
     break;
   case Estado::LEYENDO:
-    dibujarDatos(ahora);
+    paginas.dibujar(ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo});
     break;
   case Estado::SIN_ECU:
     pantalla.sinEcu(version, lineaDe(VOLT_ELM, ahora, voltaje, sizeof(voltaje)), motivo, segundos);
@@ -254,9 +242,35 @@ static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
   dibujar();
 }
 
+// El sondeo consulta en cada vuelta lo que se ve en la página actual
+static void actualizarVisibles() {
+  Magnitud lista[MAX_VISIBLES];
+  uint8_t cantidad = paginas.visibles(lista);
+  sondeo.visibles(lista, cantidad);
+}
+
+// El botón y los toques cambian de página solo con las páginas a la vista.
+// No usa el ELM: se llama también mientras se lo espera, así la página
+// cambia sin esperar a que termine la consulta.
+static void atenderPaginas() {
+  boton.actualizar();
+  int8_t paso = paginas.tomarToque();
+  if (boton.pulsado()) {
+    paso = 1;
+  }
+  if (paso == 0 || estado != Estado::LEYENDO || descubriendo) {
+    return;
+  }
+  paginas.cambiar(paso);
+  actualizarVisibles();
+  Serial.printf("Pagina: %s\n", paginas.titulo());
+  dibujar();
+}
+
 // Mientras se espera al ELM, la pantalla sigue al día: así un dato que se
 // vence mientras tanto no queda a la vista. No usa el ELM.
 static void alEsperar() {
+  atenderPaginas();
   if (millis() - ultimoDibujo >= PERIODO_PANTALLA_MS) {
     dibujar();
   }
@@ -488,17 +502,32 @@ static uint8_t guardarVarias(const Respuesta &respuesta, const Magnitud *lista, 
   return guardadas;
 }
 
-// Prueba un pedido de varios PIDs con los visibles que la ECU soporta. Si
-// vuelven todos, el sondeo los pide juntos; si no, de a uno, como en el
+// De las magnitudes, las que se piden por PID y la ECU soporta, hasta
+// PIDS_POR_CONSULTA. Devuelve cuántas dejó en lista.
+static uint8_t pedibles(const Magnitud *magnitudes, uint8_t cantidad, Magnitud *lista) {
+  uint8_t pedidas = 0;
+  for (uint8_t i = 0; i < cantidad && pedidas < PIDS_POR_CONSULTA; i++) {
+    Magnitud m = magnitudes[i];
+    if (m != VOLT_ELM && dato(m).estado != EstadoDato::NO_SOPORTADO) {
+      lista[pedidas++] = m;
+    }
+  }
+  return pedidas;
+}
+
+// Prueba un pedido de varios PIDs con los de la página actual que la ECU
+// soporta; si son menos de dos (Aire/Volt, Fallas, Info), con los de Motor.
+// Si vuelven todos, el sondeo los pide juntos; si no, de a uno, como en el
 // anterior. Con los datos reiniciados: lo que llega ya se muestra.
 // false si se perdió la conexión.
 static bool probarVariosPids() {
+  Magnitud magnitudes[MAX_VISIBLES];
   Magnitud lista[PIDS_POR_CONSULTA];
-  uint8_t cantidad = 0;
-  for (Magnitud m : VISIBLES) {
-    if (cantidad < PIDS_POR_CONSULTA && dato(m).estado != EstadoDato::NO_SOPORTADO) {
-      lista[cantidad++] = m;
-    }
+  uint8_t cantidad = paginas.visibles(magnitudes);
+  cantidad = pedibles(magnitudes, cantidad, lista);
+  if (cantidad < 2) {
+    cantidad = paginas.primeras(magnitudes);
+    cantidad = pedibles(magnitudes, cantidad, lista);
   }
   variosPids = false;
   incompletas = 0;
@@ -543,6 +572,7 @@ static void buscarEcu() {
     consultas = 0;
     msConsultas = 0;
     lecturasRpm = 0;
+    consultasPorSegundo = -1;
     ultimaTabla = millis();
     sondeo.reiniciar(millis());
     cambiarA(Estado::LEYENDO);
@@ -675,8 +705,8 @@ static void imprimirTabla() {
   }
   // Con el promedio de cada consulta se ve cuánto se va fuera de ellas
   uint32_t lapso = ahora - ultimaTabla;
-  Serial.printf(" %lu consultas/s, %lu ms cada una, RPM %lu/s\n",
-                (unsigned long)consultas * 1000 / lapso,
+  consultasPorSegundo = (int16_t)(consultas * 1000UL / lapso);
+  Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s\n", consultasPorSegundo,
                 (unsigned long)(consultas > 0 ? msConsultas / consultas : 0),
                 (unsigned long)lecturasRpm * 1000 / lapso);
   consultas = 0;
@@ -731,6 +761,7 @@ void setup() {
   // anduvo se informa cuando abre el monitor.
   bool conPantalla = pantallaHw.iniciar();
   pantalla.iniciar();
+  paginas.iniciar();
   pantalla.inicio();
   uint32_t inicio = millis();
   while (!Serial && millis() - inicio < ESPERA_MONITOR_MS) {
@@ -752,11 +783,12 @@ void setup() {
     esperar(ESPERA_ANTES_DE_BT_MS - millis());
   }
 
+  boton.iniciar();
   elm.iniciar();
   elm.mientrasEspera(alEsperar);
   consola.antesDeExplorar(alExplorar);
   marcarSinConexion();
-  sondeo.visibles(VISIBLES, CANT_VISIBLES);
+  actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
                  "!info, !escanear o !explorar N.");
@@ -765,6 +797,7 @@ void setup() {
 }
 
 void loop() {
+  atenderPaginas();
   consola.atender();
   if (consola.reconexionPedida()) {
     elm.desconectar();
