@@ -9,7 +9,7 @@
 // cualquier otra se le envía al ELM (pasa por la lista blanca).
 class Consola {
 public:
-  Consola(Elm327 &elm, Explorador &explorador) : elm(elm), explorador(explorador) {}
+  Consola(Elm327 &adaptador, Explorador &exploracion) : elm(adaptador), explorador(exploracion) {}
 
   // Llamar en cada vuelta de loop(). Bloquea mientras dura el comando.
   void atender();
@@ -34,7 +34,7 @@ public:
   }
 
 private:
-  void ejecutar(const char *linea);
+  void ejecutar(const char *texto);
   void soltarElm();
 
   Elm327 &elm;

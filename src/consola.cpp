@@ -64,16 +64,16 @@ void Consola::soltarElm() {
   reconectar = true;
 }
 
-void Consola::ejecutar(const char *linea) {
-  if (linea[0] != '!') {
+void Consola::ejecutar(const char *texto) {
+  if (texto[0] != '!') {
     // enviar() ya deja el comando, la respuesta o el rechazo en el log
-    elm.enviar(linea, TIMEOUT_CONSOLA_MS);
+    elm.enviar(texto, TIMEOUT_CONSOLA_MS);
     return;
   }
 
   char comando[16];
   int numero = 0;
-  int leidos = sscanf(linea, "%15s %d", comando, &numero);
+  int leidos = sscanf(texto, "%15s %d", comando, &numero);
 
   if (strcasecmp(comando, "!reconectar") == 0) {
     Serial.println("Consola: reconectando");
@@ -95,6 +95,6 @@ void Consola::ejecutar(const char *linea) {
     soltarElm();
     explorador.explorar(numero);
   } else {
-    Serial.printf("Consola: no conozco %s. %s\n", linea, AYUDA);
+    Serial.printf("Consola: no conozco %s. %s\n", texto, AYUDA);
   }
 }
