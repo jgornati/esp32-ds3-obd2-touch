@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#include <dtc.h>
+
 #include "datos.h"
 #include "pantalla.h"
 
@@ -37,10 +39,15 @@ public:
   uint8_t visibles(Magnitud lista[MAX_VISIBLES]) const;
   // Las de la primera página (Motor)
   uint8_t primeras(Magnitud lista[MAX_VISIBLES]) const;
+  // La página Fallas no sale del sondeo: quien llama la lee aparte
+  bool muestraFallas() const;
   // -1 o +1 si se tocó la mitad izquierda o derecha desde la última
   // llamada; 0 si no. Solo cuenta con las páginas a la vista.
   int8_t tomarToque();
-  void dibujar(uint32_t ahora, const InfoConexion &info);
+  // fallas: la última lectura de la página Fallas. reintento: segundos
+  // hasta volver a leerla, que se muestran si falló y no hay códigos.
+  void dibujar(uint32_t ahora, const InfoConexion &info, const LecturaFallas &fallas,
+               uint32_t reintento);
 
 private:
   Pantalla &pantalla;

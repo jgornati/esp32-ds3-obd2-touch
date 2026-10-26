@@ -82,6 +82,12 @@ constexpr uint32_t PERIODO_LENTO_MS = 2500;
 constexpr uint32_t PERIODO_PANTALLA_MS = 500;
 constexpr uint32_t PERIODO_TABLA_MS = 1000; // tabla de datos en el monitor serie
 constexpr uint32_t ANTIRREBOTE_MS = 30;     // el botón tiene que quedar estable este tiempo
+// Página Fallas: se lee al entrar y después cada PERIODO_FALLAS_MS, o antes
+// si 03 o 07 no contestaron bien. Si hay más códigos de los que entran, se
+// alternan cada PERIODO_GRUPO_FALLAS_MS.
+constexpr uint32_t PERIODO_FALLAS_MS = 30000;
+constexpr uint32_t REINTENTO_FALLAS_MS = 5000;
+constexpr uint32_t PERIODO_GRUPO_FALLAS_MS = 3000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se

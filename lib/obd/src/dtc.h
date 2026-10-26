@@ -16,9 +16,10 @@ struct ListaDtc {
 // 0x0133 -> "P0133". salida tiene que tener lugar para 6 caracteres.
 void textoDtc(uint16_t codigo, char *salida);
 
-// Descripción corta (hasta 14 caracteres) de los códigos genéricos más
-// comunes: 0x0420 -> "Catalizador". nullptr si no está en la tabla, como
-// los propios de cada marca (P1xxx).
+// Descripción corta de los códigos genéricos más comunes: 0x0420 ->
+// "Catalizador". nullptr si no está en la tabla, como los propios de cada
+// marca (P1xxx). Con " (pendiente)" detrás entra en un renglón de la página.
+constexpr size_t LARGO_DESCRIPCION = 14;
 const char *descripcionDtc(uint16_t codigo);
 
 // Datos de 03, 07 o 0A en CAN, ya sin el 43/47/4A: el primer byte es la
@@ -43,7 +44,7 @@ struct Codigos {
 // haya datos. NO DATA es NO_DISPONIBLE en 0A y ERROR en 03 y 07.
 Codigos interpretarCodigos(const char *cruda, const char *comando, bool completa);
 
-// Una lectura de la página Fallas (E7).
+// Una lectura de la página Fallas.
 struct LecturaFallas {
   bool leida = false;      // ya se consultó todo
   bool luzLeida = false;   // 0101 contestó bien
@@ -58,22 +59,44 @@ struct LecturaFallas {
 // ninguno. Un error en 0A no lo impide: es opcional y el DS3 no lo tiene.
 bool sinFallas(const LecturaFallas &lectura);
 
+// 03 o 07 no contestaron bien: se reintenta antes y nunca es "Sin fallas"
+bool errorAlLeer(const LecturaFallas &lectura);
+
 // Para la pantalla: "..." (sin leer), "--" (0101 falló), "Apagada" o "Encendida".
 const char *textoLuz(const LecturaFallas &lectura);
 
-// Las líneas 2 a 4 de la página Fallas, de hasta 14 caracteres.
-constexpr uint8_t RENGLONES_FALLAS = 3;
-constexpr size_t LARGO_RENGLON = 15; // con el '\0'
-
-struct PantallaFallas {
-  uint8_t cantidad;
-  char renglones[RENGLONES_FALLAS][LARGO_RENGLON];
+// La página Fallas: a la izquierda la luz y la cantidad de cada tipo, a la
+// derecha los códigos, de a RENGLONES_DTC.
+enum class VistaFallas : uint8_t {
+  LEYENDO,    // todavía no hay lectura
+  SIN_FALLAS, // sinFallas() y además la luz no está encendida
+  CODIGOS     // la luz, las cantidades y los códigos; también sin ninguno o con un error
 };
 
-// "Leyendo...", "Error al leer" (si 03 o 07 fallaron), "Sin fallas" o los
-// códigos: cada tipo con su encabezado ("2 guardadas") y cada código en su
-// renglón, con la descripción abajo si se conoce. Si no entran en una
-// pantalla se arman varias; un tipo que sigue en otra pantalla repite el
-// encabezado. Deja en salida la pantalla número vuelta % total y devuelve
-// el total.
-uint8_t pantallaFallas(const LecturaFallas &lectura, uint32_t vuelta, PantallaFallas *salida);
+// En el orden en que se muestran
+enum class TipoDtc : uint8_t { GUARDADO, PERMANENTE, PENDIENTE };
+
+struct RenglonDtc {
+  uint16_t codigo;
+  TipoDtc tipo;
+};
+
+constexpr uint8_t RENGLONES_DTC = 4;
+
+struct PantallaFallas {
+  VistaFallas vista;
+  uint8_t grupos;   // de RENGLONES_DTC códigos; 0 si no hay ninguno
+  uint8_t grupo;    // el que se ve, de 0 a grupos - 1
+  uint8_t cantidad; // renglones de este grupo
+  RenglonDtc renglones[RENGLONES_DTC];
+};
+
+// Cada código va una sola vez, con el primer tipo en que aparece:
+// guardados (03), permanentes (0A) y pendientes (07). Los de un servicio
+// que no contestó bien no están; los de los otros, sí. Si no entran, se
+// arman grupos y se ve el número vuelta % grupos.
+PantallaFallas pantallaFallas(const LecturaFallas &lectura, uint32_t vuelta);
+
+// Para la columna izquierda: "2 guardadas", "1 pendiente", o "Guardadas:
+// error" si el servicio no se leyó. true si se leyó.
+bool textoCantidad(const Codigos &codigos, TipoDtc tipo, char *salida, size_t tam);

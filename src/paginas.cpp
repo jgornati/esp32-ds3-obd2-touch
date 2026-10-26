@@ -391,12 +391,173 @@ static void dibujarMezcla(uint32_t ahora) {
   ponerBarra(barraSonda, actual, 0, fraccion(valor, 0, SONDA_MAXIMA));
 }
 
-// Fallas: el contenido es de E5
+// Fallas: a la izquierda la luz y la cantidad de cada tipo, a la derecha los
+// códigos de a RENGLONES_DTC. "Leyendo..." y "Sin fallas" van al centro.
+
+static const lv_font_t *const CODIGO = &lv_font_montserrat_28;
+static const int32_t X_SEPARADOR = 220;
+static const int32_t X_CODIGOS = 236;
+static const int32_t ALTO_RENGLON = 36; // 4 renglones; la maqueta tiene 3 de 44
+// La descripción, 8 px más cerca del código que en la maqueta: así entra
+// "Sens. mariposa (pendiente)"
+static const int32_t X_DESCRIPCION = X_CODIGOS + 104 + 8;
+static const int32_t ANCHO_DESCRIPCION = BORDE_DERECHO - X_DESCRIPCION;
+// Las cantidades: guardados y pendientes; con permanentes, tres renglones
+static const int32_t BASES_DOS[] = {110, 138};
+static const int32_t BASES_TRES[] = {94, 116, 138};
+
+static lv_obj_t *centroFallas, *columnasFallas;
+static lv_obj_t *grande, *debajo;
+static lv_obj_t *luz, *mensaje;
+static lv_obj_t *cantidades[3]; // en el orden de TipoDtc
+static lv_obj_t *codigos[RENGLONES_DTC], *descripciones[RENGLONES_DTC];
+static char tituloFallas[16];
+
+// Un texto centrado en el ancho de la página
+static lv_obj_t *centrada(lv_obj_t *padre, const lv_font_t *fuente, lv_color_t color,
+                          int32_t base) {
+  lv_obj_t *e = etiqueta(padre, fuente, color);
+  lv_obj_set_width(e, ANCHO);
+  lv_obj_set_style_text_align(e, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_set_pos(e, 0, yDeBase(fuente, base));
+  return e;
+}
 
 static void armarFallas(lv_obj_t *v) {
-  fijo(v, "Todavia no se leen", &lv_font_montserrat_28, ETIQUETA, ANCHO / 2, 67,
-       Alineacion::CENTRO);
-  fijo(v, "La lectura de fallas llega en E5", NORMAL, ETIQUETA, ANCHO / 2, 99, Alineacion::CENTRO);
+  centroFallas = caja(v, 0, 0, ANCHO, ALTO);
+  grande = centrada(centroFallas, &lv_font_montserrat_48, GRIS, 74);
+  debajo = centrada(centroFallas, NORMAL, ETIQUETA, 111);
+
+  columnasFallas = caja(v, 0, 0, ANCHO, ALTO);
+  fijo(columnasFallas, "Luz de falla", NORMAL, ETIQUETA, MARGEN, 29);
+  luz = etiqueta(columnasFallas, CODIGO, BLANCO);
+  lv_obj_set_pos(luz, MARGEN, yDeBase(CODIGO, 65));
+  for (lv_obj_t *&cantidad : cantidades) {
+    cantidad = etiqueta(columnasFallas, NORMAL, ETIQUETA);
+  }
+  rectangulo(columnasFallas, X_SEPARADOR, 6, 1, 132, FONDO_ESCALA);
+
+  // Código y descripción centrados en el alto del renglón, como en la maqueta
+  for (uint8_t i = 0; i < RENGLONES_DTC; i++) {
+    int32_t y = i * ALTO_RENGLON;
+    codigos[i] = etiqueta(columnasFallas, CODIGO, BLANCO);
+    lv_obj_set_pos(codigos[i], X_CODIGOS, yDeBase(CODIGO, y + 28));
+    // Si aun abreviado no entra, se corta en el borde. Sin puntos: LVGL los
+    // escribe en el texto y ponerTexto() lo volvería a poner en cada dibujo.
+    descripciones[i] = etiqueta(columnasFallas, NORMAL, BLANCO);
+    lv_obj_set_pos(descripciones[i], X_DESCRIPCION, yDeBase(NORMAL, y + 25));
+    lv_obj_set_size(descripciones[i], ANCHO_DESCRIPCION, NORMAL->line_height);
+    lv_label_set_long_mode(descripciones[i], LV_LABEL_LONG_MODE_CLIP);
+  }
+  // En lugar de los códigos, si no hay ninguno
+  mensaje = etiqueta(columnasFallas, NORMAL, ETIQUETA);
+  lv_obj_set_pos(mensaje, X_CODIGOS, yDeBase(NORMAL, 79));
+}
+
+// "Catalizador", "Falla encend. (pendiente)" o, sin descripción, "(pendiente)".
+// Si no entra, con el tipo abreviado: "Sonda lambda 2 (perm.)".
+static void textoDescripcion(const RenglonDtc &renglon, char *salida, size_t tam) {
+  static const char *const SUFIJOS[][2] = {
+      {"", ""}, {"(permanente)", "(perm.)"}, {"(pendiente)", "(pend.)"}};
+  const char *descripcion = descripcionDtc(renglon.codigo);
+  for (const char *sufijo : SUFIJOS[(uint8_t)renglon.tipo]) {
+    if (descripcion == nullptr) {
+      strlcpy(salida, sufijo, tam);
+    } else {
+      snprintf(salida, tam, "%s%s%s", descripcion, sufijo[0] != '\0' ? " " : "", sufijo);
+    }
+    if (lv_text_get_width(salida, strlen(salida), NORMAL, 0) <= ANCHO_DESCRIPCION) {
+      return;
+    }
+  }
+}
+
+static void dibujarColumnas(const PantallaFallas &p, const LecturaFallas &lectura,
+                            uint32_t reintento) {
+  ponerTexto(luz, textoLuz(lectura));
+  ponerColor(luz, !lectura.luzLeida ? GRIS : (lectura.luz ? AMBAR : BLANCO));
+
+  // Guardados y pendientes siempre, aunque sean 0 o hayan fallado; los
+  // permanentes solo si 0A trajo alguno (el DS3 no lo tiene)
+  const Codigos *tipos[] = {&lectura.guardados, &lectura.permanentes, &lectura.pendientes};
+  bool conPermanentes =
+      lectura.permanentes.estado == EstadoCodigos::LEIDOS && lectura.permanentes.lista.cantidad > 0;
+  uint8_t renglon = 0;
+  for (uint8_t i = 0; i < 3; i++) {
+    bool visible = (TipoDtc)i != TipoDtc::PERMANENTE || conPermanentes;
+    mostrar(cantidades[i], visible);
+    if (!visible) {
+      continue;
+    }
+    char texto[24];
+    bool leida = textoCantidad(*tipos[i], (TipoDtc)i, texto, sizeof(texto));
+    ponerTexto(cantidades[i], texto);
+    ponerColor(cantidades[i], leida ? ETIQUETA : AMBAR);
+    int32_t base = conPermanentes ? BASES_TRES[renglon] : BASES_DOS[renglon];
+    ponerPosicion(cantidades[i], MARGEN, yDeBase(NORMAL, base));
+    renglon++;
+  }
+
+  for (uint8_t i = 0; i < RENGLONES_DTC; i++) {
+    bool visible = i < p.cantidad;
+    mostrar(codigos[i], visible);
+    mostrar(descripciones[i], visible);
+    if (!visible) {
+      continue;
+    }
+    // Los pendientes, en gris como las etiquetas
+    lv_color_t color = p.renglones[i].tipo == TipoDtc::PENDIENTE ? ETIQUETA : BLANCO;
+    char texto[32];
+    textoDtc(p.renglones[i].codigo, texto);
+    ponerTexto(codigos[i], texto);
+    ponerColor(codigos[i], color);
+    textoDescripcion(p.renglones[i], texto, sizeof(texto));
+    ponerTexto(descripciones[i], texto);
+    ponerColor(descripciones[i], color);
+  }
+
+  // Sin códigos que mostrar: con la luz encendida (no es "Sin fallas"), o
+  // porque algo falló y se reintenta
+  mostrar(mensaje, p.cantidad == 0);
+  if (p.cantidad == 0) {
+    char texto[32];
+    if (!errorAlLeer(lectura)) {
+      ponerTexto(mensaje, "Ningun codigo guardado ni pendiente");
+    } else if (reintento > 0) {
+      snprintf(texto, sizeof(texto), "Reintento en %lu s", (unsigned long)reintento);
+      ponerTexto(mensaje, texto);
+    } else {
+      ponerTexto(mensaje, "Leyendo...");
+    }
+  }
+}
+
+// Devuelve el título: con varios grupos de códigos, "FALLAS 1/2"
+static const char *dibujarFallas(uint32_t ahora, const LecturaFallas &lectura, uint32_t reintento) {
+  PantallaFallas p = pantallaFallas(lectura, ahora / PERIODO_GRUPO_FALLAS_MS);
+  bool alCentro = p.vista != VistaFallas::CODIGOS;
+  mostrar(centroFallas, alCentro);
+  mostrar(columnasFallas, !alCentro);
+  if (p.vista == VistaFallas::LEYENDO) {
+    ponerTexto(grande, "Leyendo...");
+    ponerColor(grande, GRIS);
+    ponerTexto(debajo, "");
+  } else if (p.vista == VistaFallas::SIN_FALLAS) {
+    ponerTexto(grande, "Sin fallas");
+    ponerColor(grande, VERDE);
+    ponerTexto(debajo, lectura.luzLeida
+                           ? "Luz de falla apagada, ningun codigo guardado ni pendiente"
+                           : "Luz de falla sin leer, ningun codigo guardado ni pendiente");
+  } else {
+    dibujarColumnas(p, lectura, reintento);
+  }
+
+  if (p.grupos < 2) {
+    return PAGINAS[PAGINA_FALLAS].titulo;
+  }
+  snprintf(tituloFallas, sizeof(tituloFallas), "%s %u/%u", PAGINAS[PAGINA_FALLAS].titulo,
+           (unsigned)(p.grupo + 1), (unsigned)p.grupos);
+  return tituloFallas;
 }
 
 // Info: lo que ya se sabe de la conexión. RSSI y las acciones son de E6.
@@ -490,19 +651,25 @@ uint8_t Paginas::primeras(Magnitud lista[MAX_VISIBLES]) const {
   return copiar(PAGINAS[PAGINA_MOTOR], lista);
 }
 
+bool Paginas::muestraFallas() const {
+  return actual == PAGINA_FALLAS;
+}
+
 int8_t Paginas::tomarToque() {
   int8_t paso = toque;
   toque = 0;
   return paso;
 }
 
-void Paginas::dibujar(uint32_t ahora, const InfoConexion &info) {
+void Paginas::dibujar(uint32_t ahora, const InfoConexion &info, const LecturaFallas &fallas,
+                      uint32_t reintento) {
   if (!armadas) {
     return;
   }
   for (uint8_t i = 0; i < CANT_PAGINAS; i++) {
     mostrar(vistas[i], i == actual);
   }
+  const char *titulo = PAGINAS[actual].titulo;
   switch (actual) {
   case PAGINA_MOTOR:
     dibujarMotor(ahora);
@@ -516,9 +683,12 @@ void Paginas::dibujar(uint32_t ahora, const InfoConexion &info) {
   case PAGINA_MEZCLA:
     dibujarMezcla(ahora);
     break;
+  case PAGINA_FALLAS:
+    titulo = dibujarFallas(ahora, fallas, reintento);
+    break;
   case PAGINA_INFO:
     dibujarInfo(info);
     break;
   }
-  pantalla.pagina(PAGINAS[actual].titulo, actual, CANT_PAGINAS);
+  pantalla.pagina(titulo, actual, CANT_PAGINAS);
 }

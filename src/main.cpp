@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <comandos.h>
+#include <dtc.h>
 #include <esp_flash.h>
 #include <esp_heap_caps.h>
 #include <esp_psram.h>
@@ -66,6 +67,8 @@ static uint8_t fallasElm = 0;
 static char version[12] = "";
 static char protocolo[4] = ""; // ATDPN
 static bool descubriendo = false;
+static LecturaFallas fallas;              // la de la página Fallas
+static uint32_t proximaLecturaFallas = 0; // mientras se ve la página
 
 static const char *textoEstado(Estado e) {
   switch (e) {
@@ -218,7 +221,8 @@ static void dibujar() {
     pantalla.buscandoEcu(version);
     break;
   case Estado::LEYENDO:
-    paginas.dibujar(ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo});
+    paginas.dibujar(ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo}, fallas,
+                    segundosHasta(proximaLecturaFallas));
     break;
   case Estado::SIN_ECU:
     pantalla.sinEcu(version, lineaDe(VOLT_ELM, ahora, voltaje, sizeof(voltaje)), motivo, segundos);
@@ -242,11 +246,24 @@ static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
   dibujar();
 }
 
-// El sondeo consulta en cada vuelta lo que se ve en la página actual
+// El sondeo consulta en cada vuelta lo que se ve en la página actual. En
+// Fallas e Info no hay datos a la vista: se siguen pidiendo los de Motor,
+// juntos. Si no, la ECU se consulta de a un PID y espaciado, y en el auto
+// hubo 4 NO DATA seguidos con el motor andando, a uno de un SIN_ECU falso (E5).
 static void actualizarVisibles() {
   Magnitud lista[MAX_VISIBLES];
   uint8_t cantidad = paginas.visibles(lista);
+  if (cantidad == 0) {
+    cantidad = paginas.primeras(lista);
+  }
   sondeo.visibles(lista, cantidad);
+}
+
+// La página Fallas se lee al entrar: mientras tanto muestra "Leyendo...",
+// no la lectura anterior.
+static void reiniciarFallas() {
+  fallas = LecturaFallas();
+  proximaLecturaFallas = millis();
 }
 
 // El botón y los toques cambian de página solo con las páginas a la vista.
@@ -262,6 +279,9 @@ static void atenderPaginas() {
     return;
   }
   paginas.cambiar(paso);
+  if (paginas.muestraFallas()) {
+    reiniciarFallas();
+  }
   actualizarVisibles();
   Serial.printf("Pagina: %s\n", paginas.titulo());
   dibujar();
@@ -575,6 +595,7 @@ static void buscarEcu() {
     consultasPorSegundo = -1;
     ultimaTabla = millis();
     sondeo.reiniciar(millis());
+    reiniciarFallas();
     cambiarA(Estado::LEYENDO);
   } else if (respuesta.tipo == TipoRespuesta::AVISO_ELM) {
     cambiarA(Estado::INICIANDO_ELM);
@@ -715,12 +736,98 @@ static void imprimirTabla() {
   ultimaTabla = ahora;
 }
 
+static void imprimirCodigos(const char *nombre, const char *servicio, const Codigos &codigos) {
+  Serial.printf("Fallas: %s (%s): ", nombre, servicio);
+  if (codigos.estado != EstadoCodigos::LEIDOS) {
+    Serial.printf("%s (%s)\n",
+                  codigos.estado == EstadoCodigos::NO_DISPONIBLE ? "no disponible" : "error",
+                  nombreTipo(codigos.tipo));
+    return;
+  }
+  Serial.printf("%u", codigos.lista.cantidad);
+  for (uint8_t i = 0; i < codigos.lista.cantidad; i++) {
+    char texto[6];
+    textoDtc(codigos.lista.codigos[i], texto);
+    const char *descripcion = descripcionDtc(codigos.lista.codigos[i]);
+    if (descripcion != nullptr) {
+      Serial.printf(" %s (%s)", texto, descripcion);
+    } else {
+      Serial.printf(" %s", texto);
+    }
+  }
+  Serial.println();
+}
+
+static void imprimirFallas(TipoRespuesta tipoLuz) {
+  if (fallas.luzLeida) {
+    Serial.printf("Fallas: luz %s, %u guardadas segun 0101\n", fallas.luz ? "ENCENDIDA" : "apagada",
+                  fallas.cantidadLuz);
+  } else {
+    Serial.printf("Fallas: luz sin leer (%s)\n", nombreTipo(tipoLuz));
+  }
+  imprimirCodigos("guardadas", "03", fallas.guardados);
+  imprimirCodigos("pendientes", "07", fallas.pendientes);
+  imprimirCodigos("permanentes", "0A", fallas.permanentes);
+  if (errorAlLeer(fallas)) {
+    Serial.printf("Fallas: error al leer, reintento en %lu s\n",
+                  (unsigned long)(REINTENTO_FALLAS_MS / 1000));
+  } else if (pantallaFallas(fallas, 0).vista == VistaFallas::SIN_FALLAS) {
+    Serial.println("Fallas: sin fallas");
+  }
+}
+
+// Luz de falla (0101) y códigos guardados (03), pendientes (07) y
+// permanentes (0A). Todo es lectura: no hay nada que borre fallas.
+// false si cambió el estado.
+static bool leerFallas() {
+  static const char *const SERVICIOS[] = {"03", "07", "0A"};
+  LecturaFallas lectura;
+  Codigos *destinos[] = {&lectura.guardados, &lectura.pendientes, &lectura.permanentes};
+
+  ResultadoComando r = elm.enviar("01011", TIMEOUT_COMANDO_MS);
+  if (r.estado == EstadoTransporte::DESCONECTADO) {
+    perderConexion("Conexion perdida");
+    return false;
+  }
+  Respuesta luz = interpretar(r.cruda.c_str(), "01011");
+  lectura.luzLeida = r.estado == EstadoTransporte::OK && luz.tipo == TipoRespuesta::DATOS &&
+                     luzFalla(luz.datos, luz.largo, &lectura.luz, &lectura.cantidadLuz);
+  bool aviso = luz.tipo == TipoRespuesta::AVISO_ELM;
+
+  for (uint8_t i = 0; i < 3; i++) {
+    r = elm.enviar(SERVICIOS[i], TIMEOUT_COMANDO_MS);
+    if (r.estado == EstadoTransporte::DESCONECTADO) {
+      perderConexion("Conexion perdida");
+      return false;
+    }
+    *destinos[i] =
+        interpretarCodigos(r.cruda.c_str(), SERVICIOS[i], r.estado == EstadoTransporte::OK);
+    aviso = aviso || destinos[i]->tipo == TipoRespuesta::AVISO_ELM;
+  }
+  if (aviso) {
+    cambiarA(Estado::INICIANDO_ELM);
+    return false;
+  }
+
+  lectura.leida = true;
+  fallas = lectura;
+  proximaLecturaFallas = millis() + (errorAlLeer(fallas) ? REINTENTO_FALLAS_MS : PERIODO_FALLAS_MS);
+  imprimirFallas(luz.tipo);
+  dibujar();
+  return true;
+}
+
 static void leer() {
   // Lo de la consulta anterior se dibuja mientras se espera esta: así el
   // dibujo no se suma a lo que tarda el adaptador
   dibujar();
   Magnitud m;
-  if (sondeo.siguiente(millis(), m)) {
+  if (paginas.muestraFallas() && yaEs(proximaLecturaFallas)) {
+    // La página Fallas se lee aparte, no en el sondeo continuo
+    if (!leerFallas()) {
+      return;
+    }
+  } else if (sondeo.siguiente(millis(), m)) {
     uint32_t inicio = millis();
     bool sigue = m == VOLT_ELM || !variosPids ? consultar(m) : consultarVarias();
     msConsultas += millis() - inicio;

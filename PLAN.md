@@ -27,8 +27,8 @@ que corresponda antes de portar un módulo.
 | E1    | Pantalla y touch                       | E0         | Verificada |
 | E2    | Transporte BLE con el ELM              | E0         | Verificada |
 | E3    | El monitor completo en el auto         | E1, E2     | Verificada |
-| E4    | Diseño de páginas y navegación táctil  | E3         | Hecha (falta verificar en hardware) |
-| E5    | Códigos de falla                       | E4         | Pendiente |
+| E4    | Diseño de páginas y navegación táctil  | E3         | Verificada (salvo de noche) |
+| E5    | Códigos de falla                       | E4         | Verificada (salvo comparar con el iPhone) |
 | E6    | Brillo y ajustes                       | E4         | Pendiente |
 | E7    | Cierre e instalación                   | E5, E6     | Pendiente |
 
@@ -70,6 +70,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
 | Alimentación           | 5 V desde un USB del auto que se corta al apagarlo. Sin deep sleep. *Propuesta:* sin batería en la placa (ver E7). |
+| Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN CONEXION`, no en `SIN ECU`. |
 | Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida.    |
 
 ## Hardware de la placa
@@ -472,7 +473,9 @@ De esta placa y el adaptador nuevo:
 | Varios PIDs por pedido        | Sí: `010C0D050F` en 149 ms (igual que uno solo), en orden y en varios frames sin relleno. RPM 5–6 por segundo con contacto | E3    |
 | Timeout del ELM               | Lo ignora: con `ATST05`–`ATST19` y `ATAT0`/`1`/`2` contesta `OK`, pero cada consulta sigue tardando ~148 ms | E3    |
 | Voltaje y arranque            | 11,9 V con contacto, 9,9–11,7 V al arrancar, 13,6–13,7 V en marcha (motor frío). En los dos arranques no se cortó el BLE ni se reinició la placa (alimentada desde la notebook) | E3    |
-| RAM interna y consultas por segundo con las páginas |       | E4    |
+| RAM interna y consultas por segundo con las páginas | Con el motor andando: RAM interna libre 128 KB (bloque mayor 87 KB; en E3, 157–158 KB) y 133 KB al arrancar, antes del BLE. Consultas por segundo: Motor 5–7 (RPM 5–6 por segundo), Aire/Volt y Carga 6–7, Mezcla 5–6 (140–168 ms). Refresco completo en Motor: 93 ms | E5    |
+| Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
+| Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
 
 ## Notas de traspaso
 
@@ -1386,6 +1389,12 @@ segundo en Mezcla, que pide 5 PIDs (3 frames).
 3. Al sacar la llave: `SIN ECU` a los ~3 s, sin números, como en E3.
 4. `!info` con el motor andando: la RAM interna libre.
 
+**Verificado por el usuario en el auto** (2026-10-26, de día, con el
+firmware de E5 y el monitor abierto): páginas, toques, BOOT, valores y
+consultas por segundo ("funcionó todo bien"; detalle en las notas de E5).
+Falta verlo de noche. En Fallas e Info el sondeo quedaba espaciado; lo
+arregló E5.
+
 Para E5:
 
 - Con `herramientas/render` se ven las pantallas nuevas antes de subir:
@@ -1406,6 +1415,175 @@ Para E6:
 - RSSI y la dirección del adaptador van en `InfoConexion`.
 
 ### E5
+
+Hecho (rama `e5-codigos-de-falla`, desde `main` con E4). Antes de
+programar, el usuario eligió (2026-10-26) lo que la maqueta no resolvía:
+
+- **4 renglones de 36 px** en vez de 3 de 44. Si hay más de 4 códigos se
+  alternan grupos cada 3 s, y el título dice `FALLAS 1/2`.
+- **Error de lectura:** la columna izquierda como siempre, con el servicio
+  que falló en ámbar (`Pendientes: error`), y a la derecha los códigos del
+  que sí contestó. Nunca `Sin fallas`.
+- **Un código guardado y pendiente a la vez va una sola vez**, como
+  guardado. Las cantidades de la izquierda siguen siendo las de cada
+  servicio.
+- **Con la luz encendida y 03 y 07 sin códigos no es `Sin fallas`:** la luz
+  en ámbar y `Ningun codigo guardado ni pendiente`.
+
+Lo que se hizo:
+
+- **`lib/obd/dtc`** (ya estaba: se copió en E0 con lo de E7 del anterior):
+  - Sale la `pantallaFallas()` de la Nokia (renglones de 14 caracteres) y
+    sus tests. No la usaba nadie.
+  - `pantallaFallas(lectura, vuelta)` → `PantallaFallas {vista, grupos,
+    grupo, cantidad, renglones[4]}`. `VistaFallas`: `LEYENDO`,
+    `SIN_FALLAS` (`sinFallas()` y además la luz no encendida) o `CODIGOS`.
+    Cada código va una vez, con el primer tipo en que aparece (`TipoDtc`):
+    guardados, permanentes y pendientes. Los de un servicio que no contestó
+    bien no están; los de los otros, sí. Grupo número `vuelta % grupos`.
+  - `errorAlLeer()`: `03` o `07` no contestaron bien.
+  - `textoCantidad()`: `2 guardadas`, `1 pendiente` o `Pendientes: error`.
+  - `LARGO_DESCRIPCION` (14), el largo que ya tenía la tabla de
+    descripciones.
+  - No cambian `interpretarCodigos()`, `sinFallas()`, `textoLuz()` ni la
+    tabla de `descripcionDtc()`.
+- **`config.h`:** `PERIODO_FALLAS_MS` (30 s), `REINTENTO_FALLAS_MS` (5 s) y
+  `PERIODO_GRUPO_FALLAS_MS` (3 s), los valores del anterior.
+- **`paginas`:**
+  - API: `muestraFallas()`, y `dibujar(ahora, info, fallas, reintento)`
+    recibe la última lectura y los segundos hasta el reintento.
+  - Izquierda: `Luz de falla` y debajo `Encendida` (ámbar), `Apagada`
+    (blanco) o `--` (gris, si `01011` falló); más abajo las cantidades de
+    guardados y pendientes en gris, o en ámbar si fallaron. Los
+    permanentes, solo si `0A` trajo alguno (tres renglones). Separador en
+    x 220.
+  - Derecha: código en Montserrat 28 y descripción en 20, centrados en el
+    renglón como en la maqueta. La descripción empieza en x 348, 8 px más
+    cerca que en la maqueta: así entra la más ancha con `(pendiente)`
+    (`Sens. mariposa (pendiente)`, 279 de 284 px). Los pendientes van en
+    gris `#8C8C8C` con `(pendiente)`; los permanentes en blanco con
+    `(permanente)`, o `(perm.)` si no entra. Sin descripción (los `P1xxx`
+    de la marca), el código solo.
+  - Al centro: `Leyendo...` (gris, 48 px) y `Sin fallas` (verde, 48 px) con
+    `Luz de falla apagada, ningun codigo guardado ni pendiente` (o
+    `sin leer` si `01011` falló).
+  - Si no hay códigos para la derecha: `Ningun codigo guardado ni
+    pendiente` (luz encendida) o `Reintento en N s` (error).
+  - Las descripciones tienen ancho fijo y `LV_LABEL_LONG_MODE_CLIP`, por si
+    algo no entra. `DOTS` no sirve: LVGL escribe los puntos en el texto de
+    la etiqueta, y `ponerTexto()` la cambiaría en cada dibujo.
+- **`main.cpp`:**
+  - `leerFallas()` portada del anterior: `01011`, `03`, `07` y `0A`, todos
+    ya en la lista blanca (no se tocó). Se lee al entrar en la página, al
+    entrar en `LEYENDO` con la página a la vista y después cada 30 s
+    mientras se ve; si `03` o `07` fallan, a los 5 s. En esa vuelta no hay
+    consulta del sondeo, y no cuenta en las consultas por segundo.
+  - Al entrar en la página se borra la lectura anterior (se ve
+    `Leyendo...`); las relecturas cada 30 s no la borran.
+  - La página se puede cambiar durante la lectura (~4 consultas): el toque
+    se atiende mientras se espera al ELM, como en E4.
+  - Un aviso del ELM vuelve a `INICIANDO_ELM`; una desconexión, a
+    `BT_PERDIDO`.
+  - Monitor serie, como el anterior: `Fallas: luz apagada, 0 guardadas
+    segun 0101`, una línea por servicio con la lista completa y, al final,
+    `Fallas: sin fallas` (solo si la página lo dice) o `Fallas: error al
+    leer, reintento en 5 s`.
+- **No existe ninguna función para borrar fallas.** `04` sigue rechazado.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,0 %, flash 50,4 % de 3 MB). Con `-Wall -Wextra
+  -Wshadow`, sin warnings nuevos (los de los constructores ya estaban).
+- `pio test -e native` 57/57: salen 2 tests de la pantalla de la Nokia y
+  entran 5 (vistas, renglones, grupos, cantidades y `errorAlLeer()`), con
+  las respuestas reales del DS3 y armadas. Se comprobó que fallan si se
+  saca la condición de la luz encendida o el control de repetidos.
+- **Render** (`make -C herramientas/render -j8`): los casos `c` a `m` de
+  `salida/` son de Fallas: leyendo, sin fallas (respuestas del DS3), sin
+  fallas con la luz sin leer, luz encendida sin códigos, solo pendientes,
+  repetido, error en `07`, error en todo, con permanentes y 6 códigos en
+  dos grupos. `5-fallas` es la de la maqueta. Revisa que dibujar dos veces
+  lo mismo no redibuje nada, que ningún texto pase del borde derecho
+  (x 633–639) ni de la columna izquierda (x 209–219), que el grupo cambie a
+  los 3 s y no antes, y que en Fallas el toque siga cambiando de página.
+  Viendo los PNG se encontró y arregló un búfer corto que cortaba
+  `Ningun codigo guardado ni pendiente`.
+- Los objetos de las páginas piden ~31,8 KB de `malloc` en la PC (en E4,
+  ~27 KB): Fallas suma ~4,8 KB, con punteros de 64 bits.
+
+**Prueba en el auto (2026-10-26, motor en ralentí y tibio):** el usuario
+subió el firmware y tocó la pantalla; el agente siguió el monitor serie
+desde el USB (con su permiso). El usuario confirmó la pantalla y BOOT
+("funcionó todo bien"). Log, con la hora de cada línea:
+`docs/descubrimiento/2026-10-26-fallas.log`.
+
+- **`FALLAS` da `Sin fallas`, como en E3:** luz apagada, 0 guardadas, 0
+  pendientes y `0A` no disponible, en las 8 lecturas. Cada comando tarda
+  102–165 ms; la lectura entera, ~0,6 s.
+- **Relee cada 30 s** mientras se ve la página (10:21:08, 10:21:38,
+  10:22:09...). En 87 s en `INFO`, ninguna lectura.
+- **Al apagar el motor con `FALLAS` a la vista**, `SIN ECU` a los 4,6 s de
+  la última respuesta buena (en Motor, ~3 s), sin códigos a la vista.
+- Además, de E4: las 6 páginas para los dos lados, y BOOT. Consultas por
+  segundo y RAM en **Datos descubiertos**.
+- En ~6 minutos, el adaptador devolvió 3 respuestas `INVALIDA` que el
+  parser rechazó bien: una de varios frames mezclados
+  (`"008\r0:410C0C66055B\r008\r1:410C\r2:0D00AAAAAAAAAA\r\r"`) y dos con un
+  solo frame de los anunciados (`"00C\r0:41030200347F\r\r"`).
+
+**Cambio después de la prueba (pedido del usuario): en Fallas e Info el
+sondeo pide los datos de Motor.** Esas páginas no tienen datos a la vista,
+así que el sondeo pedía cada dato a los 2,5 s, casi siempre de a un PID y
+con pausas. En `INFO`, con el motor andando, hubo 4 `NO DATA` seguidos con
+1,65 s sin respuesta: con uno más y 3 s de silencio habría pasado a un
+`SIN ECU` falso, porque con las consultas espaciadas la regla del silencio
+protege menos. Ahora `actualizarVisibles()` usa los de Motor
+(`Paginas::primeras()`) cuando la página no tiene ninguno: la ECU se
+consulta como en Motor, de a varios PIDs y sin pausas, y al volver a Motor
+las RPM ya están al día. La lectura de fallas sigue teniendo prioridad
+cuando le toca.
+
+**Probado en el auto con el cambio** (2026-10-26, contacto puesto y motor
+apagado; el agente subió el firmware con permiso del usuario). Log:
+`docs/descubrimiento/2026-10-26-fallas-sondeo.log`.
+
+- En `FALLAS` e `INFO`, 5–7 consultas por segundo y RPM 5–6 por segundo
+  (antes, 1–5 y 0), como en Motor.
+- `FALLAS` lee al entrar (~0,6 s, `Sin fallas`) y relee a los 30 s
+  justos, también con el sondeo andando.
+- Hubo otra racha de `NO DATA` en `INFO` (10:52:15–19), ahora mezclada con
+  respuestas buenas: como mucho 4 seguidos y nunca más de 0,6 s sin
+  respuesta.
+- Con el motor andando y `INFO` a la vista, el usuario sacó la llave: el
+  adaptador dejó de contestar (dos consultas vacías por timeout), a los
+  3 s se cortó el BLE (`SIN CONEXION`) y no apareció más en la búsqueda.
+  Es lo esperado: el usuario ya había pasado la alimentación del adaptador
+  al pin 1, que se corta con la llave (ver **Decisiones tomadas**).
+
+Sin probar con el cambio: comparar con la app del iPhone (de a uno: el
+adaptador acepta una sola conexión). Con el adaptador alimentado por el
+contacto, sacar la llave lleva a `SIN CONEXION`; `SIN ECU` queda para el
+contacto puesto sin respuesta de la ECU.
+
+**Pruebas del usuario que faltan, por el adaptador en el pin 1** (para E7,
+que revisa la alimentación con la placa instalada):
+
+1. Al dar arranque, ¿se corta el BLE? Si el pin 1 se corta durante el
+   arranque, el adaptador se reinicia y la placa reconecta sola (5 s de
+   espera, hasta 4 s por la dirección guardada y hasta 6 s buscando).
+2. Al poner el contacto, cuánto tarda en llegar a `ECU OK`. El adaptador
+   arranca junto con la placa: puede que el primer intento por la
+   dirección guardada falle y lo encuentre buscando.
+
+Para E6:
+
+- `Paginas::dibujar()` ahora recibe también la lectura de fallas y el
+  reintento; `InfoConexion` no cambió.
+
+Para E7:
+
+- El README describe la página Fallas: qué se lee, cada cuánto y qué
+  quiere decir cada pantalla.
 
 ### E6
 

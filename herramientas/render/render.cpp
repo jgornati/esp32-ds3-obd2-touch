@@ -2,7 +2,8 @@
 // paginas y datos del firmware. PantallaHw es de mentira: la imagen va a un
 // búfer y de ahí a PNG (al doble de tamaño). Además revisa que dibujar dos
 // veces lo mismo no deje nada para redibujar (en la placa, cada redibujo
-// cuesta ~33 ms de envío) y que el toque cambie de página como corresponde.
+// cuesta ~33 ms de envío), que el toque cambie de página como corresponde y
+// que los textos de Fallas no se pasen de su columna.
 // Lo arma el Makefile; sale con 1 si alguna revisión falla.
 
 #include <ctype.h>
@@ -19,6 +20,10 @@
 #include <display/lv_display_private.h>
 #include <lvgl.h>
 
+#include <dtc.h>
+#include <respuesta.h>
+
+#include "config.h"
 #include "datos.h"
 #include "paginas.h"
 #include "pantalla.h"
@@ -33,7 +38,7 @@ static uint32_t reloj = 100000;
 static uint16_t marco[ANCHO * ALTO];
 static uint8_t bufer[ANCHO * ALTO * 2];
 static std::vector<std::vector<uint16_t>> guardadas;
-static int fallas = 0;
+static int errores = 0;
 
 // Lo que usa Pantalla
 bool PantallaHw::iniciada() const {
@@ -92,7 +97,7 @@ static void escribirPng(const char *ruta, const uint16_t *pixeles, int ancho, in
   FILE *f = fopen(ruta, "wb");
   if (f == nullptr) {
     printf("No se pudo escribir %s\n", ruta);
-    fallas++;
+    errores++;
     return;
   }
   fwrite("\x89PNG\r\n\x1a\n", 1, 8, f);
@@ -141,7 +146,7 @@ static void guardarTodas(const char *directorio) {
 static void revisar(bool bien, const char *que) {
   printf("%s %s\n", bien ? "OK   " : "FALLA", que);
   if (!bien) {
-    fallas++;
+    errores++;
   }
 }
 
@@ -174,6 +179,31 @@ static void datosDeLaMaqueta() {
   actualizarDato(AJ_LARGO, -0.78f, reloj);
   actualizarDato(LAMBDA, 0.995f, reloj);
   actualizarDato(SONDA_POST, 0.46f, reloj);
+}
+
+// Una lectura de la página Fallas con las respuestas crudas de 01011, 03, 07 y 0A
+static LecturaFallas lecturaFallas(const char *luz, const char *guardados, const char *pendientes,
+                                   const char *permanentes) {
+  LecturaFallas l;
+  l.leida = true;
+  Respuesta r = interpretar(luz, "01011");
+  l.luzLeida = r.tipo == TipoRespuesta::DATOS && luzFalla(r.datos, r.largo, &l.luz, &l.cantidadLuz);
+  l.guardados = interpretarCodigos(guardados, "03", true);
+  l.pendientes = interpretarCodigos(pendientes, "07", true);
+  l.permanentes = interpretarCodigos(permanentes, "0A", true);
+  return l;
+}
+
+// Entre x1 y x2, debajo de la barra, no se dibujó nada
+static bool franjaVacia(int x1, int x2) {
+  for (int y = 28; y < ALTO; y++) {
+    for (int x = x1; x <= x2; x++) {
+      if (marco[y * ANCHO + x] != 0) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 // Touch de mentira: un toque es apoyar y levantar el dedo en x, y
@@ -224,10 +254,14 @@ int main(int argc, char **argv) {
   // Lo que piden las páginas armadas y dibujadas una vez
   datosDeLaMaqueta();
   InfoConexion info = {"v2.1", "6", 17, 6};
+  // La de la maqueta, con la luz encendida y 2 códigos según 0101
+  LecturaFallas fallas =
+      lecturaFallas("410182076100", "43 02 04 20 01 71", "47 01 03 00", "NO DATA");
+  uint32_t reintento = 0;
   size_t antes = memoriaEnUso();
   paginas.iniciar();
   for (uint8_t i = 0; i < 6; i++) {
-    paginas.dibujar(reloj, info);
+    paginas.dibujar(reloj, info, fallas, reintento);
     lv_refr_now(nullptr);
     paginas.cambiar(1);
   }
@@ -242,14 +276,14 @@ int main(int argc, char **argv) {
           "con SIN ECU a la vista, tocar no cambia de pagina");
 
   for (uint8_t i = 1; i <= 6; i++) {
-    paginas.dibujar(reloj, info);
+    paginas.dibujar(reloj, info, fallas, reintento);
     char nombre[32];
     snprintf(nombre, sizeof(nombre), "%u-%s", i, paginas.titulo());
     for (char *c = nombre; *c != '\0'; c++) {
       *c = *c == '/' ? '-' : (char)tolower(*c);
     }
     guardar(directorio, nombre);
-    paginas.dibujar(reloj, info);
+    paginas.dibujar(reloj, info, fallas, reintento);
     char que[64];
     snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", paginas.titulo());
     revisar(display->inv_p == 0, que);
@@ -267,23 +301,87 @@ int main(int argc, char **argv) {
   actualizarDato(AJ_CORTO, -12.5f, reloj);
   actualizarDato(LAMBDA, 0.91f, reloj);
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info);
+  paginas.dibujar(reloj, info, fallas, reintento);
   guardar(directorio, "7-motor-extremos");
   irA(paginas, "CARGA");
-  paginas.dibujar(reloj, info);
+  paginas.dibujar(reloj, info, fallas, reintento);
   guardar(directorio, "8-carga-extremos");
   irA(paginas, "MEZCLA");
-  paginas.dibujar(reloj, info);
+  paginas.dibujar(reloj, info, fallas, reintento);
   guardar(directorio, "9-mezcla-extremos");
 
   // Vencidos: "--" en gris, sin barras
   reloj += 5000;
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info);
+  paginas.dibujar(reloj, info, fallas, reintento);
   guardar(directorio, "a-motor-vencido");
   irA(paginas, "MEZCLA");
-  paginas.dibujar(reloj, info);
+  paginas.dibujar(reloj, info, fallas, reintento);
   guardar(directorio, "b-mezcla-vencido");
+
+  // Fallas: cada caso con su nombre, la lectura y si los textos van en
+  // columnas (no al centro)
+  struct CasoFallas {
+    const char *nombre;
+    LecturaFallas lectura;
+    bool columnas;
+  };
+  const CasoFallas casos[] = {
+      {"c-fallas-leyendo", LecturaFallas(), false},
+      // Las respuestas del DS3 (E3)
+      {"d-fallas-sin-fallas", lecturaFallas("410100076100", "4300", "4700", "NO DATA"), false},
+      {"e-fallas-sin-fallas-luz-sin-leer", lecturaFallas("NO DATA", "4300", "4700", "NO DATA"),
+       false},
+      {"f-fallas-luz-sin-codigos", lecturaFallas("410180076100", "4300", "4700", "NO DATA"), true},
+      // La descripción más larga con "(pendiente)", y uno sin descripción
+      {"g-fallas-pendientes", lecturaFallas("410100076100", "4300", "47 02 01 20 12 34", "NO DATA"),
+       true},
+      // P0420 guardado y pendiente: va una vez
+      {"h-fallas-repetido",
+       lecturaFallas("410181076100", "43 01 04 20", "47 02 04 20 01 71", "NO DATA"), true},
+      // 07 no contestó: lo de 03 y "Pendientes: error"
+      {"i-fallas-error", lecturaFallas("410181076100", "43 01 04 20", "NO DATA", "NO DATA"), true},
+      {"j-fallas-error-todo", lecturaFallas("NO DATA", "NO DATA", "CAN ERROR", "NO DATA"), true},
+      // Con 0A: tres cantidades, y una descripción que no entra con "(permanente)"
+      {"k-fallas-permanentes",
+       lecturaFallas("410181076100", "43 01 04 20", "47 01 03 00", "4A 02 01 71 01 36"), true},
+  };
+  irA(paginas, "FALLAS");
+  reintento = 4;
+  for (const CasoFallas &caso : casos) {
+    fallas = caso.lectura;
+    paginas.dibujar(reloj, info, fallas, reintento);
+    guardar(directorio, caso.nombre);
+    paginas.dibujar(reloj, info, fallas, reintento);
+    char que[96];
+    snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", caso.nombre);
+    revisar(display->inv_p == 0, que);
+    snprintf(que, sizeof(que), "%s: nada pasa del borde derecho", caso.nombre);
+    revisar(franjaVacia(633, ANCHO - 1), que);
+    if (caso.columnas) {
+      snprintf(que, sizeof(que), "%s: nada pasa de la columna izquierda", caso.nombre);
+      revisar(franjaVacia(209, 219), que);
+    }
+  }
+
+  // 7 códigos, uno repetido: 6 renglones en dos grupos que se alternan
+  fallas = lecturaFallas("410185076100", "00C\r0: 43 05 04 20 01 71 \r1: 03 02 12 34 01 33 00 \r\r",
+                         "47 02 01 33 03 00", "NO DATA");
+  reloj += 2 * PERIODO_GRUPO_FALLAS_MS - reloj % (2 * PERIODO_GRUPO_FALLAS_MS);
+  paginas.dibujar(reloj, info, fallas, reintento);
+  guardar(directorio, "l-fallas-grupo-1");
+  revisar(franjaVacia(633, ANCHO - 1) && franjaVacia(209, 219),
+          "l-fallas-grupo-1: nada se pasa de su columna");
+  reloj += PERIODO_GRUPO_FALLAS_MS - 1;
+  paginas.dibujar(reloj, info, fallas, reintento);
+  revisar(display->inv_p == 0, "el grupo no cambia antes de tiempo");
+  reloj += 1;
+  paginas.dibujar(reloj, info, fallas, reintento);
+  revisar(display->inv_p > 0, "a los 3 s pasa al otro grupo");
+  guardar(directorio, "m-fallas-grupo-2");
+  revisar(guardadas[guardadas.size() - 1] != guardadas[guardadas.size() - 2],
+          "los dos grupos se ven distintos");
+  revisar(tocar(indev, paginas, 500, 100) == 1, "en Fallas, tocar a la derecha: siguiente");
 
   // Toques con las páginas a la vista
   revisar(tocar(indev, paginas, 100, 100) == -1, "tocar a la izquierda: anterior");
@@ -294,5 +392,5 @@ int main(int argc, char **argv) {
 
   guardarTodas(directorio);
   printf("PNG en %s\n", directorio);
-  return fallas > 0 ? 1 : 0;
+  return errores > 0 ? 1 : 0;
 }
