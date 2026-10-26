@@ -55,10 +55,10 @@ igual, tocando a los costados.
 
 ### Pantalla de espera
 
-Mientras no hay datos, la pantalla queda negra con una línea abajo que dice
-en qué anda la conexión. Si a los 5 s de prenderse todavía no hay datos,
-entra un DS3 rojo desde la izquierda y se queda. Si los datos llegan antes,
-el auto no aparece; si después se cortan, aparece quieto.
+Mientras no hay datos, la pantalla es negra, con un DS3 rojo y una línea
+abajo que dice en qué anda la conexión. El auto entra desde la izquierda
+apenas se prende la pantalla y se queda; si después se cortan los datos,
+aparece quieto.
 
 | Abajo a la izquierda            | Cuándo |
 | ------------------------------- | ------ |
@@ -180,7 +180,7 @@ en `PLAN.md`.
   `include/config.h`; si se monta al revés, `true` la gira 180° junto con
   el touch.
 - Al poner el contacto, la placa y el adaptador arrancan juntos: lleva
-  unos segundos llegar a los datos. Si pasan más de 5 s, entra el DS3 de la
+  unos segundos llegar a los datos. Mientras tanto se ve el DS3 de la
   pantalla de espera.
 
 ## Entorno de desarrollo

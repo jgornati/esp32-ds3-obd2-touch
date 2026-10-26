@@ -2226,6 +2226,10 @@ con DS3 a la vista (redibuja ~20 veces por segundo, y cada redibujo cuesta
 de esta rama. No detalló cada punto: no quedaron anotadas las consultas por
 segundo con DS3 a la vista ni la RAM interna libre.
 
+**Cambio posterior del usuario** (2026-10-26, en la rama de E10, en un
+commit aparte): `ESPERA_ENTRADA_MS` pasa de 5 s a 0, así que el DS3 entra
+apenas se prende la pantalla, sin esperar. El render sigue dando bien.
+
 Para E10:
 
 - Ya hay 7 páginas: con VIAJE y FUERZA G son 9, y hay que subir

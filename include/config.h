@@ -93,7 +93,7 @@ constexpr uint32_t MANTENER_OLVIDAR_MS = 3000;
 // Pantalla de espera: el DS3 entra a los ESPERA_ENTRADA_MS de prender la
 // pantalla (si para entonces llegaron los datos, no se ve). Tocarla
 // reintenta ya; mantenerla apretada MANTENER_REINICIO_MS reinicia la placa.
-constexpr uint32_t ESPERA_ENTRADA_MS = 5000;
+constexpr uint32_t ESPERA_ENTRADA_MS = 0;
 constexpr uint32_t MANTENER_REINICIO_MS = 3000;
 // Apretada menos que esto, la espera o la página Viaje es un toque: no
 // aparece la barra de mantener apretado
