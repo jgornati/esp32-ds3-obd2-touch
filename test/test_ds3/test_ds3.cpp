@@ -129,16 +129,15 @@ static void test_fallas_y_modo_09() {
   TEST_ASSERT_TRUE(interpretarDtcs(r.datos, r.largo, &lista));
   TEST_ASSERT_EQUAL_UINT8(0, lista.cantidad);
 
-  // La lectura de la página Fallas (E7) con esas respuestas
+  // La lectura de la página Fallas con esas respuestas
   LecturaFallas fallas;
   fallas.leida = true;
   fallas.guardados = interpretarCodigos("4300\r\r", "03", true);
   fallas.pendientes = interpretarCodigos("4700\r\r", "07", true);
   fallas.permanentes = interpretarCodigos("NO DATA\r\r", "0A", true);
   TEST_ASSERT_TRUE(sinFallas(fallas));
-  PantallaFallas pantalla = {};
-  TEST_ASSERT_EQUAL_UINT8(1, pantallaFallas(fallas, 0, &pantalla));
-  TEST_ASSERT_EQUAL_STRING("Sin fallas", pantalla.renglones[0]);
+  TEST_ASSERT_FALSE(errorAlLeer(fallas));
+  TEST_ASSERT_EQUAL_INT((int)VistaFallas::SIN_FALLAS, (int)pantallaFallas(fallas, 0).vista);
 
   // 0101 (con el sufijo 1, como lo pide la página): luz apagada, 0 códigos
   r = datos("410100076100\r\r", "01011");

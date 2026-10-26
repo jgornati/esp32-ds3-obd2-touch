@@ -1,0 +1,632 @@
+10:17:42.267 ## puerto abierto
+10:17:42.472 ESP-ROM:esp32s3-20210327
+10:17:42.472 Build:Mar 27 2021
+10:17:42.472 rst:0x15 (USB_UART_CHIP_RESET),boot:0x29 (SPI_FAST_FLASH_BOOT)
+10:17:42.472 Saved PC:0x4037fe7a
+10:17:42.472 SPIWP:0xee
+10:17:42.472 mode:DIO, clock div:1
+10:17:42.472 load:0x3fce2820,len:0x10cc
+10:17:42.472 load:0x403c8700,len:0xc2c
+10:17:42.472 load:0x403cb700,len:0x30b0
+10:17:42.473 entry 0x403c88b8
+10:17:43.697 
+10:17:43.698 Monitor OBDII DS3
+10:17:43.902 BLE: iniciado con NimBLE, direccion propia 28:84:85:8d:66:3d
+10:17:43.902 Chip: ESP32-S3 rev 2, 2 nucleos, 240 MHz
+10:17:43.902 PSRAM: 8 MB (libres 7972 KB)
+10:17:43.902 Flash: 16 MB (configurada 16 MB, 80 MHz)
+10:17:43.902 RAM interna libre: 133 KB (bloque mayor 93 KB)
+10:17:43.902 Ultimo reinicio: USB
+10:17:44.314 Pantalla: refresco completo 263 ms (envio al panel 32 ms), brillo 128
+10:17:44.315 Estado: CONECTANDO_BT; ELM -, protocolo -, 0 PIDs soportados
+10:17:44.315 Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, !info, !escanear o !explorar N.
+10:17:44.315 == CONECTANDO_BT
+10:17:44.315 BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+10:17:46.363 BLE: conectado por direccion (2111 ms)
+10:17:47.173 BLE: servicios y suscripcion en 654 ms
+10:17:47.173 BLE: listo en 2838 ms (MTU 248)
+10:17:47.173 == INICIANDO_ELM
+10:17:47.173 BLE: el adaptador pidio un intervalo de hasta 30.00 ms; se rechazo
+10:17:47.173 BLE: intervalo 15.00 ms, latencia 0, supervision 2000 ms
+10:17:47.173 >> ATZ
+10:17:47.173 << "ELM327 v2.1\r\n" OK 93 ms
+10:17:47.173 BLE: el adaptador pidio un intervalo de hasta 25.00 ms; se rechazo
+10:17:47.173 >> ATE0
+10:17:47.173 << "ATE0\rOK\r\n" OK 67 ms
+10:17:47.173 >> ATL0
+10:17:47.374 << "OK\r" OK 74 ms
+10:17:47.374 >> ATS0
+10:17:47.374 << "OK\r" OK 59 ms
+10:17:47.374 >> ATH0
+10:17:47.374 << "OK\r" OK 89 ms
+10:17:47.374 >> ATSP6
+10:17:47.577 << "OK\r" OK 74 ms
+10:17:47.577 >> ATAT1
+10:17:47.577 << "OK\r" OK 59 ms
+10:17:47.577 >> ATI
+10:17:47.780 << "ELM327 v2.1\r" OK 89 ms
+10:17:47.780 == BUSCANDO_ECU
+10:17:47.781 >> 0100
+10:17:47.988 << "4100BE1EA811\r\r" OK 156 ms
+10:17:47.988    = DATOS
+10:17:47.988 >> 0120
+10:17:47.988 << "412080001001\r\r" OK 134 ms
+10:17:47.988 >> 0140
+10:17:48.192 << "414002000000\r\r" OK 150 ms
+10:17:48.192 ECU: 17 PIDs soportados
+10:17:48.192 >> ATDPN
+10:17:48.396 << "6\r" OK 103 ms
+10:17:48.396 ECU: protocolo 6 (CAN 11b 500k)
+10:17:48.396 >> 010C050D
+10:17:48.601 << "008\r0:410C0CCA0556\r1:0D00\r\r" OK 225 ms
+10:17:48.602 ECU: pedidos de varios PIDs: SI
+10:17:48.602 == LEYENDO
+10:17:49.624 | RPM 835 | Refrig 46C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.010 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 152 ms cada una, RPM 3/s
+10:17:50.640 | RPM 822 | Refrig 46C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.010 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 158 ms cada una, RPM 6/s
+10:17:51.864 | RPM 823 | Refrig 46C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 7 consultas/s, 139 ms cada una, RPM 6/s
+10:17:53.090 | RPM 820 | Refrig 46C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 6/s
+10:17:54.105 | RPM 819 | Refrig 46C | Vel 0 km/h | Admision 22C | Volt ELM 13.6V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 6 consultas/s, 140 ms cada una, RPM 6/s
+10:17:55.329 | RPM 803 | Refrig 46C | Vel 0 km/h | Admision 22C | Volt ELM 13.6V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 157 ms cada una, RPM 6/s
+10:17:56.350 | RPM 808 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 150 ms cada una, RPM 5/s
+10:17:57.367 | RPM 810 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 6/s
+10:17:58.589 | RPM 793 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 7 consultas/s, 138 ms cada una, RPM 6/s
+10:17:59.609 | RPM 810 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 148 ms cada una, RPM 6/s
+10:18:00.837 | RPM 808 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 7 consultas/s, 138 ms cada una, RPM 6/s
+10:18:01.855 | RPM 810 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 6/s
+10:18:03.081 | RPM 802 | Refrig 47C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 7 consultas/s, 136 ms cada una, RPM 6/s
+10:18:04.108 | RPM 806 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 6/s
+10:18:04.313 ## enviado: !info
+10:18:04.514 Chip: ESP32-S3 rev 2, 2 nucleos, 240 MHz
+10:18:04.514 PSRAM: 8 MB (libres 7972 KB)
+10:18:04.514 Flash: 16 MB (configurada 16 MB, 80 MHz)
+10:18:04.514 RAM interna libre: 128 KB (bloque mayor 87 KB)
+10:18:04.514 Ultimo reinicio: USB
+10:18:04.514 Pantalla: refresco completo 93 ms (envio al panel 32 ms), brillo 128
+10:18:04.514 Estado: LEYENDO; ELM v2.1, protocolo 6, 17 PIDs soportados
+10:18:05.126 | RPM 804 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.6V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.007 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 147 ms cada una, RPM 5/s
+10:18:06.352 | RPM 806 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.6V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.007 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 6/s
+10:18:07.387 | RPM 810 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 18% | Avance 10 grad | Acelerador 17% | 7 consultas/s, 133 ms cada una, RPM 6/s
+10:18:08.619 | RPM 808 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 18% | Avance 10 grad | Acelerador 17% | 6 consultas/s, 156 ms cada una, RPM 6/s
+10:18:09.639 | RPM 811 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 18% | Avance 10 grad | Acelerador 17% | 7 consultas/s, 135 ms cada una, RPM 6/s
+10:18:10.661 | RPM 812 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 5 consultas/s, 168 ms cada una, RPM 5/s
+10:18:11.685 | RPM 812 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 148 ms cada una, RPM 5/s
+10:18:12.909 | RPM 799 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 155 ms cada una, RPM 6/s
+10:18:13.932 | RPM 806 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 7 consultas/s, 135 ms cada una, RPM 6/s
+10:18:14.951 | RPM 798 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 6/s
+10:18:16.176 | RPM 806 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 7 consultas/s, 135 ms cada una, RPM 6/s
+10:18:17.197 | RPM 808 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 144 ms cada una, RPM 6/s
+10:18:18.213 | RPM 790 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 7 consultas/s, 136 ms cada una, RPM 6/s
+10:18:19.432 | RPM 800 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 6 consultas/s, 148 ms cada una, RPM 6/s
+10:18:20.455 | RPM 798 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 12 grad | Acelerador 17% | 7 consultas/s, 136 ms cada una, RPM 6/s
+10:18:21.471 | RPM 804 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 12 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 6/s
+10:18:22.491 | RPM 803 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 12 grad | Acelerador 17% | 6 consultas/s, 140 ms cada una, RPM 5/s
+10:18:23.510 | RPM 804 | Refrig 48C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 168 ms cada una, RPM 5/s
+10:18:24.733 | RPM 804 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.46V | Carga 18% | Avance 6 grad | Acelerador 17% | 7 consultas/s, 133 ms cada una, RPM 6/s
+10:18:25.753 | RPM 800 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 166 ms cada una, RPM 5/s
+10:18:26.776 | RPM 800 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 150 ms cada una, RPM 6/s
+10:18:27.792 | RPM 796 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 152 ms cada una, RPM 5/s
+10:18:28.809 | RPM 786 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 143 ms cada una, RPM 6/s
+10:18:29.825 | RPM 800 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 142 ms cada una, RPM 5/s
+10:18:31.053 | RPM 800 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 6/s
+10:18:32.072 | RPM 796 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 142 ms cada una, RPM 5/s
+10:18:33.092 | RPM 792 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 155 ms cada una, RPM 6/s
+10:18:34.318 | RPM 800 | Refrig 49C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 5/s
+10:18:35.336 | RPM 800 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 158 ms cada una, RPM 6/s
+10:18:36.359 | RPM 814 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 5/s
+10:18:37.582 | RPM 812 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 18% | Avance 9 grad | Acelerador 17% | 6 consultas/s, 148 ms cada una, RPM 6/s
+10:18:38.601 | RPM 802 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 144 ms cada una, RPM 5/s
+10:18:39.622 | RPM 810 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 163 ms cada una, RPM 5/s
+10:18:40.644 | RPM 810 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 7 consultas/s, 135 ms cada una, RPM 6/s
+10:18:41.661 | RPM 794 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 6/s
+10:18:42.891 | RPM 807 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 160 ms cada una, RPM 5/s
+10:18:44.112 | RPM 786 | Refrig 50C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 5 consultas/s, 183 ms cada una, RPM 5/s
+10:18:45.137 | RPM 792 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 142 ms cada una, RPM 5/s
+10:18:46.151 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 157 ms cada una, RPM 6/s
+10:18:47.371 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 160 ms cada una, RPM 5/s
+10:18:48.393 | RPM 788 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 144 ms cada una, RPM 6/s
+10:18:48.598 ECU: 010C050D = INVALIDA en 143 ms (falla 1 seguida, 150 ms sin respuesta)
+10:18:48.599      cruda: "008\r0:410C0C66055B\r008\r1:410C\r2:0D00AAAAAAAAAA\r\r"
+10:18:49.616 | RPM 798 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 5/s
+10:18:50.643 | RPM 794 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 18% | Avance 8 grad | Acelerador 17% | 5 consultas/s, 163 ms cada una, RPM 5/s
+10:18:51.664 | RPM 782 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.988 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 7 consultas/s, 137 ms cada una, RPM 6/s
+10:18:52.689 | RPM 780 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.988 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 6/s
+10:18:53.908 | RPM 795 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 144 ms cada una, RPM 5/s
+10:18:54.937 | RPM 798 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 5 consultas/s, 163 ms cada una, RPM 5/s
+10:18:55.961 | RPM 782 | Refrig 51C | Vel 0 km/h | Admision 22C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 6 consultas/s, 148 ms cada una, RPM 5/s
+10:18:56.576 Pagina: AIRE/VOLT
+10:18:56.982 | RPM 778 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 148 ms cada una, RPM 3/s
+10:18:58.207 | RPM 778 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 141 ms cada una, RPM 0/s
+10:18:59.229 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 143 ms cada una, RPM 0/s
+10:19:00.443 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 7 consultas/s, 136 ms cada una, RPM 0/s
+10:19:01.255 Pagina: CARGA
+10:19:01.461 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 149 ms cada una, RPM 0/s
+10:19:02.485 | RPM 786 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 7 consultas/s, 132 ms cada una, RPM 0/s
+10:19:03.508 | RPM 786 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 144 ms cada una, RPM 0/s
+10:19:04.529 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 139 ms cada una, RPM 0/s
+10:19:05.547 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 141 ms cada una, RPM 0/s
+10:19:06.366 Pagina: MEZCLA
+10:19:06.770 | RPM 790 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 159 ms cada una, RPM 0/s
+10:19:07.789 | RPM 785 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.011 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 140 ms cada una, RPM 0/s
+10:19:08.810 | RPM 785 | Refrig 51C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 154 ms cada una, RPM 0/s
+10:19:10.034 | RPM 792 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 156 ms cada una, RPM 0/s
+10:19:11.058 | RPM 792 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 168 ms cada una, RPM 0/s
+10:19:12.083 | RPM 785 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 150 ms cada una, RPM 0/s
+10:19:13.103 | RPM 785 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 6 consultas/s, 153 ms cada una, RPM 0/s
+10:19:13.920 ECU: 010607033415 = NO_DATA en 82 ms (falla 1 seguida, 88 ms sin respuesta)
+10:19:14.121 | RPM 785 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 144 ms cada una, RPM 0/s
+10:19:14.524 Pagina: FALLAS
+10:19:14.726 >> 01011
+10:19:14.726 << "410100076100\r\r" OK 102 ms
+10:19:14.932 >> 03
+10:19:14.932 << "4300\r\r" OK 164 ms
+10:19:14.932 >> 07
+10:19:15.138 << "4700\r\r" OK 135 ms
+10:19:15.138 >> 0A
+10:19:15.342 << "NO DATA\r" OK 135 ms
+10:19:15.343 Fallas: luz apagada, 0 guardadas segun 0101
+10:19:15.343 Fallas: guardadas (03): 0
+10:19:15.343 Fallas: pendientes (07): 0
+10:19:15.343 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:19:15.343 Fallas: sin fallas
+10:19:15.343 | RPM 790 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 165 ms cada una, RPM 0/s
+10:19:16.361 | RPM 790 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 82 ms cada una, RPM 0/s
+10:19:16.771 ECU: 01111 = NO_DATA en 116 ms (falla 1 seguida, 210 ms sin respuesta)
+10:19:17.386 | RPM 792 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 145 ms cada una, RPM 1/s
+10:19:18.400 | RPM 792 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador -- | 2 consultas/s, 107 ms cada una, RPM 0/s
+10:19:19.424 | RPM 792 | Refrig 52C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 140 ms cada una, RPM 0/s
+10:19:20.444 | RPM 781 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 112 ms cada una, RPM 0/s
+10:19:21.462 | RPM 781 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 103 ms cada una, RPM 0/s
+10:19:22.479 | RPM 788 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 138 ms cada una, RPM 1/s
+10:19:23.498 | RPM 788 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 164 ms cada una, RPM 0/s
+10:19:24.517 | RPM 788 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 155 ms cada una, RPM 0/s
+10:19:25.536 | RPM 794 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 162 ms cada una, RPM 0/s
+10:19:26.553 | RPM 794 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 97 ms cada una, RPM 0/s
+10:19:26.755 Pagina: INFO
+10:19:27.571 | RPM 778 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 155 ms cada una, RPM 1/s
+10:19:28.587 | RPM 778 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 112 ms cada una, RPM 0/s
+10:19:29.402 ECU: 01111 = NO_DATA en 104 ms (falla 1 seguida, 285 ms sin respuesta)
+10:19:29.605 ECU: 010F1 = NO_DATA en 93 ms (falla 2 seguida, 435 ms sin respuesta)
+10:19:29.605 | RPM 778 | Refrig 53C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 3 consultas/s, 110 ms cada una, RPM 0/s
+10:19:29.605 ECU: 010C1 = NO_DATA en 88 ms (falla 3 seguida, 585 ms sin respuesta)
+10:19:30.625 | RPM -- | Refrig 54C | Vel 0 km/h | Admision -- | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador -- | 4 consultas/s, 104 ms cada una, RPM 0/s
+10:19:31.439 ECU: 01041 = NO_DATA en 134 ms (falla 1 seguida, 1035 ms sin respuesta)
+10:19:31.643 ECU: 010E1 = NO_DATA en 122 ms (falla 2 seguida, 1200 ms sin respuesta)
+10:19:31.643 | RPM -- | Refrig 54C | Vel 0 km/h | Admision -- | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador -- | 1 consultas/s, 128 ms cada una, RPM 0/s
+10:19:31.848 ECU: 01111 = NO_DATA en 124 ms (falla 3 seguida, 1485 ms sin respuesta)
+10:19:32.053 ECU: 010F1 = NO_DATA en 128 ms (falla 4 seguida, 1650 ms sin respuesta)
+10:19:32.667 | RPM 790 | Refrig 54C | Vel 0 km/h | Admision -- | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.989 | O2 post 0.46V | Carga -- | Avance -- | Acelerador -- | 5 consultas/s, 111 ms cada una, RPM 1/s
+10:19:33.486 Pagina: MOTOR
+10:19:33.691 | RPM 785 | Refrig 54C | Vel 0 km/h | Admision -- | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.989 | O2 post 0.46V | Carga -- | Avance -- | Acelerador -- | 1 consultas/s, 147 ms cada una, RPM 0/s
+10:19:34.910 | RPM 784 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.989 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 7 consultas/s, 139 ms cada una, RPM 6/s
+10:19:35.521 Pagina: AIRE/VOLT
+10:19:35.927 | RPM 761 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 150 ms cada una, RPM 4/s
+10:19:36.744 Pagina: CARGA
+10:19:36.947 | RPM 761 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 141 ms cada una, RPM 0/s
+10:19:37.965 | RPM 761 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 7 consultas/s, 138 ms cada una, RPM 0/s
+10:19:38.374 Pagina: MEZCLA
+10:19:39.192 | RPM 770 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.004 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 6 consultas/s, 152 ms cada una, RPM 0/s
+10:19:39.600 Pagina: FALLAS
+10:19:39.600 >> 01011
+10:19:39.802 << "410100076100\r\r" OK 120 ms
+10:19:39.802 >> 03
+10:19:40.005 << "4300\r\r" OK 149 ms
+10:19:40.005 >> 07
+10:19:40.005 << "4700\r\r" OK 150 ms
+10:19:40.006 >> 0A
+10:19:40.211 << "NO DATA\r" OK 150 ms
+10:19:40.211 Fallas: luz apagada, 0 guardadas segun 0101
+10:19:40.211 Fallas: guardadas (03): 0
+10:19:40.211 Fallas: pendientes (07): 0
+10:19:40.211 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:19:40.211 Fallas: sin fallas
+10:19:40.211 | RPM 770 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 164 ms cada una, RPM 0/s
+10:19:40.822 Pagina: INFO
+10:19:41.234 | RPM 773 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 124 ms cada una, RPM 1/s
+10:19:42.254 | RPM 773 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 172 ms cada una, RPM 0/s
+10:19:43.274 | RPM 782 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 88 ms cada una, RPM 1/s
+10:19:44.292 | RPM 782 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 0 consultas/s, 139 ms cada una, RPM 0/s
+10:19:45.315 | RPM 782 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 3 consultas/s, 128 ms cada una, RPM 0/s
+10:19:46.126 | RPM 752 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 144 ms cada una, RPM 1/s
+10:19:47.148 | RPM 752 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 145 ms cada una, RPM 0/s
+10:19:48.170 | RPM 756 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 0 consultas/s, 210 ms cada una, RPM 0/s
+10:19:49.194 | RPM 756 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 90 ms cada una, RPM 0/s
+10:19:50.219 | RPM 756 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 135 ms cada una, RPM 0/s
+10:19:51.241 | RPM 772 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 3 consultas/s, 129 ms cada una, RPM 1/s
+10:19:52.263 | RPM 772 | Refrig 54C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 125 ms cada una, RPM 0/s
+10:19:53.287 | RPM 762 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 143 ms cada una, RPM 1/s
+10:19:54.307 | RPM 762 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 0 consultas/s, 153 ms cada una, RPM 0/s
+10:19:55.328 | RPM 762 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 117 ms cada una, RPM 0/s
+10:19:56.353 | RPM 766 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 191 ms cada una, RPM 1/s
+10:19:57.171 | RPM 766 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 113 ms cada una, RPM 0/s
+10:19:58.194 | RPM 774 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 200 ms cada una, RPM 1/s
+10:19:59.218 | RPM 774 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 107 ms cada una, RPM 0/s
+10:20:00.234 | RPM 774 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 116 ms cada una, RPM 0/s
+10:20:01.261 | RPM 776 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 3 consultas/s, 115 ms cada una, RPM 1/s
+10:20:02.284 | RPM 776 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 122 ms cada una, RPM 0/s
+10:20:03.302 | RPM 760 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.6V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 125 ms cada una, RPM 1/s
+10:20:04.313 | RPM 760 | Refrig 55C | Vel 0 km/h | Admision 23C | Volt ELM 13.6V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 99 ms cada una, RPM 0/s
+10:20:04.518 ECU: 010F1 = NO_DATA en 149 ms (falla 1 seguida, 1050 ms sin respuesta)
+10:20:05.329 | RPM 760 | Refrig 55C | Vel 0 km/h | Admision -- | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 3 consultas/s, 121 ms cada una, RPM 0/s
+10:20:06.353 | RPM 780 | Refrig 56C | Vel 0 km/h | Admision -- | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 144 ms cada una, RPM 1/s
+10:20:07.170 | RPM 780 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.016 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 118 ms cada una, RPM 0/s
+10:20:08.198 | RPM 786 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.016 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 130 ms cada una, RPM 1/s
+10:20:09.225 | RPM 786 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.016 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 112 ms cada una, RPM 0/s
+10:20:10.247 | RPM 786 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 136 ms cada una, RPM 0/s
+10:20:11.270 | RPM 764 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 110 ms cada una, RPM 1/s
+10:20:12.290 | RPM 764 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 134 ms cada una, RPM 0/s
+10:20:13.315 | RPM 762 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 153 ms cada una, RPM 0/s
+10:20:14.336 | RPM 762 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +2.3% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 129 ms cada una, RPM 0/s
+10:20:15.353 | RPM 762 | Refrig 56C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +3.9% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 169 ms cada una, RPM 0/s
+10:20:16.167 | RPM 768 | Refrig 57C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +3.9% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 147 ms cada una, RPM 1/s
+10:20:17.191 | RPM 768 | Refrig 57C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +3.1% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 132 ms cada una, RPM 0/s
+10:20:18.211 | RPM 744 | Refrig 57C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +3.1% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 19% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 165 ms cada una, RPM 1/s
+10:20:19.230 | RPM 744 | Refrig 57C | Vel 0 km/h | Admision 23C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +3.1% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 91 ms cada una, RPM 0/s
+10:20:20.254 | RPM 744 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 151 ms cada una, RPM 0/s
+10:20:21.275 | RPM 760 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 109 ms cada una, RPM 0/s
+10:20:22.295 | RPM 760 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.983 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 176 ms cada una, RPM 0/s
+10:20:23.310 | RPM 718 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.983 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 120 ms cada una, RPM 1/s
+10:20:24.327 | RPM 718 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.983 | O2 post 0.46V | Carga 20% | Avance 10 grad | Acelerador 17% | 1 consultas/s, 138 ms cada una, RPM 0/s
+10:20:25.349 | RPM 718 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 10 grad | Acelerador 17% | 3 consultas/s, 146 ms cada una, RPM 0/s
+10:20:26.162 | RPM 765 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 154 ms cada una, RPM 1/s
+10:20:27.177 | RPM 765 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 107 ms cada una, RPM 0/s
+10:20:28.201 | RPM 764 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 200 ms cada una, RPM 1/s
+10:20:29.217 | RPM 764 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 122 ms cada una, RPM 0/s
+10:20:30.240 | RPM 764 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 161 ms cada una, RPM 0/s
+10:20:31.255 | RPM 732 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.46V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 146 ms cada una, RPM 1/s
+10:20:32.271 | RPM 732 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.024 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 121 ms cada una, RPM 0/s
+10:20:33.293 | RPM 766 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.024 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 101 ms cada una, RPM 1/s
+10:20:34.312 | RPM 766 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.024 | O2 post 0.44V | Carga 20% | Avance 2 grad | Acelerador 17% | 0 consultas/s, 108 ms cada una, RPM 0/s
+10:20:35.334 | RPM 766 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 20% | Avance 2 grad | Acelerador 17% | 3 consultas/s, 109 ms cada una, RPM 0/s
+10:20:36.351 | RPM 762 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 178 ms cada una, RPM 1/s
+10:20:37.162 | RPM 762 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 133 ms cada una, RPM 0/s
+10:20:38.185 | RPM 765 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 174 ms cada una, RPM 1/s
+10:20:39.201 | RPM 765 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 99 ms cada una, RPM 0/s
+10:20:40.232 | RPM 765 | Refrig 57C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 108 ms cada una, RPM 0/s
+10:20:41.252 | RPM 756 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 106 ms cada una, RPM 0/s
+10:20:42.274 | RPM 756 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 172 ms cada una, RPM 0/s
+10:20:43.295 | RPM 760 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 120 ms cada una, RPM 1/s
+10:20:44.317 | RPM 760 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 97 ms cada una, RPM 0/s
+10:20:45.341 | RPM 760 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.005 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 140 ms cada una, RPM 0/s
+10:20:46.361 | RPM 768 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.005 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 151 ms cada una, RPM 1/s
+10:20:47.176 | RPM 768 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 141 ms cada una, RPM 0/s
+10:20:48.196 | RPM 744 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 193 ms cada una, RPM 1/s
+10:20:49.215 | RPM 744 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.45V | Carga 21% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 118 ms cada una, RPM 0/s
+10:20:50.232 | RPM 744 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.44V | Carga 21% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 148 ms cada una, RPM 0/s
+10:20:51.252 | RPM 751 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 142 ms cada una, RPM 0/s
+10:20:52.269 | RPM 751 | Refrig 58C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 137 ms cada una, RPM 0/s
+10:20:53.290 | RPM 744 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 125 ms cada una, RPM 1/s
+10:20:54.307 | RPM 744 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 137 ms cada una, RPM 0/s
+10:20:55.326 | RPM 744 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 139 ms cada una, RPM 0/s
+10:20:56.349 | RPM 761 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 144 ms cada una, RPM 1/s
+10:20:57.161 | RPM 761 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 138 ms cada una, RPM 0/s
+10:20:58.176 | RPM 760 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 137 ms cada una, RPM 1/s
+10:20:59.193 | RPM 760 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 149 ms cada una, RPM 0/s
+10:21:00.208 | RPM 760 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 177 ms cada una, RPM 0/s
+10:21:01.227 | RPM 737 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 116 ms cada una, RPM 0/s
+10:21:02.248 | RPM 737 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 160 ms cada una, RPM 0/s
+10:21:03.262 | RPM 750 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 99 ms cada una, RPM 1/s
+10:21:04.284 | RPM 750 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 170 ms cada una, RPM 0/s
+10:21:05.301 | RPM 750 | Refrig 59C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 120 ms cada una, RPM 0/s
+10:21:06.322 | RPM 764 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 185 ms cada una, RPM 1/s
+10:21:07.340 | RPM 764 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 107 ms cada una, RPM 0/s
+10:21:08.157 Pagina: FALLAS
+10:21:08.158 >> 01011
+10:21:08.361 << "410100076100\r\r" OK 117 ms
+10:21:08.361 >> 03
+10:21:08.361 << "4300\r\r" OK 149 ms
+10:21:08.361 >> 07
+10:21:08.565 << "4700\r\r" OK 150 ms
+10:21:08.566 >> 0A
+10:21:08.769 << "NO DATA\r" OK 135 ms
+10:21:08.770 Fallas: luz apagada, 0 guardadas segun 0101
+10:21:08.770 Fallas: guardadas (03): 0
+10:21:08.771 Fallas: pendientes (07): 0
+10:21:08.773 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:21:08.773 Fallas: sin fallas
+10:21:08.773 | RPM 762 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 126 ms cada una, RPM 0/s
+10:21:09.805 | RPM 762 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.44V | Carga 21% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 120 ms cada una, RPM 0/s
+10:21:10.823 | RPM 766 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.44V | Carga 21% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 191 ms cada una, RPM 0/s
+10:21:11.838 | RPM 766 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.44V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 96 ms cada una, RPM 0/s
+10:21:12.654 | RPM 766 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 171 ms cada una, RPM 0/s
+10:21:13.673 | RPM 746 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 145 ms cada una, RPM 1/s
+10:21:14.692 | RPM 746 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 150 ms cada una, RPM 0/s
+10:21:15.709 | RPM 739 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 137 ms cada una, RPM 1/s
+10:21:16.728 | RPM 739 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 148 ms cada una, RPM 0/s
+10:21:17.749 | RPM 739 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 123 ms cada una, RPM 0/s
+10:21:18.767 | RPM 750 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 146 ms cada una, RPM 1/s
+10:21:19.789 | RPM 750 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 123 ms cada una, RPM 0/s
+10:21:20.808 | RPM 747 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 211 ms cada una, RPM 1/s
+10:21:21.835 | RPM 747 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 126 ms cada una, RPM 0/s
+10:21:22.444 ECU: 01033415 = INVALIDA en 193 ms (falla 1 seguida, 196 ms sin respuesta)
+10:21:22.446      cruda: "00C\r0:41030200347F\r\r"
+10:21:22.852 | RPM 747 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo -- | Lambda -- | O2 post -- | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 155 ms cada una, RPM 0/s
+10:21:23.865 | RPM 738 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo -- | Lambda -- | O2 post -- | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 121 ms cada una, RPM 0/s
+10:21:24.886 | RPM 738 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.010 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 123 ms cada una, RPM 0/s
+10:21:25.909 | RPM 744 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.010 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 124 ms cada una, RPM 1/s
+10:21:26.924 | RPM 744 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.010 | O2 post 0.44V | Carga 20% | Avance 2 grad | Acelerador 17% | 1 consultas/s, 145 ms cada una, RPM 0/s
+10:21:27.943 | RPM 744 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 2 grad | Acelerador 17% | 4 consultas/s, 122 ms cada una, RPM 0/s
+10:21:28.966 | RPM 758 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 192 ms cada una, RPM 1/s
+10:21:30.189 | RPM 758 | Refrig 60C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 128 ms cada una, RPM 0/s
+10:21:31.209 | RPM 745 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 131 ms cada una, RPM 1/s
+10:21:32.231 | RPM 745 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 156 ms cada una, RPM 0/s
+10:21:33.248 | RPM 748 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.44V | Carga 20% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 136 ms cada una, RPM 1/s
+10:21:34.268 | RPM 748 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.44V | Carga 20% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 123 ms cada una, RPM 0/s
+10:21:35.286 | RPM 748 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 129 ms cada una, RPM 0/s
+10:21:36.307 | RPM 751 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 155 ms cada una, RPM 1/s
+10:21:37.330 | RPM 751 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 135 ms cada una, RPM 0/s
+10:21:38.344 | RPM 757 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.005 | O2 post 0.44V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 167 ms cada una, RPM 0/s
+10:21:38.750 >> 01011
+10:21:38.954 << "410100076100\r\r" OK 135 ms
+10:21:38.954 >> 03
+10:21:38.954 << "4300\r\r" OK 149 ms
+10:21:38.954 >> 07
+10:21:39.155 << "4700\r\r" OK 165 ms
+10:21:39.155 >> 0A
+10:21:39.359 << "NO DATA\r" OK 120 ms
+10:21:39.359 Fallas: luz apagada, 0 guardadas segun 0101
+10:21:39.359 Fallas: guardadas (03): 0
+10:21:39.359 Fallas: pendientes (07): 0
+10:21:39.359 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:21:39.359 Fallas: sin fallas
+10:21:39.360 | RPM 757 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.005 | O2 post 0.44V | Carga 20% | Avance 5 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:21:40.375 | RPM 757 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 7 consultas/s, 137 ms cada una, RPM 0/s
+10:21:41.397 | RPM 752 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 165 ms cada una, RPM 1/s
+10:21:42.417 | RPM 752 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.44V | Carga 20% | Avance 5 grad | Acelerador 17% | 4 consultas/s, 124 ms cada una, RPM 0/s
+10:21:43.440 | RPM 738 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.5V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 4 consultas/s, 153 ms cada una, RPM 1/s
+10:21:44.465 | RPM 738 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 87 ms cada una, RPM 0/s
+10:21:45.484 | RPM 738 | Refrig 61C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 136 ms cada una, RPM 0/s
+10:21:46.503 | RPM 738 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 116 ms cada una, RPM 1/s
+10:21:47.526 | RPM 738 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 117 ms cada una, RPM 0/s
+10:21:48.546 | RPM 738 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 144 ms cada una, RPM 1/s
+10:21:49.564 | RPM 738 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.44V | Carga 19% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 150 ms cada una, RPM 0/s
+10:21:50.792 | RPM 754 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.016 | O2 post 0.41V | Carga 19% | Avance 3 grad | Acelerador 17% | 5 consultas/s, 135 ms cada una, RPM 0/s
+10:21:51.812 | RPM 754 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.016 | O2 post 0.41V | Carga 19% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 51 ms cada una, RPM 0/s
+10:21:53.030 | RPM 754 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 19% | Avance 6 grad | Acelerador 17% | 5 consultas/s, 146 ms cada una, RPM 0/s
+10:21:53.845 | RPM 738 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 125 ms cada una, RPM 1/s
+10:21:54.664 ECU: 010E11 = NO_DATA en 99 ms (falla 1 seguida, 135 ms sin respuesta)
+10:21:54.866 ECU: 010F0607 = NO_DATA en 84 ms (falla 2 seguida, 375 ms sin respuesta)
+10:21:55.067 | RPM 738 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 19% | Avance 6 grad | Acelerador 17% | 3 consultas/s, 121 ms cada una, RPM 0/s
+10:21:55.272 ECU: 01341 = NO_DATA en 103 ms (falla 1 seguida, 150 ms sin respuesta)
+10:21:56.091 | RPM 730 | Refrig 62C | Vel 0 km/h | Admision -- | Volt ELM 13.4V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Cerrado | Lambda -- | O2 post 0.45V | Carga 19% | Avance -- | Acelerador -- | 4 consultas/s, 127 ms cada una, RPM 1/s
+10:21:57.108 | RPM 730 | Refrig 62C | Vel 0 km/h | Admision -- | Volt ELM 13.4V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Cerrado | Lambda -- | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 150 ms cada una, RPM 0/s
+10:21:58.333 | RPM 750 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 139 ms cada una, RPM 0/s
+10:21:59.355 | RPM 750 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:00.376 | RPM 750 | Refrig 62C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 5 consultas/s, 127 ms cada una, RPM 0/s
+10:22:01.195 | RPM 740 | Refrig 63C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 2 consultas/s, 175 ms cada una, RPM 1/s
+10:22:02.418 | RPM 740 | Refrig 63C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 119 ms cada una, RPM 0/s
+10:22:03.234 ECU: 010C050D = NO_DATA en 133 ms (falla 1 seguida, 285 ms sin respuesta)
+10:22:03.440 | RPM 740 | Refrig 63C | Vel 0 km/h | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 4 consultas/s, 134 ms cada una, RPM 0/s
+10:22:04.461 | RPM -- | Refrig -- | Vel -- | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 110 ms cada una, RPM 0/s
+10:22:05.278 ECU: 01341 = NO_DATA en 114 ms (falla 1 seguida, 225 ms sin respuesta)
+10:22:05.480 | RPM -- | Refrig -- | Vel -- | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 20% | Avance 8 grad | Acelerador 17% | 4 consultas/s, 146 ms cada una, RPM 0/s
+10:22:05.685 ECU: 010C050D = NO_DATA en 123 ms (falla 1 seguida, 285 ms sin respuesta)
+10:22:06.497 | RPM -- | Refrig -- | Vel -- | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda -- | O2 post 0.45V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 86 ms cada una, RPM 0/s
+10:22:06.907 ECU: 01041 = NO_DATA en 96 ms (falla 2 seguida, 1470 ms sin respuesta)
+10:22:07.315 ECU: 010F0607 = NO_DATA en 139 ms (falla 1 seguida, 225 ms sin respuesta)
+10:22:07.516 | RPM -- | Refrig -- | Vel -- | Admision 24C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda -- | O2 post 0.45V | Carga -- | Avance 8 grad | Acelerador 17% | 3 consultas/s, 124 ms cada una, RPM 0/s
+10:22:07.717 ECU: 01341 = NO_DATA en 164 ms (falla 1 seguida, 315 ms sin respuesta)
+10:22:07.926 ECU: 01151 = NO_DATA en 132 ms (falla 2 seguida, 450 ms sin respuesta)
+10:22:08.533 | RPM 738 | Refrig 63C | Vel 0 km/h | Admision -- | Volt ELM 13.4V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Cerrado | Lambda -- | O2 post -- | Carga -- | Avance 8 grad | Acelerador 17% | 4 consultas/s, 136 ms cada una, RPM 1/s
+10:22:09.346 >> 01011
+10:22:09.346 << "410100076100\r\r" OK 150 ms
+10:22:09.346 >> 03
+10:22:09.551 << "4300\r\r" OK 150 ms
+10:22:09.551 >> 07
+10:22:09.756 << "4700\r\r" OK 165 ms
+10:22:09.757 >> 0A
+10:22:09.961 << "NO DATA\r" OK 150 ms
+10:22:09.961 Fallas: luz apagada, 0 guardadas segun 0101
+10:22:09.962 Fallas: guardadas (03): 0
+10:22:09.962 Fallas: pendientes (07): 0
+10:22:09.962 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:22:09.963 Fallas: sin fallas
+10:22:09.963 | RPM 738 | Refrig 63C | Vel 0 km/h | Admision -- | Volt ELM 13.4V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Cerrado | Lambda -- | O2 post -- | Carga -- | Avance 8 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:10.979 | RPM 746 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 6 consultas/s, 141 ms cada una, RPM 1/s
+10:22:12.002 | RPM 746 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:12.814 | RPM 746 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 123 ms cada una, RPM 0/s
+10:22:13.827 | RPM 737 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 146 ms cada una, RPM 1/s
+10:22:14.848 | RPM 737 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 64 ms cada una, RPM 0/s
+10:22:15.863 | RPM 746 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 133 ms cada una, RPM 1/s
+10:22:16.885 | RPM 746 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 29 ms cada una, RPM 0/s
+10:22:17.905 | RPM 746 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 136 ms cada una, RPM 0/s
+10:22:18.924 | RPM 741 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 137 ms cada una, RPM 1/s
+10:22:19.941 | RPM 741 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:20.956 | RPM 736 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 14 grad | Acelerador 17% | 6 consultas/s, 140 ms cada una, RPM 1/s
+10:22:21.977 | RPM 736 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 14 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:22.998 | RPM 736 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 4 consultas/s, 123 ms cada una, RPM 0/s
+10:22:24.017 | RPM 740 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 178 ms cada una, RPM 1/s
+10:22:25.037 | RPM 740 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 129 ms cada una, RPM 0/s
+10:22:26.056 | RPM 730 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.45V | Carga 20% | Avance 2 grad | Acelerador 17% | 5 consultas/s, 131 ms cada una, RPM 1/s
+10:22:27.068 | RPM 730 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.006 | O2 post 0.45V | Carga 20% | Avance 2 grad | Acelerador 17% | 1 consultas/s, 49 ms cada una, RPM 0/s
+10:22:28.080 | RPM 730 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 134 ms cada una, RPM 0/s
+10:22:29.105 | RPM 711 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 138 ms cada una, RPM 0/s
+10:22:30.326 | RPM 711 | Refrig 63C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.001 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 133 ms cada una, RPM 0/s
+10:22:31.133 | RPM 752 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.990 | O2 post 0.45V | Carga 19% | Avance 2 grad | Acelerador 17% | 6 consultas/s, 146 ms cada una, RPM 1/s
+10:22:32.156 | RPM 752 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.990 | O2 post 0.45V | Carga 19% | Avance 2 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:33.174 | RPM 752 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 6 consultas/s, 133 ms cada una, RPM 0/s
+10:22:34.198 | RPM 756 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 158 ms cada una, RPM 1/s
+10:22:35.223 | RPM 756 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 117 ms cada una, RPM 0/s
+10:22:36.243 | RPM 763 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.007 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 138 ms cada una, RPM 0/s
+10:22:37.266 | RPM 763 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.007 | O2 post 0.44V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 94 ms cada una, RPM 0/s
+10:22:38.486 | RPM 763 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 8 grad | Acelerador 17% | 5 consultas/s, 140 ms cada una, RPM 0/s
+10:22:39.300 | RPM 695 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 8 grad | Acelerador 17% | 2 consultas/s, 112 ms cada una, RPM 1/s
+10:22:39.909 >> 01011
+10:22:40.116 << "410100076100\r\r" OK 135 ms
+10:22:40.116 >> 03
+10:22:40.116 << "4300\r\r" OK 149 ms
+10:22:40.117 >> 07
+10:22:40.322 << "4700\r\r" OK 150 ms
+10:22:40.322 >> 0A
+10:22:40.526 << "NO DATA\r" OK 150 ms
+10:22:40.526 Fallas: luz apagada, 0 guardadas segun 0101
+10:22:40.526 Fallas: guardadas (03): 0
+10:22:40.526 Fallas: pendientes (07): 0
+10:22:40.526 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:22:40.526 Fallas: sin fallas
+10:22:40.526 | RPM 695 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 8 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:41.545 | RPM 748 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 142 ms cada una, RPM 1/s
+10:22:42.560 | RPM 748 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:43.579 | RPM 748 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 19% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 130 ms cada una, RPM 0/s
+10:22:44.603 | RPM 730 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 19% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 170 ms cada una, RPM 1/s
+10:22:45.620 | RPM 730 | Refrig 64C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 110 ms cada una, RPM 0/s
+10:22:46.638 | RPM 737 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 179 ms cada una, RPM 1/s
+10:22:47.661 | RPM 737 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 103 ms cada una, RPM 0/s
+10:22:48.679 | RPM 747 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 167 ms cada una, RPM 0/s
+10:22:49.700 | RPM 747 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 53 ms cada una, RPM 0/s
+10:22:50.931 | RPM 747 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 1 consultas/s, 161 ms cada una, RPM 0/s
+10:22:51.744 | RPM 740 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 3 consultas/s, 139 ms cada una, RPM 1/s
+10:22:52.764 | RPM 740 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:53.783 | RPM 734 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 5 consultas/s, 136 ms cada una, RPM 1/s
+10:22:54.803 | RPM 734 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.994 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:22:55.821 | RPM 734 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 133 ms cada una, RPM 0/s
+10:22:56.835 | RPM 714 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 141 ms cada una, RPM 1/s
+10:22:57.858 | RPM 714 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 19% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 93 ms cada una, RPM 0/s
+10:22:58.879 | RPM 738 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 206 ms cada una, RPM 1/s
+10:22:59.897 | RPM 738 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 103 ms cada una, RPM 0/s
+10:23:00.916 | RPM 738 | Refrig 65C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 156 ms cada una, RPM 0/s
+10:23:01.932 | RPM 728 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 126 ms cada una, RPM 1/s
+10:23:02.948 | RPM 728 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.5V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:03.970 | RPM 740 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 5 consultas/s, 139 ms cada una, RPM 1/s
+10:23:04.987 | RPM 740 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.45V | Carga 20% | Avance 5 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:06.006 | RPM 740 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 158 ms cada una, RPM 0/s
+10:23:07.024 | RPM 746 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 20% | Avance 3 grad | Acelerador 17% | 2 consultas/s, 171 ms cada una, RPM 1/s
+10:23:07.833 | RPM 746 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.986 | O2 post 0.46V | Carga 20% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 48 ms cada una, RPM 0/s
+10:23:08.857 | RPM 732 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 169 ms cada una, RPM 1/s
+10:23:09.874 | RPM 732 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 43 ms cada una, RPM 0/s
+10:23:10.489 >> 01011
+10:23:10.694 << "410100076100\r\r" OK 135 ms
+10:23:10.695 >> 03
+10:23:10.695 << "4300\r\r" OK 135 ms
+10:23:10.695 >> 07
+10:23:10.900 << "4700\r\r" OK 150 ms
+10:23:10.901 >> 0A
+10:23:11.105 << "NO DATA\r" OK 150 ms
+10:23:11.105 Fallas: luz apagada, 0 guardadas segun 0101
+10:23:11.105 Fallas: guardadas (03): 0
+10:23:11.105 Fallas: pendientes (07): 0
+10:23:11.105 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:23:11.105 Fallas: sin fallas
+10:23:11.105 | RPM 732 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.991 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:12.126 | RPM 726 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 3 consultas/s, 133 ms cada una, RPM 1/s
+10:23:13.147 | RPM 726 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 6 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:14.167 | RPM 748 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 3 consultas/s, 134 ms cada una, RPM 1/s
+10:23:14.981 | RPM 748 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.3V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:16.002 | RPM 748 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 20% | Avance 3 grad | Acelerador 17% | 1 consultas/s, 92 ms cada una, RPM 0/s
+10:23:17.021 | RPM 711 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.45V | Carga 19% | Avance 10 grad | Acelerador 17% | 2 consultas/s, 181 ms cada una, RPM 1/s
+10:23:18.042 | RPM 711 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.45V | Carga 19% | Avance 10 grad | Acelerador 17% | 1 consultas/s, 42 ms cada una, RPM 0/s
+10:23:19.061 | RPM 742 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 168 ms cada una, RPM 0/s
+10:23:20.085 | RPM 742 | Refrig 66C | Vel 0 km/h | Admision 25C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 82 ms cada una, RPM 0/s
+10:23:21.307 | RPM 742 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.995 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 136 ms cada una, RPM 0/s
+10:23:22.121 | RPM 733 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 4 consultas/s, 124 ms cada una, RPM 1/s
+10:23:23.146 | RPM 733 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto -0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:24.171 | RPM 702 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 19% | Avance 11 grad | Acelerador 17% | 4 consultas/s, 125 ms cada una, RPM 0/s
+10:23:25.193 | RPM 702 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 19% | Avance 11 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:26.222 | RPM 702 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.999 | O2 post 0.45V | Carga 19% | Avance 11 grad | Acelerador 17% | 2 consultas/s, 119 ms cada una, RPM 0/s
+10:23:27.248 | RPM 700 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 2 grad | Acelerador 17% | 4 consultas/s, 130 ms cada una, RPM 1/s
+10:23:28.269 | RPM 700 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 2 grad | Acelerador 17% | 0 consultas/s, 87 ms cada una, RPM 0/s
+10:23:29.085 ECU: 01111 = NO_DATA en 99 ms (falla 1 seguida, 120 ms sin respuesta)
+10:23:29.290 | RPM 727 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 127 ms cada una, RPM 1/s
+10:23:30.311 | RPM 727 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +1.6% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador -- | 2 consultas/s, 95 ms cada una, RPM 0/s
+10:23:31.336 | RPM 727 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador -- | 1 consultas/s, 111 ms cada una, RPM 0/s
+10:23:31.336 ECU: 01040E = NO_DATA en 134 ms (falla 1 seguida, 210 ms sin respuesta)
+10:23:32.151 | RPM 728 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.984 | O2 post 0.46V | Carga -- | Avance -- | Acelerador 17% | 5 consultas/s, 125 ms cada una, RPM 1/s
+10:23:33.169 | RPM 728 | Refrig 66C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.984 | O2 post 0.46V | Carga -- | Avance -- | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:34.185 | RPM 730 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 4 consultas/s, 132 ms cada una, RPM 0/s
+10:23:35.206 | RPM 730 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 139 ms cada una, RPM 0/s
+10:23:36.226 | RPM 730 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 2 consultas/s, 106 ms cada una, RPM 0/s
+10:23:37.245 | RPM 728 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 4 consultas/s, 121 ms cada una, RPM 1/s
+10:23:38.263 | RPM 728 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.002 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 42 ms cada una, RPM 0/s
+10:23:39.281 | RPM 729 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.45V | Carga 19% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 149 ms cada una, RPM 0/s
+10:23:40.297 | RPM 729 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 76 ms cada una, RPM 0/s
+10:23:41.112 >> 01011
+10:23:41.112 << "410100076100\r\r" OK 135 ms
+10:23:41.112 >> 03
+10:23:41.317 << "4300\r\r" OK 149 ms
+10:23:41.317 >> 07
+10:23:41.521 << "4700\r\r" OK 149 ms
+10:23:41.521 >> 0A
+10:23:41.726 << "NO DATA\r" OK 150 ms
+10:23:41.727 Fallas: luz apagada, 0 guardadas segun 0101
+10:23:41.727 Fallas: guardadas (03): 0
+10:23:41.727 Fallas: pendientes (07): 0
+10:23:41.727 Fallas: permanentes (0A): no disponible (NO_DATA)
+10:23:41.727 Fallas: sin fallas
+10:23:41.727 | RPM 729 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:42.743 | RPM 742 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 153 ms cada una, RPM 1/s
+10:23:43.558 | RPM 742 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.998 | O2 post 0.45V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:44.576 | RPM 734 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 3 consultas/s, 148 ms cada una, RPM 0/s
+10:23:45.598 | RPM 734 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.3V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 20% | Avance 4 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:46.823 | RPM 734 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | Carga 19% | Avance 9 grad | Acelerador 17% | 1 consultas/s, 123 ms cada una, RPM 0/s
+10:23:47.847 | RPM 728 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 9 grad | Acelerador 17% | 3 consultas/s, 129 ms cada una, RPM 1/s
+10:23:48.864 | RPM 728 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 9 grad | Acelerador 17% | 1 consultas/s, 102 ms cada una, RPM 0/s
+10:23:49.892 | RPM 737 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 4 consultas/s, 140 ms cada una, RPM 1/s
+10:23:50.915 | RPM 737 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.8% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 97 ms cada una, RPM 0/s
+10:23:51.724 | RPM 737 | Refrig 67C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 1 consultas/s, 165 ms cada una, RPM 0/s
+10:23:52.743 | RPM 726 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 4 consultas/s, 135 ms cada una, RPM 1/s
+10:23:53.765 | RPM 726 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.996 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:54.984 | RPM 720 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 4 consultas/s, 139 ms cada una, RPM 0/s
+10:23:55.999 | RPM 720 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 6 grad | Acelerador 17% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:23:57.018 | RPM 744 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.993 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 122 ms cada una, RPM 0/s
+10:23:58.037 | RPM 744 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 2 consultas/s, 172 ms cada una, RPM 0/s
+10:23:59.051 | RPM 744 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | Carga 19% | Avance 4 grad | Acelerador 17% | 1 consultas/s, 104 ms cada una, RPM 0/s
+10:23:59.866 | RPM 699 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 13.4V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.984 | O2 post 0.46V | Carga 18% | Avance 5 grad | Acelerador 16% | 3 consultas/s, 136 ms cada una, RPM 0/s
+10:24:00.887 | RPM 699 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.984 | O2 post 0.46V | Carga 18% | Avance 5 grad | Acelerador 16% | 1 consultas/s, 69 ms cada una, RPM 0/s
+10:24:01.903 | RPM 0 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Cerrado | Lambda 0.984 | O2 post 0.46V | Carga 0% | Avance 9 grad | Acelerador 11% | 2 consultas/s, 146 ms cada una, RPM 1/s
+10:24:02.919 | RPM 0 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Apagado | Lambda 0.984 | O2 post 0.46V | Carga 0% | Avance 9 grad | Acelerador 11% | 3 consultas/s, 129 ms cada una, RPM 0/s
+10:24:03.941 | RPM 0 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Apagado | Lambda 0.984 | O2 post 0.46V | Carga 0% | Avance 9 grad | Acelerador 11% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:24:04.962 ECU: 013415 = INVALIDA en 184 ms (falla 1 seguida, 316 ms sin respuesta)
+10:24:04.962      cruda: "009\r0:41347DE87FF0\r\r"
+10:24:04.962 | RPM 0 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Apagado | Lambda 0.984 | O2 post 0.46V | Carga 0% | Avance 9 grad | Acelerador 20% | 5 consultas/s, 117 ms cada una, RPM 1/s
+10:24:05.985 | RPM 0 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Apagado | Lambda -- | O2 post -- | Carga 0% | Avance 9 grad | Acelerador 20% | 0 consultas/s, 0 ms cada una, RPM 0/s
+10:24:06.800 ECU: 010F0607040E11 = NO_DATA en 79 ms (falla 2 seguida, 2145 ms sin respuesta)
+10:24:07.006 ECU: 010C1 = NO_DATA en 167 ms (falla 3 seguida, 2415 ms sin respuesta)
+10:24:07.006 | RPM 0 | Refrig 68C | Vel 0 km/h | Admision 26C | Volt ELM 12.8V | Volt ECU N/D | Aj corto +0.0% | Aj largo +0.0% | Lazo Apagado | Lambda -- | O2 post -- | Carga 0% | Avance 9 grad | Acelerador 20% | 2 consultas/s, 98 ms cada una, RPM 0/s
+10:24:07.210 ECU: 01050D03 = NO_DATA en 117 ms (falla 4 seguida, 2535 ms sin respuesta)
+10:24:07.413 ECU: 013415 = NO_DATA en 159 ms (falla 5 seguida, 2790 ms sin respuesta)
+10:24:08.026 | RPM -- | Refrig -- | Vel -- | Admision -- | Volt ELM 12.8V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo -- | Lambda -- | O2 post -- | Carga -- | Avance -- | Acelerador -- | 2 consultas/s, 138 ms cada una, RPM 0/s
+10:24:09.048 | RPM -- | Refrig -- | Vel -- | Admision -- | Volt ELM 12.8V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo -- | Lambda -- | O2 post -- | Carga -- | Avance -- | Acelerador -- | 1 consultas/s, 89 ms cada una, RPM 0/s
+10:24:09.252 ECU: 010F0607040E11 = NO_DATA en 99 ms (falla 6 seguida, 4665 ms sin respuesta)
+10:24:09.252 == SIN_ECU (Sin datos)
+10:24:19.245 == BUSCANDO_ECU
+10:24:19.245 >> 0100
+10:24:19.446 << "NO DATA\r" OK 133 ms
+10:24:19.446    = NO_DATA
+10:24:19.446 == SIN_ECU (Sin datos)
+10:24:29.427 == BUSCANDO_ECU
+10:24:29.630 >> 0100
+10:24:29.630 << "NO DATA\r" OK 149 ms
+10:24:29.630    = NO_DATA
+10:24:29.630 == SIN_ECU (Sin datos)
+10:24:38.814 >> ATRV
+10:24:38.814 << "" TIMEOUT 1000 ms
+10:24:39.427 == BT_PERDIDO (Conexion perdida)
+10:24:44.525 == CONECTANDO_BT
+10:24:44.525 BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+10:24:48.599 BLE: no conecto (4000 ms)
+10:24:48.599 BLE: buscando "OBDBLE" o el servicio FFF0
+10:24:54.723 BLE: no aparecio (6004 ms)
+10:24:54.723 == BT_PERDIDO (No conecta con el adaptador)
+10:24:59.625 == CONECTANDO_BT
+10:24:59.625 BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+10:25:03.718 BLE: no conecto (4000 ms)
+10:25:03.718 BLE: buscando "OBDBLE" o el servicio FFF0
+10:25:09.841 BLE: no aparecio (6004 ms)
+10:25:09.841 == BT_PERDIDO (No conecta con el adaptador)
+10:25:14.730 == CONECTANDO_BT
+10:25:14.933 BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+10:25:18.804 BLE: no conecto (4000 ms)
+10:25:19.005 BLE: buscando "OBDBLE" o el servicio FFF0
+10:25:24.931 BLE: no aparecio (6004 ms)
+10:25:24.931 == BT_PERDIDO (No conecta con el adaptador)
+10:25:29.851 == CONECTANDO_BT
+10:25:30.056 BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+10:25:33.941 BLE: no conecto (4000 ms)
+10:25:34.144 BLE: buscando "OBDBLE" o el servicio FFF0
+10:25:40.057 BLE: no aparecio (6006 ms)
+10:25:40.060 == BT_PERDIDO (No conecta con el adaptador)
+10:25:45.169 == CONECTANDO_BT
+10:25:45.169 BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+10:25:49.253 BLE: no conecto (4000 ms)
+10:25:49.253 BLE: buscando "OBDBLE" o el servicio FFF0
+10:25:55.146 BLE: no aparecio (6004 ms)
+10:25:55.147 == BT_PERDIDO (No conecta con el adaptador)

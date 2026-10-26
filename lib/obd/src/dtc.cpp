@@ -108,6 +108,11 @@ bool sinFallas(const LecturaFallas &lectura) {
   return sinCodigos(lectura.guardados) && sinCodigos(lectura.pendientes) && !permanentes;
 }
 
+bool errorAlLeer(const LecturaFallas &lectura) {
+  return lectura.guardados.estado != EstadoCodigos::LEIDOS ||
+         lectura.pendientes.estado != EstadoCodigos::LEIDOS;
+}
+
 const char *textoLuz(const LecturaFallas &lectura) {
   if (!lectura.leida) {
     return "...";
@@ -118,86 +123,62 @@ const char *textoLuz(const LecturaFallas &lectura) {
   return lectura.luz ? "Encendida" : "Apagada";
 }
 
-// Va armando las pantallas en orden y se queda con la número buscada.
-struct Armado {
-  uint32_t buscada;
-  PantallaFallas *salida;
-  PantallaFallas actual;
-  uint8_t total;
-};
-
-static void cerrarPantalla(Armado &a) {
-  if (a.actual.cantidad == 0) {
+// Agrega los códigos de la lista que todavía no están
+static void agregarTipo(const Codigos &codigos, TipoDtc tipo, RenglonDtc *todos,
+                        uint8_t &cantidad) {
+  if (codigos.estado != EstadoCodigos::LEIDOS) {
     return;
   }
-  if (a.total == a.buscada && a.salida != nullptr) {
-    *a.salida = a.actual;
-  }
-  a.total++;
-  a.actual.cantidad = 0;
-}
-
-// Los renglones de un bloque van juntos en la misma pantalla
-static void agregarBloque(Armado &a, const char (*renglones)[LARGO_RENGLON], uint8_t cantidad) {
-  if (a.actual.cantidad + cantidad > RENGLONES_FALLAS) {
-    cerrarPantalla(a);
-  }
-  for (uint8_t i = 0; i < cantidad; i++) {
-    memcpy(a.actual.renglones[a.actual.cantidad++], renglones[i], LARGO_RENGLON);
-  }
-}
-
-// Encabezado y los códigos que entran debajo, cada uno con su descripción.
-// Lo que no entra va en otro bloque con el mismo encabezado.
-static void agregarTipo(Armado &a, const ListaDtc &lista, const char *singular,
-                        const char *plural) {
-  char bloque[RENGLONES_FALLAS][LARGO_RENGLON];
-  snprintf(bloque[0], LARGO_RENGLON, "%u %s", lista.cantidad,
-           lista.cantidad == 1 ? singular : plural);
-  uint8_t renglones = 1;
-  for (uint8_t i = 0; i < lista.cantidad; i++) {
-    const char *descripcion = descripcionDtc(lista.codigos[i]);
-    uint8_t ocupa = descripcion != nullptr ? 2 : 1;
-    if (renglones + ocupa > RENGLONES_FALLAS) {
-      agregarBloque(a, bloque, renglones);
-      renglones = 1;
+  for (uint8_t i = 0; i < codigos.lista.cantidad; i++) {
+    uint16_t codigo = codigos.lista.codigos[i];
+    bool repetido = false;
+    for (uint8_t j = 0; j < cantidad && !repetido; j++) {
+      repetido = todos[j].codigo == codigo;
     }
-    textoDtc(lista.codigos[i], bloque[renglones++]);
-    if (descripcion != nullptr) {
-      snprintf(bloque[renglones++], LARGO_RENGLON, "%s", descripcion);
+    if (!repetido) {
+      todos[cantidad++] = {codigo, tipo};
     }
   }
-  agregarBloque(a, bloque, renglones);
 }
 
-static void armar(const LecturaFallas &lectura, Armado &a) {
-  static const char LEYENDO[][LARGO_RENGLON] = {"Leyendo..."};
-  static const char FALLO[][LARGO_RENGLON] = {"Error al leer", "los codigos"};
-  static const char NINGUNA[][LARGO_RENGLON] = {"Sin fallas"};
-
+PantallaFallas pantallaFallas(const LecturaFallas &lectura, uint32_t vuelta) {
+  PantallaFallas p = {};
   if (!lectura.leida) {
-    agregarBloque(a, LEYENDO, 1);
-  } else if (lectura.guardados.estado != EstadoCodigos::LEIDOS ||
-             lectura.pendientes.estado != EstadoCodigos::LEIDOS) {
-    // Nunca "Sin fallas" si 03 o 07 no contestaron bien
-    agregarBloque(a, FALLO, 2);
-  } else if (sinFallas(lectura)) {
-    agregarBloque(a, NINGUNA, 1);
-  } else {
-    agregarTipo(a, lectura.guardados.lista, "guardada", "guardadas");
-    agregarTipo(a, lectura.pendientes.lista, "pendiente", "pendientes");
-    if (lectura.permanentes.estado == EstadoCodigos::LEIDOS) {
-      agregarTipo(a, lectura.permanentes.lista, "permanente", "permanentes");
-    }
+    p.vista = VistaFallas::LEYENDO;
+    return p;
   }
-  cerrarPantalla(a);
+  // Con la luz encendida no es "Sin fallas", aunque no haya códigos
+  bool luzEncendida = lectura.luzLeida && lectura.luz;
+  p.vista = sinFallas(lectura) && !luzEncendida ? VistaFallas::SIN_FALLAS : VistaFallas::CODIGOS;
+
+  RenglonDtc todos[3 * MAX_DTC];
+  uint8_t cantidad = 0;
+  agregarTipo(lectura.guardados, TipoDtc::GUARDADO, todos, cantidad);
+  agregarTipo(lectura.permanentes, TipoDtc::PERMANENTE, todos, cantidad);
+  agregarTipo(lectura.pendientes, TipoDtc::PENDIENTE, todos, cantidad);
+  if (cantidad == 0) {
+    return p;
+  }
+  p.grupos = (cantidad + RENGLONES_DTC - 1) / RENGLONES_DTC;
+  p.grupo = vuelta % p.grupos;
+  uint8_t desde = p.grupo * RENGLONES_DTC;
+  while (p.cantidad < RENGLONES_DTC && desde + p.cantidad < cantidad) {
+    p.renglones[p.cantidad] = todos[desde + p.cantidad];
+    p.cantidad++;
+  }
+  return p;
 }
 
-uint8_t pantallaFallas(const LecturaFallas &lectura, uint32_t vuelta, PantallaFallas *salida) {
-  // Una pasada para contar y otra para quedarse con la pedida
-  Armado contar = {UINT32_MAX, nullptr, {}, 0};
-  armar(lectura, contar);
-  Armado elegir = {vuelta % contar.total, salida, {}, 0};
-  armar(lectura, elegir);
-  return contar.total;
+bool textoCantidad(const Codigos &codigos, TipoDtc tipo, char *salida, size_t tam) {
+  static const char *const NOMBRES[][3] = {{"guardada", "guardadas", "Guardadas"},
+                                           {"permanente", "permanentes", "Permanentes"},
+                                           {"pendiente", "pendientes", "Pendientes"}};
+  const char *const *nombre = NOMBRES[(uint8_t)tipo];
+  if (codigos.estado != EstadoCodigos::LEIDOS) {
+    snprintf(salida, tam, "%s: error", nombre[2]);
+    return false;
+  }
+  uint8_t cantidad = codigos.lista.cantidad;
+  snprintf(salida, tam, "%u %s", cantidad, cantidad == 1 ? nombre[0] : nombre[1]);
+  return true;
 }
