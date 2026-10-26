@@ -1,6 +1,11 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
+
+// PIDs que entran en un pedido del servicio 01 (010C0D050F...), según
+// SAE J1979 para CAN
+constexpr uint8_t MAX_PIDS_POR_PEDIDO = 6;
 
 // Lista blanca de comandos para el ELM327: solo pasan los de lectura.
 //

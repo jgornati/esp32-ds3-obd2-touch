@@ -228,6 +228,30 @@ static void test_multiframe_que_no_entra() {
   verificarTipo(TipoRespuesta::INVALIDA, cruda, "0902");
 }
 
+static void test_varios_pids() {
+  // Sin el 41: cada PID seguido de sus bytes
+  const uint8_t dos[] = {0x0C, 0x0B, 0x74, 0x0D, 0x00};
+  verificarDatos("410C0B740D00\r\r", "010C0D", dos);
+  verificarDatos("41 0C 0B 74 0D 00 \r\r", "01 0C 0D 1", dos);
+  // En otro orden
+  const uint8_t alReves[] = {0x0D, 0x00, 0x0C, 0x0B, 0x74};
+  verificarDatos("410D000C0B74\r\r", "010C0D", alReves);
+
+  // Más de 7 bytes: viene en varios frames, con relleno en el último
+  const uint8_t cuatro[] = {0x0C, 0x0B, 0x74, 0x0D, 0x00, 0x05, 0x3D, 0x0F, 0x3D};
+  verificarDatos("00A\r0:410C0B740D00\r1:053D0F3D000000\r\r", "010C0D050F", cuatro);
+  verificarDatos("00A\r0: 41 0C 0B 74 0D 00 \r1: 05 3D 0F 3D 00 00 00 \r\r", "010C0D050F", cuatro);
+
+  // Un PID que no se pidió, o la respuesta de un solo PID con otro
+  verificarTipo(TipoRespuesta::INVALIDA, "410E00\r\r", "010C0D");
+  verificarTipo(TipoRespuesta::INVALIDA, "41\r\r", "010C0D");
+  verificarTipo(TipoRespuesta::NO_DATA, "NO DATA\r", "010C0D050F");
+
+  // Con un solo PID, como siempre
+  const uint8_t uno[] = {0x0B, 0x74};
+  verificarDatos("410C0B74\r\r", "010C", uno);
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_texto_at);
@@ -241,5 +265,6 @@ int main() {
   RUN_TEST(test_varias_ecus);
   RUN_TEST(test_multiframe);
   RUN_TEST(test_multiframe_que_no_entra);
+  RUN_TEST(test_varios_pids);
   return UNITY_END();
 }

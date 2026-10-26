@@ -145,6 +145,42 @@ static void test_soportados() {
   TEST_ASSERT_EQUAL_UINT8(0, soportados.cantidad());
 }
 
+static void test_separar_pids() {
+  // 010C0D050F0607: RPM 733, 0 km/h, 21 y 21 °C, ajustes 0 y 1,6 %
+  const uint8_t datos[] = {0x0C, 0x0B, 0x74, 0x0D, 0x00, 0x05, 0x3D,
+                           0x0F, 0x3D, 0x06, 0x80, 0x07, 0x82};
+  DatoPid pids[6] = {};
+  TEST_ASSERT_EQUAL_UINT8(6, separarPids(datos, sizeof(datos), pids, 6));
+  const uint8_t esperados[] = {0x0C, 0x0D, 0x05, 0x0F, 0x06, 0x07};
+  float v = 0;
+  for (uint8_t i = 0; i < 6; i++) {
+    TEST_ASSERT_EQUAL_HEX8(esperados[i], pids[i].pid);
+  }
+  TEST_ASSERT_TRUE(calcularPid(pids[0].pid, pids[0].datos, pids[0].largo, &v));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 733, v);
+  TEST_ASSERT_TRUE(calcularPid(pids[3].pid, pids[3].datos, pids[3].largo, &v));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 21, v);
+  TEST_ASSERT_TRUE(calcularPid(pids[5].pid, pids[5].datos, pids[5].largo, &v));
+  TEST_ASSERT_FLOAT_WITHIN(0.01f, 1.5625f, v);
+
+  // Lazo (2 bytes), lambda (4) y sonda post (2)
+  const uint8_t mezcla[] = {0x03, 0x02, 0x00, 0x34, 0x7F, 0x68, 0x7F, 0xFB, 0x15, 0x5B, 0xFF};
+  TEST_ASSERT_EQUAL_UINT8(3, separarPids(mezcla, sizeof(mezcla), pids, 6));
+  TEST_ASSERT_EQUAL_HEX8(0x34, pids[1].pid);
+  TEST_ASSERT_EQUAL_UINT8(4, pids[1].largo);
+  TEST_ASSERT_EQUAL_HEX8(0x5B, pids[2].datos[0]);
+
+  // Hasta max
+  TEST_ASSERT_EQUAL_UINT8(2, separarPids(datos, sizeof(datos), pids, 2));
+
+  // Se detiene en un PID que no está en la tabla o al que le faltan bytes
+  const uint8_t desconocido[] = {0x0D, 0x00, 0x99, 0x01, 0x05, 0x3D};
+  TEST_ASSERT_EQUAL_UINT8(1, separarPids(desconocido, sizeof(desconocido), pids, 6));
+  const uint8_t corto[] = {0x0D, 0x00, 0x0C, 0x0B};
+  TEST_ASSERT_EQUAL_UINT8(1, separarPids(corto, sizeof(corto), pids, 6));
+  TEST_ASSERT_EQUAL_UINT8(0, separarPids(nullptr, 4, pids, 6));
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_tabla_minima);
@@ -154,5 +190,6 @@ int main() {
   RUN_TEST(test_lazo);
   RUN_TEST(test_sondas);
   RUN_TEST(test_soportados);
+  RUN_TEST(test_separar_pids);
   return UNITY_END();
 }

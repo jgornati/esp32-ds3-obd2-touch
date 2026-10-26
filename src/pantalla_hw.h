@@ -13,6 +13,9 @@ public:
   bool iniciada() const;
   // Llamar seguido desde loop() y mientras se espera al ELM
   void atender();
+  // Dibuja y manda ya lo que cambió, sin esperar el período de LVGL. Para
+  // antes de algo que bloquea sin llamar a atender().
+  void dibujarYa();
 
   // 0-255. En 0 queda lo más oscura que permita el hardware.
   void ponerBrillo(uint8_t nivel);

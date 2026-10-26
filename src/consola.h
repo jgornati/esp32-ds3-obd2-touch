@@ -20,6 +20,8 @@ public:
   bool reconexionPedida();
   // true una sola vez después de un !olvidar
   bool olvidoPedido();
+  // true una sola vez después de un !descubrir
+  bool descubrimientoPedido();
   // true una sola vez después de un !info
   bool infoPedida();
   // +1 o -1 una sola vez después de una línea "+" o "-"; si no, 0
@@ -27,6 +29,11 @@ public:
   // !log lo cambia: con true se ve cada consulta periódica, no solo las fallas
   bool detalle() const {
     return conDetalle;
+  }
+  // funcion se llama después de soltar el ELM para !escanear o !explorar,
+  // que bloquean varios segundos (para sacar los datos de la pantalla).
+  void antesDeExplorar(void (*funcion)()) {
+    alSoltar = funcion;
   }
 
 private:
@@ -40,7 +47,9 @@ private:
   bool descartando = false;
   bool reconectar = false;
   bool olvidar = false;
+  bool descubrir = false;
   bool info = false;
   int brillo = 0;
   bool conDetalle = false;
+  void (*alSoltar)() = nullptr;
 };

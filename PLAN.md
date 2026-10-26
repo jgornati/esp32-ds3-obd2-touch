@@ -26,7 +26,7 @@ que corresponda antes de portar un módulo.
 | E0    | Base del proyecto y exploración BLE    | —          | Verificada (salvo la prueba con el iPhone) |
 | E1    | Pantalla y touch                       | E0         | Verificada |
 | E2    | Transporte BLE con el ELM              | E0         | Verificada |
-| E3    | El monitor completo en el auto         | E1, E2     | Pendiente |
+| E3    | El monitor completo en el auto         | E1, E2     | Verificada |
 | E4    | Diseño de páginas y navegación táctil  | E3         | Pendiente |
 | E5    | Códigos de falla                       | E4         | Pendiente |
 | E6    | Brillo y ajustes                       | E4         | Pendiente |
@@ -57,7 +57,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 
 | Tema                   | Decisión                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------- |
-| Alcance                | Solo lectura, como el anterior. Todo comando pasa por `comandoPermitido()`; la lista blanca no se amplía sin pedido del usuario. |
+| Alcance                | Solo lectura, como el anterior. Todo comando pasa por `comandoPermitido()`; la lista blanca no se amplía sin pedido del usuario. El 2026-10-25 el usuario pidió permitir el servicio 01 con hasta 6 PIDs por pedido (`010C0D050F`), que sigue siendo lectura (ver notas de E3). |
 | Bluetooth              | **Solo BLE.** El ESP32-S3 no tiene Bluetooth clásico, así que el ELM anterior (`OBDII`, SPP) no sirve con esta placa. Se usa el adaptador nuevo, el que anda con iPhone. |
 | Plataforma             | `espressif32 @ 8.0.0` (Arduino-ESP32 3.3.x), la misma del anterior. Waveshare pide Arduino-ESP32 3.1.0 o más nuevo. |
 | Placa en PlatformIO    | No hay definición para la 3.49. Se usa `esp32-s3-devkitc-1` con lo que Waveshare indica para el Arduino IDE: flash 16 MB QIO 80 MHz, PSRAM OPI (`qio_opi`), USB CDC al arrancar, particiones `app3M_fat9M_16MB.csv`. Un programa de prueba con BLE, `esp_lcd` e `i2c_master` compiló así (2026-10-24); falta subirlo a la placa. |
@@ -461,8 +461,14 @@ De esta placa y el adaptador nuevo:
 | Conexión guardada / buscando  | Por dirección guardada: conecta en 389–1348 ms y queda listo en 974–1928 ms. Buscando: lo encuentra en 23–1526 ms y queda listo en 1536–1923 ms. Casi no hay diferencia, porque la búsqueda lo encuentra enseguida. De lo que tarda en quedar listo, ~530 ms son servicios, características y suscripción | E2    |
 | Parámetros de conexión        | Con 7,5–15 ms pedidos queda en 15 ms (latencia 0, supervisión 2 s). El adaptador pide 25–35 ms dos veces por conexión; se rechaza (ver notas de E2) | E2    |
 | Tiempo por comando AT         | Con 15 ms: `ATZ` 29–89, `ATE0` 59–89, `ATI` 35–90, `ATRV` 64–100 ms. Con 50 ms (E0): 70–390 ms. Con SPP era ~40 ms | E2    |
-| ¿Acepta `010C1`? ms con y sin |       | E3    |
-| Consultas por segundo         |       | E3    |
+| Con la inicialización de E3   | El clon respeta `ATL0`: después, las líneas terminan en `\r` solo. Sin auto y con `ATSP6`, `0100` contesta `UNABLE TO CONNECT` en 131–146 ms (con `ATSP0`, 4,4 s). AT 26–95 ms, `ATRV` 45–133 ms | E3    |
+| Memoria en `SIN ECU`          | RAM interna libre 157–158 KB (bloque mayor 111–117 KB), PSRAM libre 7972 KB. Sin pérdidas con 6 reconexiones seguidas | E3    |
+| PIDs con el adaptador nuevo   | Iguales al anterior: 17 PIDs (`0100` `BE1EA811`, `0120` `80001001`, `0140` `02000000`, `0160` `NO DATA`); `0114`, `0124`, `0142`, `0144` y `0A` dan `NO DATA`; `0900` `11000000`; `03`/`07` sin códigos, luz apagada. Con `ATH1` se ve el relleno del frame: `7E8064100BE1EA811AA` | E3    |
+| ¿Acepta `010C1`? ms con y sin | Sí, pero no acelera: `010C` y `010C1` tardan ~148 ms los dos (el anterior, 126 y 75 ms). `NO DATA` también tarda 133–148 ms | E3    |
+| Consultas por segundo         | 6–7 (promedio 6,4), ~143 ms cada una: las consultas se llevan ~910 ms de cada segundo. El anterior, ~11. `NO DATA` sueltos en el 1–5 % de las consultas; una vez, 5 seguidos con el motor en marcha | E3    |
+| Varios PIDs por pedido        | Sí: `010C0D050F` en 149 ms (igual que uno solo), en orden y en varios frames sin relleno. RPM 5–6 por segundo con contacto | E3    |
+| Timeout del ELM               | Lo ignora: con `ATST05`–`ATST19` y `ATAT0`/`1`/`2` contesta `OK`, pero cada consulta sigue tardando ~148 ms | E3    |
+| Voltaje y arranque            | 11,9 V con contacto, 9,9–11,7 V al arrancar, 13,6–13,7 V en marcha (motor frío). En los dos arranques no se cortó el BLE ni se reinició la placa (alimentada desde la notebook) | E3    |
 
 ## Notas de traspaso
 
@@ -812,7 +818,358 @@ cuánto tarda cada intento con el adaptador apagado (tendría que ser ~10 s:
 
 ### E3
 
-### E4
+Hecho (rama `e3-monitor-completo`, desde `main` con E0–E2):
+
+- **Portados del anterior:**
+  - `src/datos.h/.cpp` y `src/sondeo.h/.cpp`, sin cambios salvo uno: con
+    `pantalla = true`, `textoDato()` usa `°C` en UTF-8 (las fuentes de
+    LVGL lo traen) en vez del `0xF8` de la Nokia. El lazo abreviado sigue.
+  - `src/descubrimiento.h/.cpp` sin cambios: la misma serie que E4 del
+    anterior, para poder comparar (incluye 20 × `010C` y 20 × `010C1`).
+  - `main.cpp`: la máquina de estados del anterior sin LEDs, cámara,
+    botón, páginas ni fallas (son de E4 y E5). Inicializa con `ATZ`,
+    `ATE0`, `ATL0`, `ATS0`, `ATH0`, `ATSP6`, `ATAT1` y después `ATI`
+    (de `ELM327 v2.1` queda `v2.1`). Al encontrar la ECU carga los mapas
+    y lee `ATDPN`. En `LEYENDO`, una consulta por vuelta con el sufijo
+    `1`, la tabla de datos y consultas por segundo cada 1 s, y 5 fallas
+    seguidas llevan a `SIN_ECU` (después del auto, además con 3 s sin
+    respuesta: ver E3c). Lo que hacía el anterior en E5. Los mapas se
+    reintentan (ver E3b).
+  - `config.h`: los tiempos que faltaban, con los valores del anterior
+    (`TIMEOUT_BUSCAR_ECU_MS`, `REINTENTO_ECU_MS`, `PERIODO_LENTO_MS`,
+    `PERIODO_PANTALLA_MS`, `PERIODO_TABLA_MS`, `ESPERA_ANTES_DE_BT_MS`,
+    `ESPERA_TRAS_BROWNOUT_MS`, `FALLAS_PARA_SIN_ECU`,
+    `FALLAS_PARA_REINICIAR_ELM` y `VIGENCIA_MS`).
+- **Detector de brownout activo** (no se toca el registro). Si el último
+  reinicio fue por brownout, se ve `ALIMENTACION` durante
+  `ESPERA_TRAS_BROWNOUT_MS` antes de prender el BLE.
+- **`src/pantalla.h/.cpp`**, con LVGL:
+
+  ```cpp
+  struct LineaDato { const char *etiqueta; const char *valor; bool actual; };
+  class Pantalla {
+  public:
+    explicit Pantalla(PantallaHw &hw);
+    void iniciar();  // crea los objetos; sin pantalla, nada hace nada
+    void inicio();
+    void alimentacionBaja();
+    void conectando(bool buscando);  // la dibuja en el acto
+    void sinConexion(const char *motivo, uint32_t segundos);
+    void iniciandoElm(const char *comando);
+    void elmNoResponde(uint32_t segundos);
+    void buscandoEcu(const char *version);
+    void sinEcu(const char *version, const LineaDato &voltaje, const char *motivo, uint32_t segundos);
+    void descubriendo(uint16_t hechos, uint16_t total);
+    void datos(const char *version, const LineaDato &principal, const LineaDato *lineas,
+               uint8_t cantidad);  // provisoria
+  };
+  ```
+
+  - Barra de 28 px (título con color según el estado y un texto a la
+    derecha) y debajo 4 renglones de 36 px en Montserrat 20, con etiqueta
+    a la izquierda y valor a la derecha, como las líneas de la Nokia.
+  - Colores de la prueba de E1: título blanco al iniciar, cian mientras
+    conecta o busca, ámbar en `SIN ECU` y `El ELM no responde`, rojo en
+    `SIN CONEXION` y `ALIMENTACION`, verde en `ECU OK`.
+  - Pantalla provisoria (`datos()`): barra `ECU OK` con `ELM v2.1` a la
+    derecha; RPM con los números grandes de E1, alineada a la derecha en
+    310 px para que no salte; a la derecha refrigerante, velocidad,
+    admisión y `Volt ELM`. Lo que no es válido y actual va en gris. La
+    fuente grande no tiene letras: `N/D` sale en Montserrat 20.
+  - Una etiqueta se toca solo si cambia su texto, color o fuente: cada
+    cambio le cuesta a LVGL redibujar y mandar la imagen entera (~33 ms).
+- **`PantallaHw::dibujarYa()`** (nuevo): `lv_refr_now()`. Lo usa
+  `conectando()`, porque `connect()` bloquea hasta 4 s sin llamar a
+  `mientrasEspera()`.
+- **Consola:** `!descubrir` (solo en `LEYENDO`, como en el anterior) y
+  `antesDeExplorar(funcion)`. `!info` agrega estado, versión del ELM,
+  protocolo y PIDs soportados.
+- **`test/test_obdble/`**: 5 tests con las respuestas del adaptador nuevo.
+  Del banco: eco tras `ATZ`, `\r\n` antes de `ATL0` y `\r` después,
+  `12.0V` y `0100` sin ECU con `ATSP6` y con `ATSP0`. Del auto: `0100`
+  (termina en `\r\r`), `0120` con `NO DATA`, `ATDPN` = `6` y lo nuevo de
+  `!descubrir` (`AT@1`, `0100` con `ATH1`, los mapas, valores en ralentí
+  y un `NO DATA` suelto). Y datos del DS3 con `\r\n` (armados: es lo que
+  llegaría si el ELM se reinicia solo). Salvo los armados, están copiados
+  de los logs. Para entender al adaptador nuevo, el parser no necesitó
+  cambios (los pedidos de varios PIDs son aparte, más abajo).
+
+Cambios respecto del plan y del anterior:
+
+- **La pantalla se actualiza también mientras se espera al ELM.**
+  `mientrasEspera()` llama a `dibujar()` cada `PERIODO_PANTALLA_MS`,
+  además de `lv_timer_handler()`. Así un dato que se vence durante una
+  espera larga (un comando escrito a mano, hasta 10 s) pasa a `--`. En el
+  anterior era un límite conocido. Durante `!descubrir` no se dibujan los
+  datos: queda `DESCUBRIENDO`.
+- **`!escanear` y `!explorar` sacan los datos antes de bloquear.** Sueltan
+  el ELM y no atienden la pantalla por 10 s o más; con
+  `antesDeExplorar()`, `main` pasa antes a `SIN CONEXION` /
+  `Explorando BLE`. Después reconecta solo, como en E2.
+- **Arranque:** la pantalla se inicia primero y muestra `DS3 OBDII`
+  mientras espera el monitor serie (`ESPERA_MONITOR_MS`).
+  `ESPERA_ANTES_DE_BT_MS` (1 s) se cuenta desde el arranque, así que en
+  el auto, sin monitor, no suma a esos 2 s.
+- **Motivos sin abreviar** (`Conexion perdida`, `Respuesta invalida`...):
+  ya no está el límite de 14 caracteres.
+- Sin cambios en `lib/obd` ni en la lista blanca. Los comandos nuevos
+  respecto de E2 (`ATL0`, `ATS0`, `ATH0`, `ATSP6`, `ATAT1`, `ATDPN`,
+  `0100`–`0160`, `01PP1` y los de `!descubrir`) ya estaban permitidos.
+
+Verificado por el agente: `pio run` compila (RAM 9,7 %, flash 43,2 % de
+3 MB), sin warnings propios también con `-Wall -Wextra -Wshadow`;
+`pio test -e native` pasa (53/53).
+
+Probado por el agente en la placa (2026-10-24), con el adaptador en el
+banco y sin auto, por el monitor serie (sin ver la pantalla). El usuario
+lo autorizó:
+
+- Arranca y sigue la secuencia: `CONECTANDO_BT` (por la dirección
+  guardada, listo en 1,3–1,9 s), `INICIANDO_ELM` con los 7 comandos y
+  `ATI`, `BUSCANDO_ECU` y `SIN_ECU (No responde)`. Vuelve a buscar la ECU
+  cada 10 s.
+- **Con `ATSP6` y sin auto, `0100` contesta `UNABLE TO CONNECT` en
+  131–146 ms** (con `ATSP0` eran 4,4 s). El ciclo de `SIN ECU` casi no
+  pasa por `BUSCANDO ECU`.
+- **El clon respeta `ATL0`:** desde ahí las líneas terminan en `\r` solo.
+- Comandos AT en la inicialización: 26–95 ms. `ATRV` (12,0 V): 45–133 ms.
+- `04` da `RECHAZADO`; un `ATRV` escrito a mano contesta; `!descubrir`
+  sin ECU se rechaza y lo avisa; `!log` muestra el `ATRV` cada 2 s de
+  `SIN_ECU`.
+- `!reconectar` (7 veces), `!olvidar` (encuentra el adaptador en 425 ms
+  y guarda la dirección) y `!escanear` (pasa a `BT_PERDIDO (Explorando
+  BLE)`, lista 14 dispositivos con `OBDBLE` primero y reconecta solo).
+- Memoria: RAM interna libre 163 KB antes de conectar y 157–158 KB
+  conectado (bloque mayor 111–117 KB); PSRAM libre 7972 KB. Con 6
+  reconexiones seguidas no se pierde memoria. Una búsqueda (`!escanear`,
+  `!olvidar`) achica un poco el bloque mayor, sin acumularse.
+- Refresco completo con las pantallas de estado: 51–59 ms (envío 32 ms).
+- Ojo: abrir el puerto desde Python (pyserial) reinicia la placa, aunque
+  DTR y RTS estén en falso antes de abrir (pasó el 2026-10-25, con el
+  motor en marcha; reconectó sola en ~4 s).
+
+Sin probar: todo lo que se ve en la pantalla, apagar y prender el
+adaptador, y el auto.
+
+**Pruebas del usuario, en el banco** (adaptador alimentado, sin auto; el
+firmware ya está subido):
+
+1. Al arrancar (desenchufar y enchufar el USB-C) se ve, en orden:
+   `DS3 OBDII` / `Iniciando...` (blanco), `CONECTANDO` (cian, 1–2 s),
+   `INICIANDO ELM` con `> ATZ`... (cian, menos de 1 s) y `SIN ECU`
+   (ámbar). En `SIN ECU`: `ELM v2.1` con el voltaje (`12.0V`) en blanco a
+   la derecha, `No responde` y `Reintento en N s` contando de 10 a 1.
+   `BUSCANDO ECU` dura ~150 ms: puede que apenas se vea.
+2. El texto se lee entero, sin cortes ni franjas, y nada parpadea.
+3. Apagar el adaptador: en 2 s o menos pasa a `SIN CONEXION` (rojo),
+   `Conexion perdida`, y el voltaje desaparece. Después alterna entre
+   `CONECTANDO` (hasta 4 s), `BUSCANDO ADAPTADOR` (hasta 6 s) y
+   `SIN CONEXION` / `No conecta con el adaptador` / `Reintento en 5 s`.
+4. Prender el adaptador: vuelve solo a `SIN ECU` en el próximo intento.
+5. Con la placa alimentada desde un cargador (sin la notebook) también
+   llega a `SIN ECU`.
+
+**E3b, primera sesión (usuario, 2026-10-24):** contacto, arranque, unos
+50 s en ralentí con el motor frío y apagado. Log:
+`docs/descubrimiento/2026-10-24.log`, de la extensión de VS Code que
+genera `ArduinoSerialLog_*.txt`. **No tiene `!descubrir`:** el comando
+no se ejecutó (no hay ninguna respuesta de la consola). Lo más probable
+es que ese monitor no mande el fin de línea.
+
+Lo que muestra el log (análisis del agente):
+
+- Recién conectado no había ECU (`UNABLE TO CONNECT`); a los 10 s la
+  encontró. `0100` igual que en el anterior (`BE1EA811`), `ATDPN` = `6`.
+- **`0120` contestó `NO DATA`:** quedaron 14 PIDs y Lambda en `N/D` toda
+  la sesión. En el anterior, `0120` siempre contestó; parece una falla
+  suelta como las de abajo. **Arreglado:** cada mapa se intenta
+  `INTENTOS_MAPA` (3) veces antes de darlo por no soportado.
+- **6–7 consultas por segundo** (promedio 6,4), con contacto y en
+  ralentí. El anterior hacía ~11. No hay tiempos por consulta (con `!log`
+  apagado no salen). Para la próxima, la tabla agrega el promedio de cada
+  consulta (`6 consultas/s, 140 ms cada una`) y cada falla dice cuánto
+  tardó. La segunda sesión confirmó que es el adaptador (ver abajo).
+- **8 `NO DATA` sueltos en ~890 consultas** (~1 %), 6 de ellos en 1,2 s
+  en ralentí. Nunca 5 seguidos: no llegaron a `SIN ECU`.
+- Valores, con el motor frío: refrigerante 21–23 °C, admisión 18 °C,
+  ralentí 1100–1190 rpm y después 930–990; lazo `Abierto frio` y a los
+  ~29 s `Cerrado`; ajuste corto 0–1,6 %; sonda post 0,46 V; 11,9 V con
+  contacto, 11,7 V al arrancar y 13,6–13,7 V en marcha. Que coincidan con
+  el tablero lo confirma el usuario.
+- **Al dar arranque no se cortó el BLE** ni se reinició la placa.
+- Al sacar la llave: 5 `NO DATA` seguidos en 0,6 s y `SIN_ECU (Sin
+  datos)`. Con el motor apagado y el contacto puesto, los datos siguieron
+  válidos (RPM 0).
+- En la tabla del monitor, `Lazo`, `O2 post` y `Aj largo` pasan a `--`
+  cada tanto. Es el sondeo: con 6–7 consultas por segundo, un dato que
+  no está en pantalla se vuelve a leer recién a los ~3,1 s (2,5 s de
+  `PERIODO_LENTO_MS` más lo que tarda en ganarles a los visibles), y
+  `VIGENCIA_MS` es 3 s. En pantalla no pasa: lo visible se lee en cada
+  vuelta y `Volt ELM` va cada 2 s. Queda para E4, que rehace las
+  prioridades del sondeo con las páginas.
+
+**E3b, segunda sesión (usuario, 2026-10-25):** con el firmware que
+reintenta los mapas. `!descubrir` con contacto y en ralentí, con
+`pio device monitor -f log2file`. Log: `docs/descubrimiento/2026-10-25.log`
+(empieza en `ATZ`: el monitor abrió después del arranque).
+
+**E3c (agente), comparación con `../esp32-ds3-obd2/docs/descubrimiento/2026-10-23.log`:**
+
+- **La ECU contesta igual:** los mismos mapas y 17 PIDs, los mismos
+  `NO DATA` (`0160`, `0114`, `0124`, `0142`, `0144`, `0A`), `0900` igual,
+  `03`/`07` sin códigos y luz apagada. `0120` contestó en todas las
+  búsquedas (4 veces) al primer intento.
+- **Con `ATH1`** este adaptador muestra el byte de relleno del frame
+  (`7E8064100BE1EA811AA`); el anterior no. No afecta: se usa `ATH0`.
+- **El sufijo `1` no acelera nada:** `010C` 147 ms y `010C1` 148 ms de
+  promedio (el anterior: 126 y 75 ms). Los tiempos van de a ~15 ms (132,
+  148, 163), el intervalo de conexión. Y **`NO DATA` tarda lo mismo
+  (133–148 ms)**: parece que el clon espera siempre una ventana fija,
+  aunque la ECU conteste antes y aunque se pida una sola respuesta.
+- **Las consultas por segundo las limita el adaptador:** 6,4 por segundo
+  a ~143 ms cada una suman ~910 ms de cada segundo. Lo que hace el
+  programa fuera de las consultas (pantalla, tabla) se lleva menos de
+  100 ms.
+- **`NO DATA` sueltos:** 1 de 20 en cada medición de `!descubrir` (con el
+  motor en marcha) y **una vez 5 seguidos en 0,6 s con el motor en
+  ralentí (119–177 ms cada uno), que llevó a un `SIN_ECU` falso** de
+  ~10 s. **Arreglado:** ahora hacen falta las 5 fallas seguidas y además
+  `SILENCIO_PARA_SIN_ECU_MS` (3 s, igual que `VIGENCIA_MS`) sin ninguna
+  respuesta buena de la ECU. Al pasar a `SIN_ECU` ya no queda ningún dato
+  vigente. Al sacar la llave tarda ~3 s en vez de ~0,6 s. Cada falla
+  dice cuántas van seguidas y cuánto hace que no hay respuesta.
+- Valores, motor frío: ralentí ~1150 rpm al arrancar y 890–1000 después;
+  refrigerante 21–24 °C; lambda 0,99–1,09 con el lazo cerrado; 9,9 V al
+  arrancar y 13,6–13,7 V en marcha.
+
+**Prueba del timeout (agente, 2026-10-25, en el auto con contacto y el
+motor apagado, con permiso del usuario):** para subir las consultas por
+segundo se probó desde la consola, con el firmware que ya tiene la regla
+nueva de `SIN_ECU`. **El adaptador ignora el timeout:** contesta `OK` a
+`ATST19`, `ATST10`, `ATST0A` y `ATST05` (100 a 20 ms), con `ATAT1`,
+`ATAT0` y `ATAT2`, pero cada consulta sigue tardando 133–163 ms (casi
+siempre 148). Al final, `!reconectar` (`ATZ`) lo dejó como estaba. En las
+dos corridas hubo rachas de `NO DATA` (5 seguidos y más), también con los
+valores de fábrica, y la regla nueva evitó el `SIN_ECU` falso en todas.
+
+Consecuencia: con este adaptador, cada consulta cuesta ~148 ms, se pida
+lo que se pida, así que hay como mucho ~6,7 por segundo, y las RPM se
+renovaban cada ~0,9 s. Se le plantearon al usuario dos caminos: prioridad
+a las RPM (~3–4 por segundo) o varios PIDs por consulta. Eligió el
+segundo, que se aprovecha de que la ventana fija se cobra por consulta.
+
+**Varios PIDs por consulta (pedido del usuario, 2026-10-25):**
+
+- **Lista blanca** (`comandos`): el servicio 01 acepta de 1 a
+  `MAX_PIDS_POR_PEDIDO` (6) PIDs, con o sin el dígito de cantidad
+  (`010C0D050F`, `010C0D1`). `09` sigue con un solo PID, y los demás
+  servicios no cambian. El comando más largo pasa de 8 a 15 caracteres.
+  Los tests que rechazaban `010C0D` y parecidos ahora los aceptan; con 7
+  PIDs, o con varios en otro servicio, se rechaza.
+- **Parser** (`respuesta`): con varios PIDs, `datos` trae cada PID seguido
+  de sus bytes (solo se saca el `41`), y el primero puede ser cualquiera
+  de los pedidos: la ECU puede contestar en otro orden. Con más de 7 bytes
+  la respuesta viene en varios frames, que el parser ya armaba.
+- **`separarPids()`** (`pids`): separa esa respuesta según el largo de
+  cada PID en la tabla. Se detiene en un PID que no conoce.
+- **`Sondeo::tocan()`**: las magnitudes que tocan, de la más atrasada a la
+  menos, sin `VOLT_ELM`.
+- **`main.cpp`:**
+  - Al encontrar la ECU, `probarVariosPids()` pide juntos los visibles
+    que soporta (`010C0D050F` en el DS3; hasta `INTENTOS_AL_ENCONTRAR`
+    veces si da `NO DATA`). Si vuelven todos, en `LEYENDO` cada consulta
+    pide hasta `PIDS_POR_CONSULTA` (6) de las que tocan: los 4 visibles y
+    hasta 2 de los demás. Si no, sigue de a uno como el anterior. El monitor
+    serie dice cuál de los dos usa.
+  - Si `INCOMPLETAS_PARA_DE_A_UNO` (3) respuestas seguidas traen menos
+    PIDs que los pedidos, vuelve a pedir de a uno (si no, el dato que
+    falta no se renovaría nunca).
+  - El pedido va sin el sufijo `1`: con una respuesta de varios frames,
+    un ELM podría cortarla en el primero.
+  - `ATRV` sigue aparte, cada 2 s.
+  - **La pantalla se actualiza en cada consulta:** `leer()` llama a
+    `dibujar()` antes de consultar, así lo que llegó se dibuja mientras se
+    espera al adaptador. Antes era cada 0,5 s y no se habría notado la
+    mejora.
+  - La tabla del monitor agrega cuántas lecturas de RPM hubo por segundo.
+- **`!descubrir`** agrega 20 × `010C0D050F` con su promedio, después de
+  las dos mediciones de siempre.
+- Una respuesta `INVALIDA` muestra lo crudo en el monitor (`enviar()`
+  solo lo muestra si falló el transporte).
+- Tests: `pio test -e native` 54/54 (con las respuestas reales de varios
+  frames en `test/test_obdble/`). Compila sin warnings propios.
+
+Probado por el agente en el auto (2026-10-25, contacto puesto y motor
+apagado, con permiso del usuario). Log:
+`docs/descubrimiento/2026-10-25-varios-pids.log`.
+
+- **El adaptador y la ECU aceptan pedidos de varios PIDs:** `ECU: pedidos
+  de varios PIDs: SI`. Contestan en el orden pedido, en varios frames
+  (`00A\r0:410C00000543\r1:0D000F41\r\r`), sin el relleno del último.
+- **Tarda lo mismo que uno solo:** `010C0D050F` 149 ms de promedio en
+  `!descubrir` (`010C` y `010C1`: 148 ms). Con 6 PIDs y 3 frames, 131–162 ms.
+- **RPM 5–6 lecturas por segundo** (antes ~1), con 6–7 consultas por
+  segundo. Los datos que no están en pantalla ya no pasan a `--` en la
+  tabla: entran de a 2 en cada consulta.
+- Una respuesta `INVALIDA` (`01150C050D0F`) en ~250 consultas; el mismo
+  pedido en otro orden vino bien. Sin lo crudo no se sabe qué fue; por eso
+  ahora se muestra.
+
+**Verificado por el usuario en el auto** (2026-10-25, con este firmware y
+el motor en marcha: "todo probado funciona bien, se ve más fluido"). La
+lista que tenía era la de **Pruebas del usuario que faltan** (abajo): la
+pantalla, los valores contra el tablero, que no aparezca `SIN ECU` con el
+motor andando, `SIN ECU` al sacar la llave y las RPM siguiendo a la aguja.
+No detalló cada punto.
+
+No quedaron anotados:
+
+- Cuántas consultas por segundo quedan con el motor en marcha, cuando la
+  pantalla se redibuja en cada una. Se ve en la tabla del monitor.
+- El firmware de la placa es el de la prueba de varios PIDs, sin el
+  cambio posterior que muestra lo crudo de una respuesta `INVALIDA`. No
+  cambia el funcionamiento.
+- Las pruebas de pantalla en el banco (apagar y prender el adaptador),
+  salvo que entren en el "todo probado".
+
+**Pruebas del usuario que faltan:**
+
+1. Las de pantalla en el banco (lista de más arriba).
+2. Subir el firmware de esta rama (después de la segunda sesión cambiaron
+   la regla de `SIN_ECU` y se agregaron los pedidos de varios PIDs).
+3. En el auto, con el monitor abierto: que al encontrar la ECU diga
+   `ECU: pedidos de varios PIDs: SI`, y en la tabla, `RPM 6/s` o cerca.
+   Un `!descubrir` mide cuánto tarda `010C0D050F`.
+4. En el auto, mirando la pantalla:
+   - En `ECU OK` (verde), las RPM en grande y a la derecha refrigerante,
+     velocidad, admisión y `Volt ELM`. Que coincidan con el tablero y que
+     las RPM sigan a la aguja de cerca.
+   - Unos minutos en ralentí sin ningún `SIN ECU`. Si en el monitor
+     aparecen `NO DATA` seguidos, que no pase a `SIN ECU` mientras el
+     motor anda.
+   - Al sacar la llave, a los ~3 s pasa a `SIN ECU` (ámbar), sin números
+     a la vista.
+
+Para E4:
+
+- `Pantalla::datos()` y `dibujarDatos()` de `main.cpp` son provisorios:
+  los reemplaza `paginas`. `VISIBLES` de `main.cpp` pasa a salir de la
+  página actual (`Sondeo::visibles()`), y también la prueba de
+  `probarVariosPids()`, que hoy pide juntos los visibles de la pantalla
+  provisoria.
+- Con varios PIDs por consulta (~148 ms cada una, pidan 1 o 6), una página
+  de hasta 6 datos se renueva entera en cada consulta. Mezcla tiene 5
+  (`03`, `06`, `07`, `34`, `15`): entra en una. `PIDS_POR_CONSULTA` es 6;
+  lo que sobra de cada consulta se usa para los datos que no se ven.
+- La pantalla se redibuja en cada consulta (`leer()` llama a `dibujar()`
+  antes de consultar). Si una página nueva tarda mucho en dibujarse, se
+  nota en las consultas por segundo.
+- El touch todavía no se usa. Los eventos de LVGL corren dentro de
+  `lv_timer_handler()`, que también se llama mientras se espera al ELM:
+  un evento no puede usar el ELM. Que deje un pedido y `loop()` cambie
+  de página, como hacía el botón del anterior.
+- `textoDato()` usa punto decimal (`14.1V`), como el anterior; la prueba
+  de E1 usaba coma. Lo decide el diseño.
 
 ### E5
 

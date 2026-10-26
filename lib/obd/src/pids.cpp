@@ -109,6 +109,23 @@ bool calcularPid(uint8_t pid, const uint8_t *datos, uint8_t largo, float *valor)
   return true;
 }
 
+uint8_t separarPids(const uint8_t *datos, uint8_t largo, DatoPid *salida, uint8_t max) {
+  if (datos == nullptr || salida == nullptr) {
+    return 0;
+  }
+  uint8_t cantidad = 0;
+  uint8_t i = 0;
+  while (i < largo && cantidad < max) {
+    const Pid *fila = buscarPid(datos[i]);
+    if (fila == nullptr || largo - i - 1 < fila->bytes) {
+      break;
+    }
+    salida[cantidad++] = {datos[i], datos + i + 1, fila->bytes};
+    i += 1 + fila->bytes;
+  }
+  return cantidad;
+}
+
 bool luzFalla(const uint8_t *datos, uint8_t largo, bool *encendida, uint8_t *cantidad) {
   if (datos == nullptr || largo < 4) {
     return false;

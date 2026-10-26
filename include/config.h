@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 // Waveshare ESP32-S3-Touch-LCD-3.49, según los ejemplos de Waveshare
-// (10_LVGL_V9_Test/user_config.h). En E0 solo se usa la retroiluminación.
+// (10_LVGL_V9_Test/user_config.h).
 
 // Pantalla: AXS15231B por QSPI (SPI3_HOST), 172x640
 constexpr uint8_t PIN_PANTALLA_CS = 9;
@@ -18,8 +18,8 @@ constexpr uint8_t PIN_PANTALLA_RST = 21;
 // gira 180° más, para montarla con el USB-C del otro lado.
 constexpr bool PANTALLA_GIRADA = false;
 
-// Retroiluminación, con PWM. Los ejemplos de Waveshare usan duty = 255 - brillo
-// (lcd_bl_pwm_bsp.h), pero en E0 con HIGH quedó prendida. Se mide en E1.
+// Retroiluminación, con PWM. Como en los ejemplos de Waveshare
+// (lcd_bl_pwm_bsp.h), duty = 255 - brillo (confirmado en E1).
 constexpr uint8_t PIN_RETROILUMINACION = 8;
 constexpr bool RETROILUMINACION_INVERTIDA = true; // duty = 255 - brillo
 constexpr uint8_t BRILLO_INICIAL = 128;           // 0-255
@@ -67,9 +67,39 @@ constexpr uint32_t BUSQUEDA_ELM_S = 6;  // al conectar, si la dirección guardad
 constexpr uint32_t TIMEOUT_CONEXION_MS = 4000;
 constexpr uint32_t TIMEOUT_COMANDO_MS = 1000; // AT y PIDs comunes
 constexpr uint32_t TIMEOUT_ATZ_MS = 3000;
-constexpr uint32_t TIMEOUT_CONSOLA_MS = 10000; // comandos escritos a mano
-constexpr uint32_t REINTENTO_BT_MS = 5000;     // entre intentos de conexión
-constexpr uint32_t REINTENTO_ELM_MS = 5000;    // si el ELM no contesta la inicialización
+constexpr uint32_t TIMEOUT_BUSCAR_ECU_MS = 10000; // 0100 al buscar la ECU
+constexpr uint32_t TIMEOUT_CONSOLA_MS = 10000;    // comandos escritos a mano
+constexpr uint32_t REINTENTO_BT_MS = 5000;        // entre intentos de conexión
+constexpr uint32_t REINTENTO_ECU_MS = 10000;
+constexpr uint32_t REINTENTO_ELM_MS = 5000; // si el ELM no contesta la inicialización
 constexpr uint32_t PERIODO_ATRV_MS = 2000;
+// Datos que no están en pantalla. Menos que VIGENCIA_MS para no vencerse entre consultas.
+constexpr uint32_t PERIODO_LENTO_MS = 2500;
+constexpr uint32_t PERIODO_PANTALLA_MS = 500;
+constexpr uint32_t PERIODO_TABLA_MS = 1000; // tabla de datos en el monitor serie
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
+// Desde el arranque hasta prender el BLE, para que la alimentación se
+// estabilice. Si el arranque anterior terminó en brownout, se espera más.
+constexpr uint32_t ESPERA_ANTES_DE_BT_MS = 1000;
+constexpr uint32_t ESPERA_TRAS_BROWNOUT_MS = 3000;
+
+// Fallas seguidas de consultas a la ECU en LEYENDO para pasar a SIN_ECU,
+// con SILENCIO_PARA_SIN_ECU_MS sin ninguna respuesta buena
+constexpr uint8_t FALLAS_PARA_SIN_ECU = 5;
+// ATRV sin respuesta seguidos para volver a inicializar el ELM
+constexpr uint8_t FALLAS_PARA_REINICIAR_ELM = 3;
+// Intentos de cada consulta al encontrar la ECU (los mapas de PIDs y la
+// prueba de varios PIDs): con el adaptador nuevo hay NO DATA sueltos
+constexpr uint8_t INTENTOS_AL_ENCONTRAR = 3;
+// PIDs por consulta cuando la ECU acepta pedidos de varios (hasta 6). El
+// adaptador nuevo tarda lo mismo por consulta pida uno o varios (E3).
+constexpr uint8_t PIDS_POR_CONSULTA = 6;
+// Respuestas seguidas a las que les falta algún PID para volver a pedir de a uno
+constexpr uint8_t INCOMPLETAS_PARA_DE_A_UNO = 3;
+
+// Un dato más viejo que esto se muestra como "--"
+constexpr uint32_t VIGENCIA_MS = 3000;
+// Con el adaptador nuevo hubo 5 NO DATA seguidos con el motor en marcha
+// (E3b). Igual a VIGENCIA_MS: al pasar a SIN_ECU ya no queda ningún dato vigente.
+constexpr uint32_t SILENCIO_PARA_SIN_ECU_MS = VIGENCIA_MS;

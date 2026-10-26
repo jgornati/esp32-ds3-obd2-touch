@@ -4,8 +4,8 @@
 
 #include "config.h"
 
-static const char *const AYUDA = "Comandos locales: !reconectar, !olvidar, !log, !info, "
-                                 "!escanear, !explorar N; + y - para el brillo";
+static const char *const AYUDA = "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
+                                 "!info, !escanear, !explorar N; + y - para el brillo";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -39,6 +39,12 @@ bool Consola::olvidoPedido() {
   return pedido;
 }
 
+bool Consola::descubrimientoPedido() {
+  bool pedido = descubrir;
+  descubrir = false;
+  return pedido;
+}
+
 bool Consola::infoPedida() {
   bool pedida = info;
   info = false;
@@ -57,6 +63,9 @@ void Consola::soltarElm() {
   if (elm.conectado()) {
     Serial.println("Consola: se corta la conexion con el ELM para explorar");
     elm.desconectar();
+  }
+  if (alSoltar != nullptr) {
+    alSoltar();
   }
   reconectar = true;
 }
@@ -82,6 +91,8 @@ void Consola::ejecutar(const char *linea) {
   } else if (strcasecmp(comando, "!olvidar") == 0) {
     Serial.println("Consola: olvidando el adaptador");
     olvidar = true;
+  } else if (strcasecmp(comando, "!descubrir") == 0) {
+    descubrir = true;
   } else if (strcasecmp(comando, "!log") == 0) {
     conDetalle = !conDetalle;
     Serial.printf("Consola: detalle de las consultas %s\n", conDetalle ? "SI" : "NO");

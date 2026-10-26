@@ -19,6 +19,19 @@ const Pid *buscarPid(uint8_t pid);
 // o faltan bytes.
 bool calcularPid(uint8_t pid, const uint8_t *datos, uint8_t largo, float *valor);
 
+// Un PID de la respuesta a un pedido de varios
+struct DatoPid {
+  uint8_t pid;
+  const uint8_t *datos;
+  uint8_t largo;
+};
+
+// Respuesta a un pedido de varios PIDs (010C0D050F): cada PID viene
+// seguido de sus bytes. Los separa según el largo de cada uno en la tabla
+// y deja hasta max en salida; devuelve cuántos. Se detiene en un PID que no
+// está en la tabla (no se sabe cuántos bytes ocupa) o al que le faltan bytes.
+uint8_t separarPids(const uint8_t *datos, uint8_t largo, DatoPid *salida, uint8_t max);
+
 // PID 01: luz de falla (MIL) y cantidad de códigos guardados.
 bool luzFalla(const uint8_t *datos, uint8_t largo, bool *encendida, uint8_t *cantidad);
 
