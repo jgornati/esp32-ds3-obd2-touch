@@ -6,8 +6,8 @@
 
 #include "pantalla_hw.h"
 
-// Puntos de página que caben en la barra
-constexpr uint8_t MAX_PAGINAS = 8;
+// Puntos de página que caben en la barra: las 8 de hoy y FUERZA G (E12)
+constexpr uint8_t MAX_PAGINAS = 9;
 
 // La pantalla de espera (E9), las de estado que quedan (E3) y el marco de
 // las páginas (E4), con LVGL. Cada función arma una pantalla completa; LVGL
@@ -36,8 +36,10 @@ public:
   void descubriendo(uint16_t hechos, uint16_t total);
 
   // Para Paginas: la barra con el título y un punto por página (numero, de
-  // 0 a total - 1, en blanco), y debajo el área de las páginas.
-  void pagina(const char *titulo, uint8_t numero, uint8_t total);
+  // 0 a total - 1, en blanco), y debajo el área de las páginas. mantenida,
+  // de 0 a 1, es lo que lleva la página apretada para borrar algo: con más
+  // de 0, la barra se llena de rojo hasta ahí y el título va en rojo claro.
+  void pagina(const char *titulo, uint8_t numero, uint8_t total, float mantenida = 0);
   // Donde Paginas arma las suyas: 640x144, debajo de la barra. Se ve solo
   // después de pagina(). nullptr sin pantalla.
   lv_obj_t *areaPaginas() const;

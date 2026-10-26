@@ -13,8 +13,8 @@ funcionamiento del auto. Nunca muestra datos simulados ni vencidos.
 ## Qué muestra
 
 Seis páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
-(17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), y al final una
-animación:
+(17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), una con el viaje en curso
+y al final una animación:
 
 | Página    | Datos |
 | --------- | ----- |
@@ -24,6 +24,7 @@ animación:
 | MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador |
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
 | INFO      | Adaptador y señal (RSSI), dirección, versión del ELM y protocolo, PIDs y consultas por segundo; botones Reconectar y Olvidar adaptador |
+| VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
 | DS3       | El DS3 andando, con nubes y el camino corriéndose. Ocupa toda la pantalla, sin la barra ni datos |
 
 Cómo se ve cada dato:
@@ -99,6 +100,30 @@ cada 30 s mientras se ve; si algo falla, reintenta a los 5 s.
   título dice `FALLAS 1/2`.
 - No hay ninguna función para borrar fallas.
 
+### Viaje
+
+El viaje empieza al poner el contacto (la placa arranca con la llave) y se
+pierde al sacarla: no se guarda.
+
+- **Distancia:** sale de la velocidad que da la ECU, leída en cada consulta
+  (~6 por segundo). Si pasan más de 3 s sin velocidad (la ECU no contestó),
+  ese rato no suma.
+- **Tiempo:** solo con el motor en marcha, desde 500 rpm; con el motor parado
+  y el contacto puesto no cuenta. El promedio es la distancia sobre ese
+  tiempo, con los semáforos.
+- **Máximos:** la velocidad, la RPM y el refrigerante más altos del viaje. La
+  RPM se lee en cada consulta salvo en MEZCLA, donde va cada ~2,5 s: ahí se
+  puede perder un pico.
+- **Voltaje mínimo y máximo:** el del ELM, solo con el motor en marcha y
+  desde los 5 s de arrancar (sin la caída del arranque).
+- Hasta la primera lectura se ve `...`; con el voltaje, hasta 5 s después de
+  arrancar. Si la ECU no da el dato del que sale, `N/D`.
+- **Mantener apretada la página 3 s** reinicia el viaje: arriba la barra se
+  llena de rojo y dice `Mantener para reiniciar el viaje`. Soltarla antes no
+  hace nada y no cambia de página; un toque corto cambia de página, como en
+  las demás. Reiniciar la placa desde la pantalla de espera también lo
+  reinicia.
+
 ### Info
 
 - **Reconectar:** corta la conexión con el adaptador y vuelve a conectar.
@@ -124,8 +149,9 @@ borra las fallas, da `RECHAZADO`).
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
 
-Cada segundo, con la ECU conectada, imprime una línea con todos los datos
-y las consultas por segundo (~6).
+Cada segundo, con la ECU conectada, imprime una línea con todos los datos,
+las consultas por segundo (~6) y la distancia y el tiempo en marcha del
+viaje.
 
 ## Hardware
 
@@ -178,8 +204,8 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 ## Tests
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
-del ELM, PIDs y fallas) tiene tests que corren en la PC, con respuestas
-reales del DS3 y del adaptador:
+del ELM, PIDs, fallas y el viaje) tiene tests que corren en la PC, con
+respuestas reales del DS3 y del adaptador:
 
 ```text
 ~/.platformio/penv/bin/pio test -e native

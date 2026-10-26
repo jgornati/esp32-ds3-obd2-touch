@@ -17,6 +17,9 @@ static const lv_color_t CIAN = lv_color_hex(0x40C8E0);
 static const lv_color_t FONDO_BARRA = lv_color_hex(0x1A1A1A);  // barra de estado
 static const lv_color_t FONDO_ESCALA = lv_color_hex(0x262626); // barras de valores y separadores
 static const lv_color_t PUNTO_APAGADO = lv_color_hex(0x444444);
+// Lo que se borra manteniendo apretado: el relleno que crece y su texto
+static const lv_color_t ROJO_OSCURO = lv_color_hex(0x5A1A17);
+static const lv_color_t ROJO_CLARO = lv_color_hex(0xFF6B60);
 
 // Cambiar un objeto hace que LVGL redibuje y mande la imagen entera
 // (~33 ms): estas lo tocan solo si cambia.

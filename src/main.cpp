@@ -7,6 +7,7 @@
 #include <esp_system.h>
 #include <pids.h>
 #include <respuesta.h>
+#include <viaje.h>
 
 #include "boton.h"
 #include "config.h"
@@ -48,6 +49,8 @@ Paginas paginas(pantalla);
 Boton boton;
 PidsSoportados soportados;
 Sondeo sondeo;
+// Desde que se puso el contacto: la placa arranca con la llave
+Viaje viaje({VIGENCIA_MS, RPM_EN_MARCHA, ESPERA_VOLTAJE_VIAJE_MS});
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -222,7 +225,7 @@ static void dibujar() {
   case Estado::LEYENDO:
     paginas.dibujar(
         ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion, rssi},
-        fallas, segundosHasta(proximaLecturaFallas));
+        fallas, segundosHasta(proximaLecturaFallas), viaje);
     break;
   case Estado::SIN_ECU:
     if (ecuPerdida) {
@@ -251,14 +254,27 @@ static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
 }
 
 // El sondeo consulta en cada vuelta lo que se ve en la página actual. En
-// Fallas e Info no hay datos a la vista: se siguen pidiendo los de Motor,
-// juntos. Si no, la ECU se consulta de a un PID y espaciado, y en el auto
-// hubo 4 NO DATA seguidos con el motor andando, a uno de un SIN_ECU falso (E5).
+// Fallas, Info, Viaje y DS3 no hay datos a la vista: se siguen pidiendo los
+// de Motor, juntos. Si no, la ECU se consulta de a un PID y espaciado, y en el
+// auto hubo 4 NO DATA seguidos con el motor andando, a uno de un SIN_ECU
+// falso (E5). Para el viaje, además, la velocidad va en todas (la distancia
+// sale de integrarla) y la RPM en las que entra, para no perder el máximo. En
+// Mezcla no entra: con sus 5 y la velocidad ya son MAX_VISIBLES.
 static void actualizarVisibles() {
+  static const Magnitud DEL_VIAJE[] = {VELOCIDAD, RPM};
   Magnitud lista[MAX_VISIBLES];
   uint8_t cantidad = paginas.visibles(lista);
   if (cantidad == 0) {
     cantidad = paginas.primeras(lista);
+  }
+  for (Magnitud m : DEL_VIAJE) {
+    bool esta = false;
+    for (uint8_t i = 0; i < cantidad; i++) {
+      esta = esta || lista[i] == m;
+    }
+    if (!esta && cantidad < MAX_VISIBLES) {
+      lista[cantidad++] = m;
+    }
   }
   sondeo.visibles(lista, cantidad);
 }
@@ -463,6 +479,7 @@ static bool leerVoltaje() {
   float v;
   if (r.estado == EstadoTransporte::OK && interpretarVoltaje(r.cruda.c_str(), &v)) {
     actualizarDato(VOLT_ELM, v, millis());
+    viaje.voltaje(v, millis());
     fallasElm = 0;
     return true;
   }
@@ -543,9 +560,15 @@ static bool leerProtocolo() {
 }
 
 static void guardar(Magnitud m, float valor) {
-  actualizarDato(m, valor, millis());
+  uint32_t ahora = millis();
+  actualizarDato(m, valor, ahora);
   if (m == RPM) {
     lecturasRpm++;
+    viaje.rpm(valor, ahora);
+  } else if (m == VELOCIDAD) {
+    viaje.velocidad(valor, ahora);
+  } else if (m == REFRIGERANTE) {
+    viaje.refrigerante(valor);
   }
 }
 
@@ -788,9 +811,11 @@ static void imprimirTabla() {
   uint32_t lapso = ahora - ultimaTabla;
   consultasPorSegundo = (int16_t)(consultas * 1000UL / lapso);
   // Y el rato más largo sin leer el touch: un toque más corto se pierde
-  Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s, touch sin leer hasta %lu ms\n",
+  Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s, touch sin leer hasta %lu ms",
                 consultasPorSegundo, (unsigned long)(consultas > 0 ? msConsultas / consultas : 0),
                 (unsigned long)lecturasRpm * 1000 / lapso, (unsigned long)pantallaHw.huecoMaximo());
+  Serial.printf(", viaje %.2f km en %lu s\n", viaje.distanciaKm(),
+                (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
   consultas = 0;
   msConsultas = 0;
   lecturasRpm = 0;
@@ -959,7 +984,8 @@ static void reiniciarPlaca() {
 }
 
 // Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
-// consola. Acá y no mientras se espera al ELM: los dos lo sueltan.
+// consola. Acá y no mientras se espera al ELM: los dos lo sueltan. Y
+// reiniciar el viaje, de la página Viaje, que no usa el ELM.
 static void atenderAcciones() {
   Accion accion = paginas.tomarAccion(millis());
   if (estado != Estado::LEYENDO || descubriendo) {
@@ -969,6 +995,11 @@ static void atenderAcciones() {
     Serial.println("Pantalla: reconectando");
   } else if (accion == Accion::OLVIDAR) {
     Serial.println("Pantalla: olvidando el adaptador");
+  } else if (accion == Accion::REINICIAR_VIAJE) {
+    Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
+                  (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
+    viaje.reiniciar();
+    dibujar();
   }
   if (consola.reconexionPedida() || accion == Accion::RECONECTAR) {
     volverAConectar(false);

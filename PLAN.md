@@ -33,7 +33,7 @@ que corresponda antes de portar un módulo.
 | E7    | Cierre e instalación                   | E5, E6     | Verificada (salvo el cuelgue ocasional, sin investigar) |
 | E8    | Conexión al prender y apagar el auto   | E7         | Descartada |
 | E9    | Pantalla de espera con el DS3          | E7         | Verificada |
-| E10   | Viaje: máximos y recorrido             | E9         | Pendiente |
+| E10   | Viaje: máximos y recorrido             | E9         | Hecha (falta verificar en hardware) |
 | E11   | Alarmas                                | E9         | Pendiente |
 | E12   | Fuerza G                               | E10        | Pendiente |
 | E13   | Registro del viaje en la microSD       | E10        | Pendiente |
@@ -127,7 +127,7 @@ src/
   imagenes/         las imágenes de las animaciones, generadas (E9)
   boton.h/.cpp      botón BOOT: página siguiente (E4)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -2232,6 +2232,199 @@ Para E10:
   `MAX_PAGINAS` (8). DS3 tiene que seguir última.
 
 ### E10
+
+Rama `e10-viaje`, desde `main` con E9 y el plan del RTC. Decidido por el
+usuario antes de empezar (2026-10-26):
+
+- **E10 no guarda el viaje:** vive en la RAM, empieza al poner el contacto
+  (la placa arranca con la llave) y se pierde al sacarla. Guardar cada
+  viaje y su resumen es de E13, en la microSD.
+
+**Maqueta** (agente, 2026-10-26), en el lienzo de E4
+(https://claude.ai/artifact/41eQde6wkKUL81ZuDnHBGX), fila "Viaje (E10)": A
+(recorrido a la izquierda y máximos a la derecha), B (ocho casillas) y C (la
+distancia en grande, como las RPM de Motor), y la A con el contacto recién
+puesto y mantenida apretada. Sin tildes, como en la placa.
+
+Elegido por el usuario (2026-10-26), lo que el plan no resolvía:
+
+- **El diseño B:** ocho casillas de 160×72, en dos filas: distancia, tiempo,
+  promedio y velocidad máxima; RPM máxima, refrigerante máximo y voltaje
+  mínimo y máximo.
+- **Tiempo con el motor en marcha**, y el promedio es la distancia sobre ese
+  tiempo (con los semáforos).
+- **En marcha desde 500 rpm** (ralentí 890–1190). El voltaje mínimo y máximo
+  cuentan recién a los 5 s de arrancar, sin la caída del arranque.
+- **Reiniciar:** al poner el contacto y, además, manteniendo apretada la
+  página 3 s (la barra de arriba se llena de rojo). Tocar sigue cambiando de
+  página.
+- Lo que propuso el agente y quedó: VIAJE entre INFO y DS3; `MAX_PAGINAS` a
+  9; la velocidad en todas las consultas y la RPM en las que entra (en
+  Mezcla no: 5 datos y la velocidad ya son 6); un hueco de más de
+  `VIGENCIA_MS` no suma distancia ni tiempo; `...` hasta la primera lectura y
+  `N/D` si la ECU no da el dato; el tiempo como `38 min` y desde la hora
+  `1:07 h`.
+
+Lo que se hizo:
+
+- **`lib/obd/viaje`** (nuevo, sin Arduino):
+
+  ```cpp
+  struct ReglasViaje { uint32_t huecoMaximoMs; float rpmEnMarcha; uint32_t esperaVoltajeMs; };
+  struct Extremo { bool hay = false; float valor = 0; };
+  class Viaje {
+  public:
+    explicit Viaje(const ReglasViaje &definidas);
+    void reiniciar();
+    void velocidad(float kmh, uint32_t ahora);
+    void rpm(float valor, uint32_t ahora);
+    void refrigerante(float grados);
+    void voltaje(float volts, uint32_t ahora);
+    double distanciaKm() const;
+    uint32_t tiempoEnMarchaMs() const;
+    bool promedio(float *kmh) const; // false sin tiempo en marcha
+    const Extremo &velocidadMaxima() const; // y rpmMaxima(), refrigeranteMaximo(),
+                                            // voltajeMinimo(), voltajeMaximo()
+  };
+  void textoDistancia(double km, char *salida, size_t tam);           // "23.7", "123"
+  const char *textoTiempo(uint32_t ms, char *salida, size_t tam);     // "38" min, "1:07" h
+  ```
+
+  - La distancia integra la velocidad con trapecios entre dos lecturas
+    seguidas, en metros y en `double` (con `float`, a cientos de km, los
+    pasos de unos pocos metros perderían precisión). Un hueco de más de
+    `huecoMaximoMs` no suma.
+  - El tiempo en marcha suma el lapso entre dos lecturas de RPM seguidas, las
+    dos en marcha (`rpmEnMarcha` o más) y sin un hueco en el medio.
+  - El voltaje cuenta con la última RPM en marcha, de hace menos de
+    `huecoMaximoMs`, y en marcha desde hace `esperaVoltajeMs`. Después de un
+    hueco, o al volver a arrancar, la espera empieza de nuevo.
+  - Los máximos toman cualquier lectura, también 0: con el contacto y el motor
+    parado se ve `0 km/h` y RPM `0`. `velocidadMaxima().hay` dice si ya hubo
+    alguna velocidad, y `rpmMaxima().hay`, alguna RPM.
+  - El promedio es la distancia sobre el tiempo en marcha.
+- **`config.h`:** `RPM_EN_MARCHA` (500), `ESPERA_VOLTAJE_VIAJE_MS` (5 s),
+  `MANTENER_VIAJE_MS` (3 s) y `AVISO_MANTENER_MS` (0,5 s), que pasó de
+  `pantalla.cpp` porque ahora lo usan la espera y Viaje. El hueco máximo es
+  `VIGENCIA_MS`.
+- **`dibujo.h`:** `ROJO_OSCURO` y `ROJO_CLARO` pasaron de `paginas.cpp`, para
+  la barra.
+- **`pantalla`:** `MAX_PAGINAS` pasa de 8 a 9 (las 8 de hoy y FUERZA G).
+  `pagina(titulo, numero, total, mantenida)`: con `mantenida` de 0 a 1, la
+  barra se llena de `ROJO_OSCURO` hasta ahí (un rectángulo debajo del título
+  y los puntos) y el título va en `ROJO_CLARO`.
+- **`paginas`:**
+  - `VIAJE` entre `INFO` y `DS3`. No tiene datos a la vista: el sondeo pide
+    los de Motor, como en Fallas, Info y DS3.
+  - Ocho casillas de 160×72 con separadores de 1 px: el nombre en 20 px (base
+    a 25 px del borde de la casilla) y el valor en Montserrat 36 (base a 63),
+    con la unidad detrás en gris. El tiempo cambia de unidad (`min` o `h`):
+    `ponerUnidad()`. Lo que no tiene valor va en gris, sin unidad.
+  - `dibujar()` recibe también el `Viaje`. `Accion::REINICIAR_VIAJE`.
+  - Mantener apretado: la raíz recibe `PRESSED`, `RELEASED` y `PRESS_LOST`
+    (`alApretar()`), en cualquier página. `tomarAccion()` pide reiniciar una
+    vez por apretada, a los `MANTENER_VIAJE_MS`, solo con Viaje a la vista.
+    Desde `AVISO_MANTENER_MS` la barra se llena y dice `Mantener para
+    reiniciar el viaje`; una vez pedido, `Viaje reiniciado`. Como en la
+    espera, antes de 0,5 s es un toque.
+  - Al soltar, LVGL manda `RELEASED` y después el `CLICKED` de `alTocar()`,
+    que anota si la apretada duró `AVISO_MANTENER_MS` o más. `tomarToque()`
+    descarta ese toque solo en Viaje: en las demás páginas, una apretada larga
+    sigue cambiando de página, como antes.
+- **`main.cpp`:**
+  - `Viaje viaje` global, con `VIGENCIA_MS`, `RPM_EN_MARCHA` y
+    `ESPERA_VOLTAJE_VIAJE_MS`. `guardar()` le pasa cada RPM, velocidad y
+    refrigerante (de los pedidos de varios PIDs y de a uno), y
+    `leerVoltaje()` cada `ATRV` bueno, también en `SIN_ECU` (ahí no cuenta:
+    no hay RPM reciente).
+  - **La velocidad en todas las consultas** (tarea 2): `actualizarVisibles()`
+    agrega `VELOCIDAD` y después `RPM` a los visibles de la página, si no
+    están y si entran en `MAX_VISIBLES`. Quedan: Motor, Fallas, Info, Viaje y
+    DS3 `RPM`, `REFRIGERANTE`, `VELOCIDAD`; Aire/Volt `ADMISION`, `VOLT_ELM`,
+    `VELOCIDAD`, `RPM`; Carga los 3, `VELOCIDAD` y `RPM`; Mezcla los 5 y
+    `VELOCIDAD` (6: la RPM queda cada 2,5 s). No cambia cuántas consultas hay
+    por segundo: cada una tarda lo mismo pida 1 PID o 6 (E3). Con los pedidos
+    de a uno (si la ECU no aceptara varios), los visibles se turnan.
+  - `atenderAcciones()`: `REINICIAR_VIAJE` (solo en `LEYENDO`) escribe
+    `Pantalla: viaje reiniciado (llevaba X km en N s)` en el monitor y
+    reinicia el viaje. No usa el ELM.
+  - La tabla de cada segundo termina en `viaje X km en N s` (el tiempo en
+    marcha), para comparar la distancia con el parcial del tablero.
+- Sin cambios en la lista blanca, en `elm327` ni en lo que se le manda al
+  auto: el viaje sale de lo que ya se leía.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,2 %, flash 61,3 % de 3 MB; en E9, 10,1 % y
+  61,1 %). Con `-Wall -Wextra -Wshadow`, sin warnings propios.
+- `pio test -e native` 67/67: 10 nuevos en `test/test_viaje/` (distancia a
+  velocidad fija y en rampa, huecos, tiempo en marcha con el motor parado y
+  arrancando, promedio, voltaje con la espera, sin RPM reciente y después de
+  un hueco, máximos, reiniciar, `millis()` que da la vuelta y los textos). Se
+  comprobó que fallan si se saca el control del hueco o la espera del
+  voltaje.
+- **Render**, 86 revisiones, todas bien. Casos nuevos: `7-viaje` (el de la
+  maqueta: 23.7 km en 38 min), `r-viaje-arranque`, `s-viaje-extremos`
+  (1235 km, 12:34 h, 188 km/h, 6500 rpm, 112 °C, 11.9 y 15.2 V),
+  `t-viaje-sin-velocidad` (`N/D`), `u-viaje-mantener` (1,5 s) y
+  `v-viaje-reiniciado`. Revisa que ningún texto pase de su casilla, que
+  dibujar dos veces no redibuje nada, que un toque cambie de página, que
+  apretada menos de 0,5 s no aparezca la barra, que soltarla antes de 3 s no
+  reinicie ni cambie de página y la barra desaparezca, que a los 3 s pida
+  reiniciar una sola vez, que al soltarla después no cambie de página, y que
+  en Motor mantener apretado no llene la barra y al soltar siga cambiando de
+  página. Se comprobó que las de soltar fallan sin la regla de
+  `tomarToque()`.
+- Los objetos de las páginas piden ~60 KB de `malloc` en la PC (en E9,
+  ~51,8 KB): VIAJE suma ~8 KB, con punteros de 64 bits. En la placa salen de
+  la RAM interna: falta medirlo con `!info`.
+
+No hay **Datos descubiertos** nuevos: nada se probó todavía en la placa.
+
+Sin probar (falta la placa): todo en la pantalla real, mantener apretado con
+el touch de verdad, la distancia contra el tablero, las consultas por
+segundo con la velocidad y la RPM agregadas (en cada consulta, Aire/Volt pide
+ahora 3 PIDs y Carga 5) y la RAM interna libre.
+
+**Pruebas del usuario** (subir el firmware de esta rama):
+
+1. Con el contacto puesto y el motor parado, VIAJE (después de INFO, el
+   séptimo de 8 puntos): `0.0 km`, `0 min`, Promedio `...`, `0 km/h`, RPM
+   `0`, el refrigerante, y los dos voltajes `...`.
+2. Al arrancar, el tiempo empieza a contar, y a los ~5 s aparecen los
+   voltajes (en marcha, 13,6–14,1 V según E3).
+3. En un viaje: anotar el parcial del tablero al salir y al llegar, y
+   compararlo con la distancia. La velocidad máxima puede quedar unos km/h
+   por debajo de lo que marcó la aguja: los velocímetros suelen marcar de
+   más, y la ECU da la del sensor.
+4. Mantener apretada VIAJE: a los 0,5 s se llena la barra de rojo; soltarla
+   antes de 3 s no hace nada; a los 3 s dice `Viaje reiniciado` y en el
+   monitor `Pantalla: viaje reiniciado (llevaba ...)`. Un toque corto cambia
+   de página, y en las otras páginas todo sigue igual.
+5. En el monitor, las consultas por segundo en cada página (5–7 en E5),
+   sobre todo Aire/Volt, Carga y Mezcla, y al final de la tabla
+   `viaje X km en N s`.
+6. Sacar la llave y volver a ponerla: el viaje empieza de cero.
+7. `!info` con el motor andando: la RAM interna libre (en E5, 128 KB).
+
+Para E11:
+
+- `Viaje` ya sabe si el motor está en marcha (desde 500 rpm). La alarma de
+  voltaje de carga puede usar la misma regla, pero hoy no es pública:
+  habría que exponer algo como `enMarchaDesde()`.
+
+Para E12:
+
+- VIAJE quedó con las 8 casillas llenas. Los máximos de G que el plan suma a
+  VIAJE no entran sin rehacerla: o van en la página FUERZA G, o se decide con
+  el usuario qué casilla sale.
+- `MAX_PAGINAS` ya es 9. FUERZA G tiene que ir antes de DS3.
+
+Para E13:
+
+- El resumen del viaje está en `Viaje` (distancia, tiempo en marcha y los
+  extremos). Lo que sale en la tabla del monitor (`viaje X km en N s`) es lo
+  mismo que se podría escribir en el CSV.
 
 ### E11
 
