@@ -111,7 +111,7 @@ y las consultas por segundo (~6).
 - Waveshare ESP32-S3-Touch-LCD-3.49: ESP32-S3R8 (8 MB de PSRAM, 16 MB de
   flash), pantalla IPS de 172×640 con touch capacitivo (AXS15231B). Se usa
   en horizontal, a 640×172.
-- Adaptador OBD BLE compatible con iPhone: anuncia `OBDBLE` con el
+- Adaptador OBD BLE: anuncia `OBDBLE` con el
   servicio `FFF0` y responde como `ELM327 v2.1`. Detalle en **Datos
   descubiertos** de `PLAN.md`.
 - Sin batería.
