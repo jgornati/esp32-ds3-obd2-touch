@@ -18,12 +18,10 @@ constexpr uint8_t PIN_PANTALLA_RST = 21;
 // gira 180° más, para montarla con el USB-C del otro lado.
 constexpr bool PANTALLA_GIRADA = false;
 
-// Retroiluminación, con PWM. Como en los ejemplos de Waveshare
-// (lcd_bl_pwm_bsp.h), duty = 255 - brillo (confirmado en E1).
+// Retroiluminación (LCD_BL del esquemático): en bajo, al máximo; en alto,
+// apagada. Queda siempre al máximo: en la placa del DS3 el pin no cambia la
+// luz, ni con el código de Waveshare (E6).
 constexpr uint8_t PIN_RETROILUMINACION = 8;
-constexpr bool RETROILUMINACION_INVERTIDA = true; // duty = 255 - brillo
-constexpr uint8_t BRILLO_INICIAL = 128;           // 0-255
-constexpr uint8_t PASO_BRILLO = 16;               // + y - en la consola
 
 // Touch, en el mismo AXS15231B. I2C sin INT ni RST.
 constexpr uint8_t PIN_TOUCH_SDA = 17;
@@ -88,6 +86,10 @@ constexpr uint32_t ANTIRREBOTE_MS = 30;     // el botón tiene que quedar establ
 constexpr uint32_t PERIODO_FALLAS_MS = 30000;
 constexpr uint32_t REINTENTO_FALLAS_MS = 5000;
 constexpr uint32_t PERIODO_GRUPO_FALLAS_MS = 3000;
+// Página Info: el RSSI se lee cada PERIODO_RSSI_MS mientras se ve. Olvidar
+// adaptador se activa después de MANTENER_OLVIDAR_MS apretado.
+constexpr uint32_t PERIODO_RSSI_MS = 2000;
+constexpr uint32_t MANTENER_OLVIDAR_MS = 3000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se

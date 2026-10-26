@@ -29,7 +29,7 @@ que corresponda antes de portar un módulo.
 | E3    | El monitor completo en el auto         | E1, E2     | Verificada |
 | E4    | Diseño de páginas y navegación táctil  | E3         | Verificada (salvo de noche) |
 | E5    | Códigos de falla                       | E4         | Verificada (salvo comparar con el iPhone) |
-| E6    | Brillo y ajustes                       | E4         | Pendiente |
+| E6    | Brillo y ajustes                       | E4         | Hecha (falta verificar en hardware) |
 | E7    | Cierre e instalación                   | E5, E6     | Pendiente |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
@@ -70,7 +70,8 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
 | Alimentación           | 5 V desde un USB del auto que se corta al apagarlo. Sin deep sleep. *Propuesta:* sin batería en la placa (ver E7). |
-| Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN CONEXION`, no en `SIN ECU`. |
+| Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
+| Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
 | Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida.    |
 
 ## Hardware de la placa
@@ -83,7 +84,7 @@ Según los ejemplos de Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-3.49`,
 | Chip                                   | ESP32-S3R8: 2 núcleos, 240 MHz, 8 MB de PSRAM (OPI), 16 MB de flash, Wi-Fi y BLE 5 |
 | Pantalla                               | IPS 3,49", 172×640, controlador AXS15231B por QSPI (`SPI3_HOST`) |
 | Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21                          |
-| Retroiluminación                       | GPIO8 con PWM (LEDC), activa en bajo: duty = 255 − brillo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). Confirmado en E1 |
+| Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`) |
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) |
 | TCA9554, pin 6                         | Mantiene la alimentación desde la batería (ejemplo `07_BATT_PWR_Test`) |
@@ -95,7 +96,7 @@ Según los ejemplos de Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-3.49`,
 
 ```
 include/
-  config.h          pines, BLE, tiempos, brillo, rotación
+  config.h          pines, BLE, tiempos, rotación
   lv_conf.h         configuración de LVGL (E1)
 src/
   main.cpp          exploración (E0); máquina de estados (E3)
@@ -147,7 +148,7 @@ Las mismas del anterior; cambia solo cómo se ven.
 | La ECU no soporta el dato                 | `N/D`        |
 | Todavía no llegó la primera respuesta     | `...`        |
 | Dato vencido (más de `VIGENCIA_MS`)       | `--`         |
-| Bluetooth perdido                         | barra: `SIN CONEXION`, todos los datos `--` |
+| Bluetooth perdido                         | barra: `SIN ADAPTADOR` en gris, sin datos (E6) |
 
 Nunca mostrar un número vencido. Con color, además, un dato que no es
 válido y actual se muestra en gris.
@@ -459,7 +460,8 @@ De esta placa y el adaptador nuevo:
 | Respuestas del ELM            | `ELM327 v2.1` (clon). Tras `ATZ` el eco queda activo. Las líneas terminan en `\r\n` (el anterior, `\r\r`); el parser ya lo acepta. `ATZ` sin el `\r\r` inicial. `ATRV` 11,9 V en el banco. `0100` sin ECU: `SEARCHING...` y `UNABLE TO CONNECT` en 4,4 s, y en la misma notificación vino `UNABLE TO CONNECT\r\n>` repetido: **puede llegar texto después del `>`** | E0    |
 | Tiempos BLE (E0)              | Conexión 456–753 ms y servicios 799 ms. Con intervalo de 50 ms, escribiendo en `FFF1`: `ATZ` 99, `ATI` 110, `ATRV` 70–238 ms; en `FFF2`: `ATZ` 261, `ATE0` 311, `ATI` 386, `ATRV` 119–173 ms (pocas muestras) | E0    |
 | Con el iPhone conectado       | Sin probar | E0    |
-| Brillo cómodo de día / noche  |       | E1    |
+| Brillo cómodo de día / noche  | No se pudo medir: con esta placa la luz no se regula (fila siguiente). Queda siempre al máximo | E1, E6 |
+| ¿El brillo 0 apaga la pantalla? | Según el esquemático, sí (IO8 en alto apaga el AP3032). Pero en esta placa, hoy, ningún valor cambia la luz. Probado el 2026-10-26 (el agente por el USB, el usuario mirando la pantalla): PWM en GPIO8 de 0 a 255 (con el LEDC del core y con el del ESP-IDF, señal 74 en el pin), GPIO8 fijo en alto y en bajo sin PWM (la pata los lee bien), `0x53`/`0x51` al AXS15231B y un firmware mínimo con el código de la luz de Waveshare. La luz queda igual. La demo de fábrica sí regulaba: parece hardware (ver notas de E6) | E0, E6 |
 | Refresco de pantalla          | Completo (dibujar todo y mandarlo): 96–131 ms. Solo el envío al panel: 32–33 ms, se cambie lo que se cambie | E1    |
 | Memoria con pantalla y BLE    | RAM interna libre 164 KB (bloque mayor 123 KB); PSRAM libre 7972 KB | E1    |
 | Conexión guardada / buscando  | Por dirección guardada: conecta en 389–1348 ms y queda listo en 974–1928 ms. Buscando: lo encuentra en 23–1526 ms y queda listo en 1536–1923 ms. Casi no hay diferencia, porque la búsqueda lo encuentra enseguida. De lo que tarda en quedar listo, ~530 ms son servicios, características y suscripción | E2    |
@@ -1586,5 +1588,173 @@ Para E7:
   quiere decir cada pantalla.
 
 ### E6
+
+Hecho (rama `e6-brillo-y-ajustes`, desde `main` con E5). **El brillo no
+se regula: la luz queda siempre al máximo** (decisión del usuario,
+2026-10-26), porque en esta placa la retroiluminación no responde a nada
+de lo que se probó (ver **El brillo**, más abajo).
+
+Antes de programar, el usuario eligió (2026-10-26) lo que la maqueta no
+resolvía:
+
+- **Sin adaptador, una pantalla tranquila:** `SIN ADAPTADOR` en gris en
+  vez de `SIN CONEXION` en rojo, y los reintentos sin pasar por las
+  pantallas cian. No se puede distinguir la llave sacada de un adaptador
+  colgado: los dos se ven así.
+- **La dirección en Info, con ELM y protocolo en un renglón**
+  (`v2.1, protocolo 6`): sale el nombre del protocolo (`CAN 11b 500k`).
+- El brillo en Info (5 niveles con `-` y `+`): se hizo y se sacó.
+
+Lo que quedó:
+
+- **`config.h`:** `PIN_RETROILUMINACION` y nada más de la luz (salen
+  `RETROILUMINACION_INVERTIDA`, `BRILLO_INICIAL` y `PASO_BRILLO`). Nuevos
+  `PERIODO_RSSI_MS` (2 s) y `MANTENER_OLVIDAR_MS` (3 s).
+- **`pantalla_hw`:** la luz es una salida común: en alto (apagada, según el
+  esquemático) mientras se manda el primer cuadro negro y después en bajo
+  (al máximo). Salen `ponerBrillo()` y `brillo()`. Nuevo `huecoMaximo()`:
+  lo más que pasó entre dos `atender()` (el touch se lee solo ahí).
+- **`elm327`:** `direccion()` (la del adaptador conectado, en mayúsculas)
+  y `rssi()`, que es `BLEClient::getRssi()`: con NimBLE,
+  `ble_gap_conn_rssi()`. Lo da la radio de la placa: no le escribe nada al
+  ELM. 0 sin conexión o si falla.
+- **`pantalla`:** `sinConexion(motivo, segundos)` pasa a
+  `sinAdaptador(segundos)`: `SIN ADAPTADOR` en gris (`ETIQUETA`),
+  `Se prende con el contacto` y abajo `Reintento en N s` o, con 0,
+  `Buscando...`. El motivo queda solo en el monitor serie.
+- **`paginas`:**
+  - `InfoConexion` pasa a `DatosInfo`, con `direccion` y `rssi` (0 sin
+    medir). Nuevos `enum class Accion { NINGUNA, RECONECTAR, OLVIDAR }`,
+    `tomarAccion(ahora)` y `muestraInfo()`.
+  - Info como en la maqueta: 4 renglones de 36 px (`Adaptador`
+    `OBDBLE, -58 dBm`, `Direccion`, `ELM` `v2.1, protocolo 6` y
+    `Lectura`) y a la derecha Reconectar (borde cian) y Olvidar adaptador
+    (borde rojo, `mantener 3 s`), de 208×56 px.
+  - Los botones son objetos con `LV_OBJ_FLAG_CLICKABLE` (sigue
+    `LV_USE_BUTTON 0`): se quedan con el toque, que no llega a la raíz, así
+    que no cambian la página. Sin `PRESS_LOCK`: si el dedo se va del botón,
+    recibe `PRESS_LOST` y al soltar no cuenta. LVGL tampoco le manda el
+    `CLICKED` a la raíz, porque el toque no empezó ahí.
+  - Reconectar se pide al soltarlo (`CLICKED`), con el fondo cian oscuro
+    mientras se aprieta. Olvidar se pide una vez por apretada, a los 3 s
+    (lo mide `tomarAccion()`); mientras tanto crece un relleno rojo oscuro.
+    Soltarlo antes o correr el dedo lo cancela.
+  - Los fondos oscuros se llaman por su color (`ROJO_OSCURO`,
+    `AMBAR_OSCURO`, `CIAN_OSCURO`): los usan también los botones.
+- **`consola`:** salen `+` y `-` (de E1).
+- **`main.cpp`:**
+  - `atenderAcciones()`, desde `loop()` y no mientras se espera al ELM:
+    Reconectar y Olvidar hacen lo mismo que `!reconectar` y `!olvidar`
+    (`volverAConectar()`), solo en `LEYENDO`. Ninguno le escribe al ELM ni
+    toca la lista blanca. `!olvidar` en la consola sigue siendo inmediato.
+  - `volverAConectar()` muestra `CONECTANDO` o `BUSCANDO ADAPTADOR` antes
+    de soltar el adaptador, que puede tardar hasta 2 s; antes la pantalla
+    quedaba quieta mientras tanto.
+  - RSSI: con Info a la vista, cada 2 s (`medirRssi()`). Al entrar en Info
+    se borra el anterior y se mide en la vuelta siguiente.
+  - `avisarConexion`: las pantallas cian `CONECTANDO` y
+    `BUSCANDO ADAPTADOR` se ven al arrancar y después de Reconectar u
+    Olvidar (pantalla o consola). Después de perder la conexión o de un
+    intento fallido, los reintentos quedan en `SIN ADAPTADOR` y solo
+    cambia el renglón de abajo.
+  - `!info` agrega la dirección y el RSSI.
+  - La tabla de cada segundo termina en `touch sin leer hasta N ms`
+    (`huecoMaximo()`): un toque más corto que eso se puede perder. Es para
+    la queja de botones lentos (abajo).
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,0 %, flash 50,2 % de 3 MB). Con `-Wall
+  -Wextra -Wshadow`, solo los warnings de siempre. `pio test -e native`
+  57/57 (`lib/obd` no cambió).
+- **Render**, casos nuevos: `0-sin-adaptador`, `0-sin-adaptador-buscando`,
+  `6-info` con los botones, `n-info-reconectar-apretado` y
+  `o-info-olvidar-a-la-mitad`. Revisa que cada botón pida lo suyo sin
+  cambiar de página; Reconectar, una sola vez; Olvidar, nada antes de los
+  3 s, una vez a los 3 s, nada más si se sigue apretando y nada si el dedo
+  se va del botón; que al soltarlo el relleno desaparezca; que los datos no
+  lleguen a los botones; que fuera de los botones (los datos, entre los
+  dos botones) Info cambie de página como las demás, y que con
+  `SIN ADAPTADOR` tocar no haga nada. Las 54 revisiones dan bien. El
+  touch de mentira se lee cada 100 ms; en la placa, cada 33 ms.
+- Los objetos de las páginas piden ~33,8 KB de `malloc` en la PC (en E5,
+  ~31,8 KB), con punteros de 64 bits.
+- En la placa, en el banco y sin el ELM (con permiso del usuario):
+  arranca, `CONECTANDO` y `BUSCANDO ADAPTADOR` y después `SIN ADAPTADOR`.
+  El firmware final quedó subido.
+
+**El brillo (2026-10-26).** Se hizo con 5 niveles en Info y en
+`Preferences`. El usuario lo probó en el auto y por la consola: la luz no
+cambiaba nada. El agente lo investigó con la placa por el USB (con
+permiso del usuario, que miraba la pantalla):
+
+- `pantalla_hw` usaba `ledcAttach()`/`ledcWrite()` del core, que no avisan
+  si fallan. Se pasó al driver LEDC del ESP-IDF, igual que el ejemplo de
+  Waveshare (`lcd_bl_pwm_bsp.c`: baja velocidad, timer 3, canal 1, 8 bits,
+  50 kHz, RC_FAST), y se leyó el ruteo del pin: GPIO8 con la señal 74 (la
+  del LEDC), como salida, 50 kHz. Con duty 0 y 255, la luz igual.
+- `0x53` = `0x2C` y `0x51` = 0 al AXS15231B, por QSPI (`ESP_OK`): igual.
+- GPIO8 como salida común, sin el LEDC, leyendo la pata: lee 0 y 1, así
+  que el pin cambia de verdad. La luz, igual.
+- Un firmware mínimo (aparte, en una carpeta temporal) con solo el código
+  de la luz del ejemplo de Waveshare, cambiando el duty cada 2 s: la luz
+  no cambia nunca.
+- **El esquemático** (`ESP32-S3-Touch-LCD-3.49-Schematic.pdf` de la wiki;
+  es vectorial: se lee con `pdftotext` y `pdftoppm`): la luz es un AP3032
+  (U10), un regulador de LEDs. `LCD_BL` = IO8 entra por R52 10 kΩ y C73
+  100 nF a tierra, y por R49 39 kΩ a FB; R48 5,1 kΩ va de FB a `VLED-`,
+  con R50 27 Ω a tierra. Haciendo la cuenta, con IO8 en alto la luz se
+  apaga y en bajo queda al máximo (de ahí la lógica invertida del
+  ejemplo). `BL_EN` (CTRL, encendido) = EXIO1 del TCA9554, con R46 100 kΩ
+  a `VSYS`: como el expansor arranca con todo como entrada, queda
+  encendido. El resto del TCA9554: EXIO0 `TP_INT`, EXIO2 y EXIO3
+  interrupciones de la IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE`, EXIO6
+  `SYS_EN` y EXIO7 `NS_MODE` (audio). IO8 no va a ningún otro lado.
+- **Conclusión:** en esta placa, hoy, el GPIO8 no le llega a la luz, ni
+  con el código del fabricante. El usuario vio regular el brillo con el
+  programa de fábrica (una barra, `setUpduty(0xff - valor)` en el GPIO8,
+  igual que acá) y, según las notas de E1, también con `+` y `-`: algo
+  cambió en el hardware después. Si algún día se quiere revisar: con un
+  tester, medir con el GPIO8 en alto y en bajo la tensión en R52, en C73 y
+  en FB (pata 3) del AP3032. Si en R52 no aparecen los 3,3 V, la pista
+  está cortada; si aparecen y FB no cambia, el problema está en R49 o en
+  el AP3032.
+- El usuario decidió sacar el brillo y dejar la luz siempre al máximo.
+  Salieron `brillo.h/.cpp`, el renglón de Info, `+`, `-` y `!brillo N`, y
+  los comandos de diagnóstico de la prueba.
+
+**Botones lentos.** El usuario también vio los botones de Info lentos
+(en el auto). Sin la ECU no se pudo reproducir. Se cambió: Reconectar y
+Olvidar muestran la pantalla siguiente antes de soltar el adaptador (antes,
+hasta 2 s sin cambiar nada), y la tabla del monitor mide cuánto se tarda
+en leer el touch.
+
+**Pruebas del usuario** (el firmware ya está en la placa):
+
+1. En Info, con el auto:
+   - `OBDBLE, -NN dBm` (se actualiza cada 2 s), `81:23:45:67:89:BA`,
+     `v2.1, protocolo 6` y `17 PIDs, N consultas/s`.
+   - Tocar un botón no cambia de página; tocar los datos o entre los
+     botones, sí.
+   - Reconectar: enseguida `CONECTANDO` (cian) y vuelve a Info con datos.
+   - Olvidar adaptador: soltarlo antes de 3 s, o correr el dedo, no hace
+     nada. Mantenerlo 3 s pasa enseguida a `BUSCANDO ADAPTADOR`, lo
+     encuentra, guarda la dirección y vuelve a Info (en el monitor:
+     `Pantalla: olvidando el adaptador` y `BLE: direccion guardada`).
+   - Si sigue lento: cuál botón, si tarda en reaccionar o hay que tocarlo
+     más de una vez, y cuánto dice `touch sin leer hasta` en la tabla.
+   - Que no se disparen sin querer con el auto en marcha.
+2. Con la llave sacada: `SIN ADAPTADOR` en gris y
+   `Se prende con el contacto`; abajo alternan `Buscando...` y
+   `Reintento en 5 s`, sin las pantallas cian. Al poner el contacto
+   vuelve solo.
+3. `!info` con el motor andando: la RAM interna libre (en E5, 128 KB).
+
+Para E7:
+
+- El README explica Info (Reconectar y Olvidar adaptador) y
+  `SIN ADAPTADOR`, y que el brillo no se regula.
+- De noche la pantalla queda al máximo: si molesta, se puede oscurecer la
+  imagen (los colores) en vez de la luz.
 
 ### E7

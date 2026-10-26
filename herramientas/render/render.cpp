@@ -2,8 +2,9 @@
 // paginas y datos del firmware. PantallaHw es de mentira: la imagen va a un
 // búfer y de ahí a PNG (al doble de tamaño). Además revisa que dibujar dos
 // veces lo mismo no deje nada para redibujar (en la placa, cada redibujo
-// cuesta ~33 ms de envío), que el toque cambie de página como corresponde y
-// que los textos de Fallas no se pasen de su columna.
+// cuesta ~33 ms de envío), que el toque cambie de página como corresponde,
+// que los botones de Info pidan lo suyo sin cambiar de página y que los
+// textos de Fallas e Info no se pasen de su columna.
 // Lo arma el Makefile; sale con 1 si alguna revisión falla.
 
 #include <ctype.h>
@@ -120,13 +121,18 @@ static void escribirPng(const char *ruta, const uint16_t *pixeles, int ancho, in
   fclose(f);
 }
 
-static void guardar(const char *directorio, const char *nombre) {
+// Dibuja la pantalla entera y devuelve una copia
+static std::vector<uint16_t> capturar() {
   lv_obj_invalidate(lv_screen_active());
   lv_refr_now(nullptr);
+  return std::vector<uint16_t>(marco, marco + ANCHO * ALTO);
+}
+
+static void guardar(const char *directorio, const char *nombre) {
+  guardadas.push_back(capturar());
   char ruta[512];
   snprintf(ruta, sizeof(ruta), "%s/%s.png", directorio, nombre);
   escribirPng(ruta, marco, ANCHO, ALTO);
-  guardadas.emplace_back(marco, marco + ANCHO * ALTO);
 }
 
 // Todas una debajo de otra, separadas por una franja gris
@@ -215,15 +221,35 @@ static void leerDedo(lv_indev_t *, lv_indev_data_t *datos) {
   datos->state = apoyado ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
-static int8_t tocar(lv_indev_t *indev, Paginas &paginas, int32_t x, int32_t y) {
+static void apoyar(lv_indev_t *indev, int32_t x, int32_t y) {
   dedo = {x, y};
   apoyado = true;
   lv_indev_read(indev);
-  reloj += 80;
+}
+
+static void levantar(lv_indev_t *indev) {
   apoyado = false;
   lv_indev_read(indev);
+}
+
+static int8_t tocar(lv_indev_t *indev, Paginas &paginas, int32_t x, int32_t y) {
+  apoyar(indev, x, y);
+  reloj += 80;
+  levantar(indev);
   reloj += 80;
   return paginas.tomarToque();
+}
+
+// Mantiene el dedo apoyado ms más, leyendo el touch cada 100 ms como la
+// placa. true si en ese rato se pidió alguna acción.
+static bool mantener(lv_indev_t *indev, Paginas &paginas, uint32_t ms) {
+  bool pidio = false;
+  for (uint32_t pasado = 0; pasado < ms; pasado += 100) {
+    reloj += 100;
+    lv_indev_read(indev);
+    pidio = paginas.tomarAccion(reloj) != Accion::NINGUNA || pidio;
+  }
+  return pidio;
 }
 
 static size_t memoriaEnUso() {
@@ -253,7 +279,7 @@ int main(int argc, char **argv) {
   Paginas paginas(pantalla);
   // Lo que piden las páginas armadas y dibujadas una vez
   datosDeLaMaqueta();
-  InfoConexion info = {"v2.1", "6", 17, 6};
+  DatosInfo info = {"v2.1", "6", 17, 6, "81:23:45:67:89:BA", -58};
   // La de la maqueta, con la luz encendida y 2 códigos según 0101
   LecturaFallas fallas =
       lecturaFallas("410182076100", "43 02 04 20 01 71", "47 01 03 00", "NO DATA");
@@ -274,6 +300,12 @@ int main(int argc, char **argv) {
   guardar(directorio, "0-sin-ecu");
   revisar(tocar(indev, paginas, 500, 100) == 0,
           "con SIN ECU a la vista, tocar no cambia de pagina");
+  pantalla.sinAdaptador(5);
+  guardar(directorio, "0-sin-adaptador");
+  pantalla.sinAdaptador(0);
+  guardar(directorio, "0-sin-adaptador-buscando");
+  revisar(tocar(indev, paginas, 500, 100) == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "con SIN ADAPTADOR a la vista, tocar no hace nada");
 
   for (uint8_t i = 1; i <= 6; i++) {
     paginas.dibujar(reloj, info, fallas, reintento);
@@ -382,6 +414,49 @@ int main(int argc, char **argv) {
   revisar(guardadas[guardadas.size() - 1] != guardadas[guardadas.size() - 2],
           "los dos grupos se ven distintos");
   revisar(tocar(indev, paginas, 500, 100) == 1, "en Fallas, tocar a la derecha: siguiente");
+
+  // Info: cada botón pide lo suyo sin cambiar de página. Los centros, con
+  // la barra de 28 px: Reconectar (528, 66) y Olvidar (528, 134).
+  irA(paginas, "INFO");
+  paginas.dibujar(reloj, info, fallas, reintento);
+  std::vector<uint16_t> suelta = capturar();
+  revisar(franjaVacia(417, 423), "Info: los datos no llegan a los botones");
+
+  apoyar(indev, 528, 66);
+  paginas.dibujar(reloj, info, fallas, reintento);
+  guardar(directorio, "n-info-reconectar-apretado");
+  levantar(indev);
+  revisar(paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::RECONECTAR,
+          "Reconectar: al soltarlo pide reconectar, sin cambiar de pagina");
+  revisar(paginas.tomarAccion(reloj) == Accion::NINGUNA, "Reconectar: lo pide una sola vez");
+
+  apoyar(indev, 528, 134);
+  bool antesDeTiempo = mantener(indev, paginas, MANTENER_OLVIDAR_MS / 2);
+  paginas.dibujar(reloj, info, fallas, reintento);
+  guardar(directorio, "o-info-olvidar-a-la-mitad");
+  antesDeTiempo = mantener(indev, paginas, MANTENER_OLVIDAR_MS / 2 - 100) || antesDeTiempo;
+  revisar(!antesDeTiempo, "Olvidar: antes de 3 s no pide nada");
+  revisar(mantener(indev, paginas, 100), "Olvidar: a los 3 s pide olvidar");
+  revisar(!mantener(indev, paginas, 1000), "Olvidar: si se sigue apretando, no lo vuelve a pedir");
+  levantar(indev);
+  revisar(paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Olvidar: al soltarlo no cambia de pagina ni pide nada");
+  paginas.dibujar(reloj, info, fallas, reintento);
+  revisar(capturar() == suelta, "Olvidar: suelto, el relleno desaparece");
+
+  apoyar(indev, 528, 134);
+  mantener(indev, paginas, 500);
+  dedo = {300, 100};
+  bool pidio = mantener(indev, paginas, MANTENER_OLVIDAR_MS);
+  levantar(indev);
+  revisar(!pidio && paginas.tomarToque() == 0,
+          "Olvidar: si el dedo se va del boton, no pide nada ni cambia de pagina");
+
+  // Fuera de los botones, Info cambia de página como las demás
+  revisar(tocar(indev, paginas, 100, 100) == -1, "en Info, tocar los datos: anterior");
+  revisar(tocar(indev, paginas, 380, 60) == 1,
+          "en Info, tocar a la derecha de los datos: siguiente");
+  revisar(tocar(indev, paginas, 528, 100) == 1, "en Info, tocar entre los botones: siguiente");
 
   // Toques con las páginas a la vista
   revisar(tocar(indev, paginas, 100, 100) == -1, "tocar a la izquierda: anterior");
