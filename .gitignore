@@ -18,3 +18,7 @@ __pycache__/
 
 # macOS
 .DS_Store
+
+# herramientas/render: objetos compilados y PNG generados
+herramientas/render/obj/
+herramientas/render/salida/

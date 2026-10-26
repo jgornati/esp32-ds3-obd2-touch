@@ -27,7 +27,7 @@ que corresponda antes de portar un módulo.
 | E1    | Pantalla y touch                       | E0         | Verificada |
 | E2    | Transporte BLE con el ELM              | E0         | Verificada |
 | E3    | El monitor completo en el auto         | E1, E2     | Verificada |
-| E4    | Diseño de páginas y navegación táctil  | E3         | Pendiente |
+| E4    | Diseño de páginas y navegación táctil  | E3         | Hecha (falta verificar en hardware) |
 | E5    | Códigos de falla                       | E4         | Pendiente |
 | E6    | Brillo y ajustes                       | E4         | Pendiente |
 | E7    | Cierre e instalación                   | E5, E6     | Pendiente |
@@ -102,13 +102,16 @@ src/
   elm327.h/.cpp     transporte BLE con la interfaz del anterior (E2)
   consola.h/.cpp    consola por el USB (E0, E2)
   pantalla_hw.h/.cpp  QSPI, rotación, touch, brillo y puerto de LVGL (E1)
-  pantalla.h/.cpp   pantallas de estado (E3)
+  pantalla.h/.cpp   pantallas de estado (E3) y el marco de las páginas (E4)
   paginas.h/.cpp    páginas y navegación táctil (E4)
+  dibujo.h/.cpp     colores y funciones chicas de LVGL de pantalla y paginas (E4)
+  boton.h/.cpp      botón BOOT: página siguiente (E4)
   datos, sondeo, descubrimiento   portados del anterior (E3)
 lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
+herramientas/render/  las pantallas en la PC, a PNG (E4)
 docs/descubrimiento/  logs crudos de las sesiones en el auto
 ```
 
@@ -469,6 +472,7 @@ De esta placa y el adaptador nuevo:
 | Varios PIDs por pedido        | Sí: `010C0D050F` en 149 ms (igual que uno solo), en orden y en varios frames sin relleno. RPM 5–6 por segundo con contacto | E3    |
 | Timeout del ELM               | Lo ignora: con `ATST05`–`ATST19` y `ATAT0`/`1`/`2` contesta `OK`, pero cada consulta sigue tardando ~148 ms | E3    |
 | Voltaje y arranque            | 11,9 V con contacto, 9,9–11,7 V al arrancar, 13,6–13,7 V en marcha (motor frío). En los dos arranques no se cortó el BLE ni se reinició la placa (alimentada desde la notebook) | E3    |
+| RAM interna y consultas por segundo con las páginas |       | E4    |
 
 ## Notas de traspaso
 
@@ -1170,6 +1174,236 @@ Para E4:
   de página, como hacía el botón del anterior.
 - `textoDato()` usa punto decimal (`14.1V`), como el anterior; la prueba
   de E1 usaba coma. Lo decide el diseño.
+
+### E4
+
+**E4a, maqueta (agente, 2026-10-25):** lienzo en
+https://claude.ai/artifact/41eQde6wkKUL81ZuDnHBGX (privado, del usuario),
+con las pantallas a 640×172, Montserrat y los colores del firmware:
+
+- Prototipo: se cambia de página tocando la mitad izquierda o derecha, o
+  con pestañas en la barra (se elige en Tweaks). Puntos de página a la
+  derecha de la barra.
+- Motor en tres versiones: A (RPM grande y refrigerante y velocidad a la
+  derecha, como la provisoria), B (RPM grande con una barra de
+  revoluciones de 0 a 7000 abajo, que se mueve como la aguja) y C (tres
+  columnas iguales).
+- Aire/Volt (admisión y voltaje; `Volt ECU` no, el DS3 no lo da), Mezcla
+  (lazo, ajustes, lambda como barra rica/pobre en ámbar y cian con la
+  marca en verde, sonda post con barra), Fallas con y sin códigos (E5) e
+  Info con las acciones de E6.
+- Etiquetas en gris `#8C8C8C`, más claro que el `#707070` del firmware
+  (que queda para los datos no vigentes). Hacen falta fuentes nuevas: 28,
+  36 o 44, 48 y 64 px (las de LVGL llegan a 48; 64 se genera como la de
+  110).
+
+Elegido por el usuario (2026-10-25): tocar a los costados para cambiar de
+página, Motor B y el botón BOOT además del touch. Además pidió:
+
+- Aire/Volt igual que Motor B: la temperatura de admisión en grande con
+  una barra de 0 a 80 °C abajo, y el voltaje a la derecha.
+- Una página nueva, **CARGA**, con carga del motor (`04`), avance (`0E`)
+  y acelerador (`11`), los tres soportados por el DS3, cada uno con su
+  barra (0–100 %, avance de −10 a 40°). `0E` no está en la tabla de
+  `pids`: hay que agregarlo (A/2 − 64, grados antes del PMS).
+- Quedan 6 páginas: Motor, Aire/Volt, Carga, Mezcla, Fallas e Info. La
+  maqueta ya está así.
+
+El usuario confirmó la maqueta con esos cambios el 2026-10-26 (ver E4b).
+
+Para E4b (lo que se sabe hasta acá):
+
+- `src/paginas.h/.cpp` con las 6 páginas como en la maqueta (las medidas
+  exactas están en el HTML de cada pantalla del lienzo). Reemplaza
+  `Pantalla::datos()` y `dibujarDatos()`; las pantallas de estado siguen
+  en `pantalla`. Lo de LVGL queda en `pantalla_hw`, `pantalla` y
+  `paginas`.
+- Navegación: tocar la mitad derecha = siguiente, la izquierda =
+  anterior, solo en `LEYENDO`. El evento de LVGL corre dentro de
+  `lv_timer_handler()`, que también se llama mientras se espera al ELM:
+  que deje un pedido y `loop()` cambie de página. En Info, los botones de
+  E6 tendrán prioridad sobre las zonas.
+- Botón BOOT (GPIO0, atrás de la placa): pulsación corta = página
+  siguiente, con antirrebote (como `boton` del anterior, que usaba GPIO16).
+  Es pin de arranque: se lee como entrada después del boot.
+- Nuevas magnitudes en `datos`: carga (`04`), avance (`0E`) y acelerador
+  (`11`). `0E` va a la tabla de `lib/obd/pids` con su test.
+- El sondeo toma los visibles de la página actual (`Sondeo::visibles()`),
+  y `probarVariosPids()` también. Cada página tiene como mucho 6 PIDs:
+  entra entera en una consulta.
+- Fuentes: Montserrat 28, 36 y 48 vienen con LVGL (prenderlas en
+  `lv_conf.h`); la de 110 ya está en `src/fuentes/`. Todas traen el °.
+- Colores: etiquetas `#8C8C8C`, datos no vigentes `#707070` (el `GRIS`
+  de hoy), puntos de página blanco y `#444444`, fondo de las barras
+  `#262626`, barra de lambda ámbar (rica) y cian (pobre) con la marca en
+  verde cerca de 1. Las convenciones de `N/D`, `...` y `--` no cambian.
+- Fallas (contenido de E5) e Info (acciones de E6): por ahora un
+  marcador, como hizo el anterior en su E6.
+
+**E4b (agente, 2026-10-26):** con la maqueta confirmada. Antes de
+programar, el usuario eligió además:
+
+- La marca de lambda en verde hasta 0,03 de 1; más allá, ámbar (rica) o
+  cian (pobre), como las mitades de la barra.
+- Toda la pantalla cuenta para cambiar de página, también la barra de
+  arriba (en la maqueta, solo los 144 px de abajo).
+- Info con lo que ya se sabe: adaptador, versión del ELM, protocolo, PIDs
+  y consultas por segundo. RSSI y los botones quedan para E6.
+
+Hecho:
+
+- `lib/obd/pids`: PID `0E` (avance, A/2 − 64, unidad `grad`), con tests de
+  la fórmula y de `separarPids()` con `04`, `0E` y `11`.
+- `datos`: magnitudes `CARGA` (`04`), `AVANCE` (`0E`) y `ACELERADOR`
+  (`11`). Los ajustes salen con signo (`+1.6`). `textoValor()` da el
+  número sin la unidad, para las páginas. Salió `lazoCorto()`: en Mezcla
+  entra el texto completo (`Abierto carga` ocupa 193 de 245 px).
+- `dibujo.h/.cpp` (nuevo): los colores y las funciones chicas de LVGL que
+  estaban en `pantalla.cpp` y que `paginas` también usa (`ponerTexto`,
+  `ponerPosicion`, `mostrar`, `caja`, `rectangulo`, `etiqueta`...), más
+  `yDeBase()`. Todas tocan el objeto solo si cambia.
+- `pantalla`: sale `datos()` (la provisoria de E3). Entran
+  `pagina(titulo, numero, total)`, que pone el título en blanco y un punto
+  por página, y `areaPaginas()`, el área de 640×144 donde `Paginas` arma
+  las suyas. Las pantallas de estado ocultan el área.
+- `paginas.h/.cpp` (nuevo):
+
+  ```cpp
+  struct InfoConexion {
+    const char *version;         // "v2.1"
+    const char *protocolo;       // "6", o "A6" si lo eligió en automático
+    uint8_t pids;                // PIDs soportados en el servicio 01
+    int16_t consultasPorSegundo; // -1: todavía no se midió
+  };
+  constexpr uint8_t MAX_VISIBLES = 6; // entran en una consulta
+  class Paginas {
+  public:
+    explicit Paginas(Pantalla &pantalla);
+    void iniciar();             // después de Pantalla::iniciar()
+    void cambiar(int8_t paso);  // +1 la siguiente, -1 la anterior; da la vuelta
+    const char *titulo() const;
+    uint8_t visibles(Magnitud lista[MAX_VISIBLES]) const; // las de la página actual
+    uint8_t primeras(Magnitud lista[MAX_VISIBLES]) const; // las de Motor
+    int8_t tomarToque();        // -1, +1 o 0 desde la última llamada
+    void dibujar(uint32_t ahora, const InfoConexion &info);
+  };
+  ```
+
+  - Las 6 páginas con las medidas de la maqueta. Las y de los textos son
+    de la línea de base (pasadas del CSS con las métricas de cada fuente):
+    así un valor que cambia de fuente queda en el mismo renglón. `N/D` en
+    el número grande va en Montserrat 48 (la de 110 no tiene letras).
+  - Visibles: Motor `RPM`, `REFRIGERANTE`, `VELOCIDAD`; Aire/Volt
+    `ADMISION`, `VOLT_ELM`; Carga `CARGA`, `AVANCE`, `ACELERADOR`; Mezcla
+    `LAZO`, `AJ_CORTO`, `AJ_LARGO`, `LAMBDA`, `SONDA_POST`. Fallas e Info,
+    ninguna.
+  - El número y la unidad son etiquetas aparte; la unidad (gris, 20 px)
+    se ve solo con un valor actual. Con `--`, `...` o `N/D` va el texto
+    solo, en gris, como siempre; las barras quedan vacías y la marca de
+    lambda no se ve.
+  - Barras con rectángulos de LVGL (sin el widget `bar`): RPM de 0 a 7000
+    con la zona roja desde 6000, admisión de 0 a 80 °C, carga y acelerador
+    de 0 a 100 %, avance de −10 a 40° rellenando desde el 0, lambda de 0,8
+    a 1,2 y sonda post de 0 a 1 V.
+  - Las fuentes de LVGL no traen tildes, `×` ni `·`: `admision`, `x1000`
+    y comas en Info.
+  - Fallas: un marcador (`Todavia no se leen`). Info: `OBDBLE`
+    (`BLE_NOMBRE_REMOTO`), versión, protocolo con su nombre y
+    `17 PIDs, 6 consultas/s` (antes de la primera tabla, solo los PIDs).
+  - Toque: `LV_EVENT_CLICKED` en la raíz. Ningún objeto de la barra ni de
+    las páginas recibe toques, así que el evento llega siempre ahí; x menor
+    que 320 es la anterior. Solo cuenta con el área de páginas a la vista.
+- `boton.h/.cpp`: el del anterior, en GPIO0 (BOOT). `PIN_BOTON` y
+  `ANTIRREBOTE_MS` (30) en `config.h`. Siempre pasa a la siguiente;
+  mantenerlo apretado no repite.
+- `lv_conf.h`: Montserrat 28, 36 y 48. La flash pasa de 43,2 % a 50,1 %.
+- `main.cpp`:
+  - `atenderPaginas()` toma el toque y el botón, y solo en `LEYENDO` (y
+    fuera de `!descubrir`) cambia la página, actualiza los visibles del
+    sondeo, escribe `Pagina: X` en el monitor y dibuja. Se llama desde
+    `loop()` y desde `alEsperar()`: la página cambia aunque haya una
+    consulta en curso, sin esperar los ~148 ms. No usa el ELM.
+  - El sondeo toma los visibles de la página actual. Lo que no está a la
+    vista se sigue leyendo cada 2,5 s, así que al cambiar de página casi
+    siempre hay valores vigentes enseguida.
+  - `probarVariosPids()` prueba con los PIDs de la página actual; si son
+    menos de dos (Aire/Volt, Fallas, Info), con los de Motor. Ya no
+    incluye `VOLT_ELM`, que no es un PID: con la lista vieja no pasaba,
+    con las páginas sí podía.
+  - La página se mantiene al pasar por `SIN ECU`; al arrancar, Motor.
+  - La tabla del monitor guarda las consultas por segundo para Info.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 9,9 %, flash 50,1 % de 3 MB). Con `-Wall
+  -Wextra -Wshadow`, sin warnings nuevos salvo el parámetro del
+  constructor de `Paginas` con el nombre del miembro (como ya tenían
+  `Pantalla` y `Consola`). `pio test -e native` 54/54.
+- **Render en la PC** (`herramientas/render/`, pedido del usuario después
+  de verlo): LVGL 9.3 compilado para la PC con `pantalla`, `paginas`,
+  `dibujo`, `datos`, `lib/obd`, `lv_conf.h` y las fuentes del proyecto, y
+  un `PantallaHw` de mentira. `make -C herramientas/render -j8` (después
+  de un `pio run`; LVGL se compila la primera vez, ~7 s) deja un PNG por
+  pantalla y `todas.png` en `salida/`, y sale con error si falla alguna
+  revisión de las de abajo. Las 6 páginas salen como la maqueta,
+  también con valores extremos (6500 rpm, −12 °C, 188 km/h, avance
+  negativo, `Abierto carga`, lambda 0,91 en ámbar) y vencidos (`--` en
+  gris, barras vacías).
+  - Con un touch simulado: izquierda −1 y derecha +1, también sobre la
+    barra; con `SIN ECU` a la vista, nada.
+  - Dibujar dos veces lo mismo no deja nada para redibujar en ninguna
+    página (en la placa, cada redibujo cuesta ~33 ms de envío). Se
+    encontró y arregló un caso: los puntos de página se ocultaban y se
+    volvían a mostrar en cada dibujo.
+  - Los objetos de las páginas piden ~27 KB de `malloc` en la PC, con
+    punteros de 64 bits. En la placa salen de la RAM interna (había
+    157–158 KB libres conectado): falta medirlo con `!info`.
+
+Sin probar (falta la placa): todo lo que se ve en la pantalla real, el
+touch y el botón BOOT, la RAM interna con las páginas y las consultas por
+segundo en Mezcla, que pide 5 PIDs (3 frames).
+
+**Pruebas del usuario:**
+
+1. En el banco, sin auto: llega a `SIN ECU` como en E3, y tocar la
+   pantalla o apretar BOOT no hace nada. `!info`: la RAM interna libre
+   (antes 157–158 KB conectado).
+2. En el auto, con el monitor abierto:
+   - Arranca en `MOTOR`, con el primer punto en blanco: RPM en grande, la
+     barra que sigue a la aguja, refrigerante y velocidad.
+   - Tocar la mitad derecha recorre `AIRE/VOLT`, `CARGA`, `MEZCLA`,
+     `FALLAS`, `INFO` y vuelve a `MOTOR`; la izquierda, al revés. Que
+     cambie enseguida y que también ande tocando sobre la barra.
+   - BOOT (atrás de la placa) pasa a la siguiente; mantenerlo apretado no
+     repite.
+   - El monitor dice `Pagina: X` en cada cambio, y la tabla sigue en ~6
+     consultas por segundo también en Mezcla.
+   - Valores contra el tablero. En Carga, que el acelerador suba al pisar
+     y el avance se mueva con las RPM.
+   - Mezcla: la marca de lambda en verde cerca de 1.
+   - Info: `OBDBLE`, `v2.1`, `6, CAN 11b 500k` y `17 PIDs, N consultas/s`.
+   - Que se lea bien de día y de noche.
+3. Al sacar la llave: `SIN ECU` a los ~3 s, sin números, como en E3.
+4. `!info` con el motor andando: la RAM interna libre.
+
+Para E5:
+
+- Con `herramientas/render` se ven las pantallas nuevas antes de subir:
+  agregar en `render.cpp` los casos de Fallas (con y sin códigos).
+- La vista de Fallas es `armarFallas()` en `paginas.cpp`, hoy un
+  marcador. La lectura (al entrar y cada 30 s mientras se ve) tiene que
+  saber cuándo se entra en la página: `atenderPaginas()` de `main.cpp` es
+  el lugar, como `cambiarPagina()` del anterior, que llamaba a
+  `reiniciarFallas()`. Falta algo como `Paginas::muestraFallas()`.
+- Ya están las fuentes de 28 (códigos) y 48 (`Sin fallas`) de la maqueta.
+
+Para E6:
+
+- Los botones de Info van a la derecha (x 424–632 en la maqueta). Un
+  objeto tocable recibe el toque y no llega a la raíz, así que no cambia
+  la página: tienen prioridad solos. Hace falta prender `LV_USE_BUTTON` o
+  usar objetos con `LV_OBJ_FLAG_CLICKABLE`.
+- RSSI y la dirección del adaptador van en `InfoConexion`.
 
 ### E5
 

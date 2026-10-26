@@ -24,6 +24,11 @@ static float rpm(const uint8_t *d) {
   return (d[0] * 256 + d[1]) / 4.0f;
 }
 
+// Grados antes del PMS
+static float avance(const uint8_t *d) {
+  return d[0] / 2.0f - 64.0f;
+}
+
 static float flujoAire(const uint8_t *d) {
   return (d[0] * 256 + d[1]) / 100.0f;
 }
@@ -51,6 +56,7 @@ static const Pid TABLA[] = {
     {0x0B, "MAP", "kPa", 1, directo},
     {0x0C, "RPM", "rpm", 2, rpm},
     {0x0D, "Vel", "km/h", 1, directo},
+    {0x0E, "Avance", "grad", 1, avance},
     {0x0F, "Admision", "C", 1, temperatura},
     {0x10, "MAF", "g/s", 2, flujoAire},
     {0x11, "Acelerad", "%", 1, porcentaje},

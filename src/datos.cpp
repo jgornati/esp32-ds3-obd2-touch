@@ -10,14 +10,18 @@ struct Definicion {
   const char *etiqueta;
   const char *unidad;
   uint8_t decimales;
+  bool conSigno; // "+1.6" en vez de "1.6"
 };
 
 // En el orden de Magnitud
 static const Definicion DEFINICIONES[] = {
-    {0x0C, "RPM", "", 0},       {0x05, "Refrig", "C", 0},   {0x0D, "Vel", "km/h", 0},
-    {0x0F, "Admision", "C", 0}, {0x00, "Volt ELM", "V", 1}, {0x42, "Volt ECU", "V", 1},
-    {0x06, "Aj corto", "%", 1}, {0x07, "Aj largo", "%", 1}, {0x03, "Lazo", "", 0},
-    {0x34, "Lambda", "", 3},    {0x15, "O2 post", "V", 2},
+    {0x0C, "RPM", "", 0, false},        {0x05, "Refrig", "C", 0, false},
+    {0x0D, "Vel", "km/h", 0, false},    {0x0F, "Admision", "C", 0, false},
+    {0x00, "Volt ELM", "V", 1, false},  {0x42, "Volt ECU", "V", 1, false},
+    {0x06, "Aj corto", "%", 1, true},   {0x07, "Aj largo", "%", 1, true},
+    {0x03, "Lazo", "", 0, false},       {0x34, "Lambda", "", 3, false},
+    {0x15, "O2 post", "V", 2, false},   {0x04, "Carga", "%", 0, false},
+    {0x0E, "Avance", "grad", 0, false}, {0x11, "Acelerador", "%", 0, false},
 };
 static_assert(sizeof(DEFINICIONES) / sizeof(DEFINICIONES[0]) == CANT_MAGNITUDES,
               "DEFINICIONES tiene que seguir el orden de Magnitud");
@@ -77,23 +81,6 @@ bool valorDesdePid(Magnitud m, const uint8_t *datosPid, uint8_t largo, float *va
   return calcularPid(DEFINICIONES[m].pid, datosPid, largo, valor);
 }
 
-// textoLazo() abreviado, para que entre en la línea junto a "Lazo"
-static const char *lazoCorto(uint8_t estado) {
-  switch (estado) {
-  case 0x01:
-    return "Ab. frio";
-  case 0x02:
-    return "Cerrado";
-  case 0x04:
-    return "Ab. carga";
-  case 0x08:
-    return "Ab. falla";
-  case 0x10:
-    return "Ce. falla";
-  }
-  return nullptr;
-}
-
 bool valorActual(Magnitud m, uint32_t ahora, float *valor) {
   const Dato &d = datos[m];
   if (d.estado != EstadoDato::VALIDO || ahora - d.actualizadoMs > VIGENCIA_MS) {
@@ -103,39 +90,62 @@ bool valorActual(Magnitud m, uint32_t ahora, float *valor) {
   return true;
 }
 
-void textoDato(Magnitud m, uint32_t ahora, bool pantalla, char *salida, size_t tam) {
-  const Dato &d = datos[m];
-  switch (d.estado) {
+// "N/D", "...", "--" (vencido o sin conexión), o nullptr con un valor actual
+static const char *textoSinValor(Magnitud m, uint32_t ahora, float *valor) {
+  switch (datos[m].estado) {
   case EstadoDato::NO_SOPORTADO:
-    strlcpy(salida, "N/D", tam);
-    return;
+    return "N/D";
   case EstadoDato::ESPERANDO:
-    strlcpy(salida, "...", tam);
-    return;
+    return "...";
   case EstadoDato::SIN_CONEXION:
-    strlcpy(salida, "--", tam);
-    return;
+    return "--";
   case EstadoDato::VALIDO:
     break;
   }
-  float valor;
-  if (!valorActual(m, ahora, &valor)) {
-    strlcpy(salida, "--", tam); // vencido
-    return;
-  }
+  return valorActual(m, ahora, valor) ? nullptr : "--";
+}
 
+// El número con sus decimales, o el estado del lazo
+static void textoNumero(Magnitud m, float valor, char *salida, size_t tam) {
   if (m == LAZO) {
     uint8_t estado = (uint8_t)valor;
-    const char *texto = pantalla ? lazoCorto(estado) : textoLazo(estado);
+    const char *texto = textoLazo(estado);
     strlcpy(salida, estado == 0 ? "Apagado" : (texto != nullptr ? texto : "?"), tam);
     return;
   }
-
   const Definicion &def = DEFINICIONES[m];
-  const char *unidad = def.unidad;
+  snprintf(salida, tam, def.conSigno ? "%+.*f" : "%.*f", def.decimales, valor);
+}
+
+void textoDato(Magnitud m, uint32_t ahora, bool pantalla, char *salida, size_t tam) {
+  float valor;
+  const char *sinValor = textoSinValor(m, ahora, &valor);
+  if (sinValor != nullptr) {
+    strlcpy(salida, sinValor, tam);
+    return;
+  }
+
+  char numero[16];
+  textoNumero(m, valor, numero, sizeof(numero));
+  const char *unidad = DEFINICIONES[m].unidad;
+  const char *separador = "";
   if (pantalla && strcmp(unidad, "C") == 0) {
     unidad = "°C";
+  } else if (pantalla && strcmp(unidad, "grad") == 0) {
+    unidad = "°";
+  } else if (strcmp(unidad, "km/h") == 0 || strcmp(unidad, "grad") == 0) {
+    separador = " ";
   }
-  snprintf(salida, tam, "%.*f%s%s", def.decimales, valor, strcmp(unidad, "km/h") == 0 ? " " : "",
-           unidad);
+  snprintf(salida, tam, "%s%s%s", numero, separador, unidad);
+}
+
+bool textoValor(Magnitud m, uint32_t ahora, char *salida, size_t tam) {
+  float valor;
+  const char *sinValor = textoSinValor(m, ahora, &valor);
+  if (sinValor != nullptr) {
+    strlcpy(salida, sinValor, tam);
+    return false;
+  }
+  textoNumero(m, valor, salida, tam);
+  return true;
 }
