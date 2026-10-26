@@ -9,8 +9,9 @@ static const char *const COMANDOS_AT[] = {
     "L1", "S0", "S1", "H0", "H1", "SP0", "SP6", "AT0", "AT1", "AT2",
 };
 
-// El más largo permitido tiene 6 ("ATSTxx"); lo que no entra se rechaza.
-static const size_t LARGO_MAXIMO = 8;
+// El más largo permitido: 01 con MAX_PIDS_POR_PEDIDO PIDs y la cantidad
+// de respuestas. Lo que no entra se rechaza.
+static const size_t LARGO_MAXIMO = 2 + 2 * MAX_PIDS_POR_PEDIDO + 1;
 
 static bool esHex(char c) {
   return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F');
@@ -62,12 +63,15 @@ static bool obdPermitido(const char *cmd) {
   if (largo == 2) {
     return strcmp(cmd, "03") == 0 || strcmp(cmd, "07") == 0 || strcmp(cmd, "0A") == 0;
   }
-  // 01PP y 09PP, con o sin cantidad de respuestas (1 dígito hex)
-  if (largo == 4 || largo == 5) {
-    bool modo = strncmp(cmd, "01", 2) == 0 || strncmp(cmd, "09", 2) == 0;
-    return modo && todosHex(cmd + 2);
+  // Con o sin cantidad de respuestas al final (1 dígito hex): 09PP, y 01
+  // con 1 a MAX_PIDS_POR_PEDIDO PIDs (010C, 010C0D050F)
+  if (largo < 4 || !todosHex(cmd + 2)) {
+    return false;
   }
-  return false;
+  if (strncmp(cmd, "09", 2) == 0) {
+    return largo <= 5;
+  }
+  return strncmp(cmd, "01", 2) == 0 && (largo - 2) / 2 <= MAX_PIDS_POR_PEDIDO;
 }
 
 bool comandoPermitido(const char *cmd) {

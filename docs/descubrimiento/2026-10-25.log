@@ -1,0 +1,492 @@
+<< "ATZ\rELM327 v2.1\r\n" OK 93 ms
+>> ATE0
+<< "ATE0\rOK\r\n" OK 45 ms
+>> ATL0
+<< "OK\r" OK 58 ms
+>> ATS0
+<< "OK\r" OK 88 ms
+>> ATH0
+<< "OK\r" OK 58 ms
+>> ATSP6
+<< "OK\r" OK 88 ms
+>> ATAT1
+<< "OK\r" OK 73 ms
+>> ATI
+<< "ELM327 v2.1\r" OK 73 ms
+== BUSCANDO_ECU
+>> 0100
+<< "4100BE1EA811\r\r" OK 145 ms
+   = DATOS
+>> 0120
+<< "412080001001\r\r" OK 134 ms
+>> 0140
+<< "414002000000\r\r" OK 149 ms
+ECU: 17 PIDs soportados
+>> ATDPN
+<< "6\r" OK 74 ms
+ECU: protocolo 6 (CAN 11b 500k)
+== LEYENDO
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo ... | Lambda ... | O2 post ... | 6 consultas/s, 135 ms cada una
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda 1.000 | O2 post 0.46V | 6 consultas/s, 145 ms cada una
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda 1.000 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo -- | Lambda 1.000 | O2 post 0.46V | 7 consultas/s, 137 ms cada una
+=== DESCUBRIR: inicio
+>> ATI
+<< "ELM327 v2.1\r" OK 72 ms
+   = "ELM327 v2.1"
+>> AT@1
+<< "OBDII to RS232 Interpreter\r" OK 57 ms
+   = "OBDII to RS232 Interpreter"
+>> ATRV
+<< "11.9V\r" OK 87 ms
+   = "11.9V"
+>> ATDPN
+<< "6\r" OK 58 ms
+   = "6"
+>> ATH1
+<< "OK\r" OK 88 ms
+   = "OK"
+>> 0100
+<< "7E8064100BE1EA811AA\r\r" OK 149 ms
+   = INVALIDA (con encabezados se analiza en crudo)
+>> ATH0
+<< "OK\r" OK 57 ms
+   = "OK"
+>> 0100
+<< "4100BE1EA811\r\r" OK 148 ms
+   = DATOS x1: BE 1E A8 11
+   soportados: 01 03 04 05 06 07 0C 0D 0E 0F 11 13 15 1C 20
+>> 0120
+<< "412080001001\r\r" OK 133 ms
+   = DATOS x1: 80 00 10 01
+   soportados: 21 34 40
+>> 0140
+<< "414002000000\r\r" OK 148 ms
+   = DATOS x1: 02 00 00 00
+   soportados: 47
+>> 0160
+<< "NO DATA\r" OK 132 ms
+   = NO_DATA
+>> ATDPN
+<< "6\r" OK 88 ms
+   = "6"
+>> 0101
+<< "410100076100\r\r" OK 148 ms
+   = DATOS x1: 00 07 61 00
+   luz de falla: NO, codigos guardados: 0
+>> 0103
+<< "41030000\r\r" OK 132 ms
+   = DATOS x1: 00 00
+   lazo: sistema 1 ?, sistema 2 no hay
+>> 0105
+<< "41053D\r\r" OK 148 ms
+   = DATOS x1: 3D
+   Refrig: 21.00 C
+>> 0106
+<< "410680\r\r" OK 147 ms
+   = DATOS x1: 80
+   Aj corto: 0.00 %
+>> 0107
+<< "410780\r\r" OK 148 ms
+   = DATOS x1: 80
+   Aj largo: 0.00 %
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+   = DATOS x1: 00 00
+   RPM: 0.00 rpm
+>> 010D
+<< "410D00\r\r" OK 147 ms
+   = DATOS x1: 00
+   Vel: 0.00 km/h
+>> 010F
+<< "410F3D\r\r" OK 148 ms
+   = DATOS x1: 3D
+   Admision: 21.00 C
+>> 0113
+<< "411303\r\r" OK 147 ms
+   = DATOS x1: 03
+   sondas: B1S1 B1S2
+>> 0114
+<< "NO DATA\r" OK 133 ms
+   = NO_DATA
+>> 0115
+<< "41155BFF\r\r" OK 163 ms
+   = DATOS x1: 5B FF
+   O2 B1S2: 0.46 V
+>> 0124
+<< "NO DATA\r" OK 132 ms
+   = NO_DATA
+>> 0134
+<< "413480008000\r\r" OK 163 ms
+   = DATOS x1: 80 00 80 00
+   Lam B1S1: 1.00 
+>> 0142
+<< "NO DATA\r" OK 132 ms
+   = NO_DATA
+>> 0144
+<< "NO DATA\r" OK 148 ms
+   = NO_DATA
+>> 03
+<< "4300\r\r" OK 163 ms
+   = DATOS x1: 00
+   codigos: 0
+>> 07
+<< "4700\r\r" OK 148 ms
+   = DATOS x1: 00
+   codigos: 0
+>> 0A
+<< "NO DATA\r" OK 133 ms
+   = NO_DATA
+>> 0900
+<< "490011000000\r\r" OK 163 ms
+   = DATOS x1: 11 00 00 00
+>> 010C
+<< "410C0000\r\r" OK 147 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+>> 010C
+<< "410C0000\r\r" OK 148 ms
+=== 010C: 20 de 20 con datos, promedio 147 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 163 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+>> 010C1
+<< "410C0000\r\r" OK 148 ms
+=== 010C1: 20 de 20 con datos, promedio 148 ms
+=== DESCUBRIR: fin en 10094 ms, 17 PIDs soportados en 01
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo -- | Lambda -- | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda 1.000 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 0 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda 1.000 | O2 post 0.46V | 6 consultas/s, 151 ms cada una
+| RPM 92 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 9.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo -- | Lambda 1.000 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 1312 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 9.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.995 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 1200 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.995 | O2 post -- | 6 consultas/s, 142 ms cada una
+| RPM 1118 | Refrig 21C | Vel 0 km/h | Admision 21C | Volt ELM 11.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo Abierto frio | Lambda 0.995 | O2 post 0.46V | 6 consultas/s, 145 ms cada una
+=== DESCUBRIR: inicio
+>> ATI
+<< "ELM327 v2.1\r" OK 68 ms
+   = "ELM327 v2.1"
+>> AT@1
+<< "OBDII to RS232 Interpreter\r" OK 77 ms
+   = "OBDII to RS232 Interpreter"
+>> ATRV
+<< "12.4V\r" OK 72 ms
+   = "12.4V"
+>> ATDPN
+<< "6\r" OK 73 ms
+   = "6"
+>> ATH1
+<< "OK\r" OK 58 ms
+   = "OK"
+>> 0100
+<< "7E8064100BE1EA811AA\r\r" OK 164 ms
+   = INVALIDA (con encabezados se analiza en crudo)
+>> ATH0
+<< "OK\r" OK 72 ms
+   = "OK"
+>> 0100
+<< "4100BE1EA811\r\r" OK 163 ms
+   = DATOS x1: BE 1E A8 11
+   soportados: 01 03 04 05 06 07 0C 0D 0E 0F 11 13 15 1C 20
+>> 0120
+<< "412080001001\r\r" OK 148 ms
+   = DATOS x1: 80 00 10 01
+   soportados: 21 34 40
+>> 0140
+<< "414002000000\r\r" OK 148 ms
+   = DATOS x1: 02 00 00 00
+   soportados: 47
+>> 0160
+<< "NO DATA\r" OK 132 ms
+   = NO_DATA
+>> ATDPN
+<< "6\r" OK 44 ms
+   = "6"
+>> 0101
+<< "410100076100\r\r" OK 132 ms
+   = DATOS x1: 00 07 61 00
+   luz de falla: NO, codigos guardados: 0
+>> 0103
+<< "41030100\r\r" OK 147 ms
+   = DATOS x1: 01 00
+   lazo: sistema 1 Abierto frio, sistema 2 no hay
+>> 0105
+<< "41053D\r\r" OK 148 ms
+   = DATOS x1: 3D
+   Refrig: 21.00 C
+>> 0106
+<< "410680\r\r" OK 132 ms
+   = DATOS x1: 80
+   Aj corto: 0.00 %
+>> 0107
+<< "410780\r\r" OK 163 ms
+   = DATOS x1: 80
+   Aj largo: 0.00 %
+>> 010C
+<< "410C1202\r\r" OK 133 ms
+   = DATOS x1: 12 02
+   RPM: 1152.50 rpm
+>> 010D
+<< "410D00\r\r" OK 162 ms
+   = DATOS x1: 00
+   Vel: 0.00 km/h
+>> 010F
+<< "410F3D\r\r" OK 148 ms
+   = DATOS x1: 3D
+   Admision: 21.00 C
+>> 0113
+<< "411303\r\r" OK 147 ms
+   = DATOS x1: 03
+   sondas: B1S1 B1S2
+>> 0114
+<< "NO DATA\r" OK 133 ms
+   = NO_DATA
+>> 0115
+<< "41155BFF\r\r" OK 163 ms
+   = DATOS x1: 5B FF
+   O2 B1S2: 0.46 V
+>> 0124
+<< "NO DATA\r" OK 132 ms
+   = NO_DATA
+>> 0134
+<< "41347F687FFB\r\r" OK 163 ms
+   = DATOS x1: 7F 68 7F FB
+   Lam B1S1: 1.00 
+>> 0142
+<< "NO DATA\r" OK 132 ms
+   = NO_DATA
+>> 0144
+<< "NO DATA\r" OK 148 ms
+   = NO_DATA
+>> 03
+<< "4300\r\r" OK 148 ms
+   = DATOS x1: 00
+   codigos: 0
+>> 07
+<< "4700\r\r" OK 148 ms
+   = DATOS x1: 00
+   codigos: 0
+>> 0A
+<< "NO DATA\r" OK 148 ms
+   = NO_DATA
+>> 0900
+<< "490011000000\r\r" OK 163 ms
+   = DATOS x1: 11 00 00 00
+>> 010C
+<< "410C120C\r\r" OK 132 ms
+>> 010C
+<< "410C11EE\r\r" OK 148 ms
+>> 010C
+<< "410C11EE\r\r" OK 148 ms
+>> 010C
+<< "410C119C\r\r" OK 148 ms
+>> 010C
+<< "410C125C\r\r" OK 148 ms
+>> 010C
+<< "410C11FE\r\r" OK 148 ms
+>> 010C
+<< "410C11FE\r\r" OK 148 ms
+>> 010C
+<< "410C121E\r\r" OK 148 ms
+>> 010C
+<< "410C11B6\r\r" OK 148 ms
+>> 010C
+<< "410C11C8\r\r" OK 148 ms
+>> 010C
+<< "410C11C8\r\r" OK 148 ms
+>> 010C
+<< "410C125C\r\r" OK 148 ms
+>> 010C
+<< "410C1230\r\r" OK 148 ms
+>> 010C
+<< "410C1248\r\r" OK 148 ms
+>> 010C
+<< "410C1248\r\r" OK 148 ms
+>> 010C
+<< "NO DATA\r" OK 148 ms
+>> 010C
+<< "410C1202\r\r" OK 148 ms
+>> 010C
+<< "410C1222\r\r" OK 148 ms
+>> 010C
+<< "410C1222\r\r" OK 148 ms
+>> 010C
+<< "410C122E\r\r" OK 148 ms
+=== 010C: 19 de 20 con datos, promedio 147 ms
+>> 010C1
+<< "410C121E\r\r" OK 148 ms
+>> 010C1
+<< "410C1244\r\r" OK 148 ms
+>> 010C1
+<< "410C1244\r\r" OK 148 ms
+>> 010C1
+<< "410C1240\r\r" OK 148 ms
+>> 010C1
+<< "410C1238\r\r" OK 148 ms
+>> 010C1
+<< "410C11F8\r\r" OK 148 ms
+>> 010C1
+<< "410C11F8\r\r" OK 148 ms
+>> 010C1
+<< "410C11BC\r\r" OK 148 ms
+>> 010C1
+<< "410C11CE\r\r" OK 148 ms
+>> 010C1
+<< "410C11FC\r\r" OK 148 ms
+>> 010C1
+<< "410C11FC\r\r" OK 148 ms
+>> 010C1
+<< "410C127E\r\r" OK 148 ms
+>> 010C1
+<< "410C1254\r\r" OK 148 ms
+>> 010C1
+<< "410C1250\r\r" OK 148 ms
+>> 010C1
+<< "410C1250\r\r" OK 148 ms
+>> 010C1
+<< "410C11DE\r\r" OK 148 ms
+>> 010C1
+<< "410C1272\r\r" OK 148 ms
+>> 010C1
+<< "410C1202\r\r" OK 148 ms
+>> 010C1
+<< "410C1202\r\r" OK 148 ms
+>> 010C1
+<< "NO DATA\r" OK 148 ms
+=== 010C1: 19 de 20 con datos, promedio 148 ms
+=== DESCUBRIR: fin en 10064 ms, 17 PIDs soportados en 01
+| RPM 1166 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo -- | Lambda 0.995 | O2 post 0.46V | 7 consultas/s, 140 ms cada una
+| RPM 1178 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.995 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 1146 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.995 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 1150 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Abierto frio | Lambda 0.995 | O2 post 0.46V | 7 consultas/s, 137 ms cada una
+| RPM 1100 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.995 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 1052 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda -- | O2 post 0.46V | 6 consultas/s, 143 ms cada una
+| RPM 1022 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -- | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.999 | O2 post 0.46V | 6 consultas/s, 146 ms cada una
+| RPM 949 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.999 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 982 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.999 | O2 post 0.46V | 7 consultas/s, 137 ms cada una
+| RPM 987 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda 0.999 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 950 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo -- | Lambda 0.999 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+ECU: 010D1 = NO_DATA en 134 ms (falla 1 de 5)
+ECU: 010F1 = NO_DATA en 177 ms (falla 2 de 5)
+ECU: 010C1 = NO_DATA en 119 ms (falla 3 de 5)
+ECU: 01051 = NO_DATA en 148 ms (falla 4 de 5)
+ECU: 010D1 = NO_DATA en 148 ms (falla 5 de 5)
+== SIN_ECU (Sin datos)
+== BUSCANDO_ECU
+>> 0100
+<< "4100BE1EA811\r\r" OK 133 ms
+   = DATOS
+>> 0120
+<< "412080001001\r\r" OK 164 ms
+>> 0140
+<< "414002000000\r\r" OK 134 ms
+ECU: 17 PIDs soportados
+>> ATDPN
+<< "6\r" OK 89 ms
+ECU: protocolo 6 (CAN 11b 500k)
+== LEYENDO
+| RPM 938 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo ... | Lambda ... | O2 post ... | 6 consultas/s, 137 ms cada una
+| RPM 996 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.061 | O2 post 0.46V | 6 consultas/s, 145 ms cada una
+| RPM 948 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.061 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 957 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo -- | Lazo -- | Lambda 1.061 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 957 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.042 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 916 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.042 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 970 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo -- | Lazo Cerrado | Lambda 1.042 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 1005 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.046 | O2 post -- | 6 consultas/s, 152 ms cada una
+| RPM 944 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.046 | O2 post 0.46V | 7 consultas/s, 128 ms cada una
+| RPM 922 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.046 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 894 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda -- | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 958 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.056 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 1577 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.056 | O2 post 0.46V | 6 consultas/s, 146 ms cada una
+| RPM 1154 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.056 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 988 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.059 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 926 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 3.1% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.059 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 887 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 3.1% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.059 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 982 | Refrig 23C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 3.1% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.088 | O2 post 0.46V | 6 consultas/s, 142 ms cada una
+| RPM 950 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.088 | O2 post 0.46V | 6 consultas/s, 153 ms cada una
+| RPM 986 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo -- | Lambda 1.088 | O2 post 0.46V | 7 consultas/s, 130 ms cada una
+| RPM 968 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 898 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 887 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo -- | Lambda 1.003 | O2 post 0.46V | 7 consultas/s, 125 ms cada una
+| RPM 924 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.003 | O2 post -- | 6 consultas/s, 148 ms cada una
+| RPM 951 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | 7 consultas/s, 132 ms cada una
+| RPM 962 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.003 | O2 post 0.46V | 6 consultas/s, 146 ms cada una
+| RPM 952 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 948 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | 7 consultas/s, 130 ms cada una
+| RPM 952 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda 0.997 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 955 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda -- | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 949 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -2.3% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | 8 consultas/s, 120 ms cada una
+| RPM 959 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -2.3% | Aj largo 0.0% | Lazo Cerrado | Lambda 1.000 | O2 post 0.46V | 7 consultas/s, 139 ms cada una
+| RPM 957 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -2.3% | Aj largo 0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | 7 consultas/s, 133 ms cada una
+| RPM 948 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -- | Aj largo 0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | 6 consultas/s, 144 ms cada una
+| RPM 954 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -2.3% | Aj largo 0.0% | Lazo Cerrado | Lambda 0.992 | O2 post 0.46V | 6 consultas/s, 148 ms cada una
+| RPM 953 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -2.3% | Aj largo 0.0% | Lazo Cerrado | Lambda -- | O2 post 0.46V | 7 consultas/s, 141 ms cada una
+| RPM 952 | Refrig 24C | Vel 0 km/h | Admision 21C | Volt ELM 13.7V | Volt ECU N/D | Aj corto -- | Aj largo 0.0% | Lazo Cerrado | Lambda 1.008 | O2 post 0.46V | 6 consultas/s, 148 ms cada una

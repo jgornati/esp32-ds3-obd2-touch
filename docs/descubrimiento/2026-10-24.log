@@ -1,0 +1,196 @@
+20:32:22.749-->  
+Monitor OBDII DS3
+BLE: iniciado con NimBLE, direccion propia 28:84:85:8d:66:3d
+Chip: ESP32-S3 rev 2, 2 nucleos, 240 MHz
+PSRAM: 8 MB (libres 7972 KB)
+Flash: 16 MB (configurada 16 MB, 80 MHz)
+RAM interna libre: 163 KB (bloque mayor 123 KB)
+Ultimo reinicio: encendido
+Pantalla: refresco completo 52 ms (envio al panel 32 ms), brillo 128
+Estado: CONECTANDO_BT; ELM -, protocolo -, 0 PIDs soportados
+Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, !info, !escanear o !explorar N.
+== CONECTANDO_BT
+BLE: conectando a la direccion guardada 81:23:45:67:89:ba
+20:32:23.025-->  BLE: conectado por direccion (669 ms)
+20:32:23.572-->  BLE: servicios y suscripcion en 539 ms
+BLE: listo en 1281 ms (MTU 248)
+== INICIANDO_ELM
+BLE: el adaptador pidio un intervalo de hasta 30.00 ms; se rechazo
+BLE: intervalo 15.00 ms, latencia 0, supervision 2000 ms
+>> ATZ
+20:32:23.678-->  << "ATZ\rELM327 v2.1\r\n" OK 94 ms
+BLE: el adaptador pidio un intervalo de hasta 25.00 ms; se rechazo
+>> ATE0
+20:32:23.715-->  << "ATE0\rOK\r\n" OK 45 ms
+>> ATL0
+20:32:23.789-->  << "OK\r" OK 63 ms
+>> ATS0
+20:32:23.844-->  << "OK\r" OK 59 ms
+>> ATH0
+20:32:23.931-->  << "OK\r" OK 88 ms
+>> ATSP6
+20:32:23.985-->  << "OK\r" OK 60 ms
+20:32:24.005-->  >> ATAT1
+20:32:24.074-->  << "OK\r" OK 87 ms
+20:32:24.093-->  >> ATI
+20:32:24.146-->  << "ELM327 v2.1\r" OK 58 ms
+== BUSCANDO_ECU
+>> 0100
+20:32:24.285-->  << "UNABLE TO CONNECT\r" OK 147 ms
+   = SIN_ECU
+== SIN_ECU (No responde)
+20:32:34.285-->  == BUSCANDO_ECU
+20:32:34.356-->  >> 0100
+20:32:34.512-->  << "4100BE1EA811\r\r" OK 147 ms
+   = DATOS
+>> 0120
+20:32:34.635-->  << "NO DATA\r" OK 134 ms
+ECU: no se pudo leer 0120 (NO_DATA)
+ECU: 14 PIDs soportados
+>> ATDPN
+20:32:34.724-->  << "6\r" OK 89 ms
+ECU: protocolo 6 (CAN 11b 500k)
+== LEYENDO
+20:32:35.777-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo ... | Lambda N/D | O2 post ... | 6 consultas/s
+20:32:36.921-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:37.970-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:39.075-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo -- | Lambda N/D | O2 post -- | 7 consultas/s
+20:32:40.123-->  |20:32:40.142-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:41.244-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:42.300-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:43.336-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:44.448-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:45.495-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:46.548-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:32:47.662-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:48.712-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:49.830-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado 20:32:49.851-->  | Lambda N/D | O2 post -- | 7 consultas/s
+20:32:50.875-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:51.997-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:53.024-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:54.090-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:55.138-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:56.234-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo -- | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:57.300-->  |20:32:57.318-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:32:58.420-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:32:59.458-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo -- | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:00.493-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:01.603-->  |20:33:01.622-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:02.652-->  |20:33:02.671-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:03.786-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:04.840-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:04.984-->  ECU: 010C1 = NO_DATA (falla 1 de 5)
+20:33:05.279-->  ECU: 010D1 = NO_DATA (falla 1 de 5)
+20:33:05.877-->  |20:33:05.895-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:06.990-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:08.039-->  |20:33:08.062-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:09.089-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:10.184-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 8 consultas/s
+20:33:11.254-->  |20:33:11.279-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 8 consultas/s
+20:33:12.269-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:13.292-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:33:14.337-->  |20:33:14.357-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:15.350-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:16.412-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 8 consultas/s
+20:33:17.442-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:18.438-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:19.468-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V |20:33:19.485-->   Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:20.632-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:21.657-->  |20:33:21.676-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:22.711-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:23.793-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:24.842-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:25.963-->  |20:33:25.981-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:27.033-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:28.079-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:29.160-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:30.212-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:31.268-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:32.278-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:33.337-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:34.460-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:35.477-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:36.491-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:37.573-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:38.638-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:33:39.765-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:40.815-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:41.869-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:33:42.973-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | La20:33:42.992-->  mbda N/D | O2 post 0.46V | 7 consultas/s
+20:33:44.025-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:45.080-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:33:46.212-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:47.263-->  |20:33:47.291-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:48.376-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 7 consultas/s
+20:33:49.421-->  |20:33:49.441-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:50.517-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:51.614-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 7 consultas/s
+20:33:52.676-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:53.812-->  |20:33:53.831-->   RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:54.866-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:33:55.916-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:33:57.018-->  | RPM 0 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:33:58.070-->  | RPM 218 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:33:59.216-->  | RPM 1343 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:00.262-->  | RPM 1234 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:01.303-->  | RPM 1101 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:02.415-->  | RPM 1132 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:03.463-->  | RPM 1120 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:04.481-->  | RPM 1166 | Refrig 21C |20:34:04.498-->   Vel 0 km/h | Admision 18C | Volt ELM 11.9V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:05.564-->  | RPM 1194 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:06.614-->  | RPM 1144 | Refrig 21C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:07.739-->  | RPM 1148 | Refrig 22C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post -- | 7 consultas/s
+20:34:08.904-->  | RPM 1158 | Refrig 22C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:09.940-->  | RPM 1151 | Refrig 22C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:11.065-->  | RPM 1166 | Refrig 22C | Vel 0 km/h | Admision 18C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:12.180-->  | RPM 1191 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.7V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:13.318-->  | RPM 1162 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:14.408-->  | RPM 1190 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:15.489-->  | RPM 1196 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:16.534-->  | RPM 1182 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:17.592-->  | RPM 1086 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:18.626-->  |20:34:18.645-->   RPM 1088 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:19.697-->  | RPM 986 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:20.739-->  | RPM 964 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:21.689-->  ECU: 01061 = NO_DATA (falla 1 de 5)
+20:34:21.846-->  ECU: 010F1 = NO_DATA (falla 2 de 5)
+| RPM 990 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -- | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:22.142-->  ECU: 01051 = NO_DATA (falla 1 de 5)
+20:34:22.452-->  ECU: 010F1 = NO_DATA (falla 1 de 5)
+20:34:22.602-->  ECU: 01071 = NO_DATA (falla 2 de 5)
+20:34:22.918-->  ECU: 01051 = NO_DATA (falla 1 de 5)
+| RPM 956 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:23.953-->  | RPM 928 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto -- | Aj largo -- | Lazo Abierto frio | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:25.088-->  | RPM 972 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo -- | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:26.134-->  | RPM 954 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Abierto frio | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:27.242-->  | RPM 972 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 7 consultas/s
+20:34:28.300-->  | RPM 956 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:29.344-->  | RPM 968 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:30.479-->  | RPM 991 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 7 consultas/s
+20:34:31.537-->  | RPM 962 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:32.585-->  | RPM 996 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:33.700-->  | RPM 963 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 7 consultas/s
+20:34:34.743-->  | RPM 968 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:35.934-->  | RPM 975 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:36.926-->  |20:34:36.943-->   RPM 925 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:37.987-->  | RPM 988 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:39.135-->  | RPM 976 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:40.173-->  | RPM 958 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:41.292-->  | RPM 974 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:42.330-->  | RPM 935 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:43.405-->  | RPM 980 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 1.6% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:44.515-->  |20:34:44.533-->   RPM 981 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 7 consultas/s
+20:34:45.569-->  | RPM 972 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:46.683-->  | RPM 972 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.8% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post -- | 7 consultas/s
+20:34:47.741-->  | RPM 950 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:48.784-->  | RPM 584 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.6V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Cerrado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:49.940-->  | RPM 0 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.0V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 6 consultas/s
+20:34:50.972-->  | RPM 0 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.0V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:52.017-->  | RPM 0 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.0V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post 0.46V | 6 consultas/s
+20:34:53.132-->  | RPM 0 | Refrig 23C | Vel 0 km/h | Admision 18C | Volt ELM 13.0V | Volt ECU N/D | Aj corto 0.0% | Aj largo 0.0% | Lazo Apagado | Lambda N/D | O2 post -- | 7 consultas/s
+20:34:53.287-->  ECU: 01151 = NO_DATA (falla 1 de 5)
+20:34:53.442-->  ECU: 01051 = NO_DATA (falla 2 de 5)
+20:34:53.579-->  ECU: 010D1 = NO_DATA (falla 3 de 5)
+20:34:53.733-->  ECU: 010F1 = NO_DATA (falla 4 de 5)
+20:34:53.889-->  ECU: 010C1 = NO_DATA (falla 5 de 5)
+== SIN_ECU (Sin datos)

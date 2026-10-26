@@ -87,10 +87,19 @@ static void test_obd_rechazados() {
   };
   rechazados(malFormados);
 
+  // Varios PIDs: solo en 01 y hasta 6 (estos tienen 7)
   const char *const variosPids[] = {
-      "010104", "01 01 04", "010C0D", "0101040", "0100000000",
+      "010C0D050F060703", "010C0D050F0607031", "090204", "0902041", "020C0D",
   };
   rechazados(variosPids);
+}
+
+static void test_varios_pids() {
+  const char *const casos[] = {
+      "010104",     "01 01 04", "010C0D",           "0101040",        "0100000000",
+      "010C0D050F", "010c0d1",  "01 0C 0D 05 0F 1", "010C0D050F0607", "010C0D050F06071",
+  };
+  aceptados(casos);
 }
 
 static void test_uds_rechazados() {
@@ -149,6 +158,7 @@ int main() {
   RUN_TEST(test_obd_permitidos);
   RUN_TEST(test_borrar_fallas);
   RUN_TEST(test_obd_rechazados);
+  RUN_TEST(test_varios_pids);
   RUN_TEST(test_uds_rechazados);
   RUN_TEST(test_vacios_y_control);
   RUN_TEST(test_largo);

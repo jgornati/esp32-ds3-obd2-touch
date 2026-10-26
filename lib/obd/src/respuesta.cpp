@@ -25,11 +25,12 @@ static const Error ERRORES[] = {
     {"LP ALERT", TipoRespuesta::AVISO_ELM},
 };
 
-// Lo que se pidió: modo y, para 01 y 09, el PID.
+// Lo que se pidió: modo y, para 01 y 09, los PIDs (varios solo en 01).
 struct Pedido {
   uint8_t modo;
   bool conPid;
-  uint8_t pid;
+  uint8_t pids[MAX_PIDS_POR_PEDIDO];
+  uint8_t cantidadPids;
 };
 
 static char mayuscula(char c) {
@@ -221,16 +222,30 @@ static bool leerPedido(const char *comando, Pedido &pedido) {
   if (!pedido.conPid) {
     return largo == 2;
   }
-  // 01PP o 01PPn: el dígito de cantidad no cambia la respuesta
-  if (largo < 4 || valorHex(comando[2]) < 0 || valorHex(comando[3]) < 0) {
+  // 01PP, 01PPn o varios PIDs (010C0D...): el dígito de cantidad no
+  // cambia la respuesta
+  size_t n = (largo - 2) / 2;
+  if (n == 0 || n > MAX_PIDS_POR_PEDIDO || (pedido.modo == 0x09 && n > 1)) {
     return false;
   }
-  pedido.pid = (uint8_t)(valorHex(comando[2]) << 4 | valorHex(comando[3]));
+  if ((largo - 2) % 2 == 1 && valorHex(comando[largo - 1]) < 0) {
+    return false;
+  }
+  for (size_t i = 0; i < n; i++) {
+    int alto = valorHex(comando[2 + 2 * i]);
+    int bajo = valorHex(comando[3 + 2 * i]);
+    if (alto < 0 || bajo < 0) {
+      return false;
+    }
+    pedido.pids[i] = (uint8_t)(alto << 4 | bajo);
+  }
+  pedido.cantidadPids = (uint8_t)n;
   return true;
 }
 
+// Con varios PIDs solo se saca el 41: cada PID queda delante de sus bytes.
 static size_t largoEncabezado(const Pedido &pedido) {
-  return pedido.conPid ? 2 : 1;
+  return pedido.conPid && pedido.cantidadPids == 1 ? 2 : 1;
 }
 
 static bool encabezadoValido(const uint8_t *bytes, size_t n, const Pedido &pedido) {
@@ -241,7 +256,16 @@ static bool encabezadoValido(const uint8_t *bytes, size_t n, const Pedido &pedid
   if (bytes[0] != 0x40 + pedido.modo) {
     return false;
   }
-  return !pedido.conPid || bytes[1] == pedido.pid;
+  if (!pedido.conPid) {
+    return true;
+  }
+  // Con varios, la ECU puede contestarlos en otro orden
+  for (uint8_t i = 0; i < pedido.cantidadPids; i++) {
+    if (n >= 2 && bytes[1] == pedido.pids[i]) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // Se queda con los datos de la primera respuesta válida y cuenta las demás.

@@ -21,7 +21,9 @@ constexpr size_t MAX_DATOS = 64;
 
 struct Respuesta {
   TipoRespuesta tipo;
-  uint8_t datos[MAX_DATOS]; // bytes de datos SIN el encabezado (41 0C, 43...)
+  // Bytes de datos SIN el encabezado (41 0C, 43...). Con varios PIDs
+  // (010C0D...), sin el 41: cada PID seguido de sus bytes (ver separarPids()).
+  uint8_t datos[MAX_DATOS];
   uint8_t largo;
   uint8_t respuestas; // respuestas válidas; más de 1 si contestaron varias ECUs
 };

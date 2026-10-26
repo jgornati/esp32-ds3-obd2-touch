@@ -318,6 +318,12 @@ void PantallaHw::atender() {
   }
 }
 
+void PantallaHw::dibujarYa() {
+  if (lista) {
+    lv_refr_now(display);
+  }
+}
+
 void PantallaHw::ponerBrillo(uint8_t nivel) {
   nivelBrillo = nivel;
   ledcWrite(PIN_RETROILUMINACION, RETROILUMINACION_INVERTIDA ? 255 - nivel : nivel);
