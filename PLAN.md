@@ -37,7 +37,7 @@ que corresponda antes de portar un módulo.
 | E11   | Alarmas                                | E9         | Pendiente |
 | E12   | Fuerza G                               | E10        | Pendiente |
 | E13   | Registro del viaje en la microSD       | E10        | Pendiente |
-| E14   | Reloj                                  | —          | Pendiente (necesita un cambio de hardware) |
+| E14   | Reloj                                  | —          | Pendiente (con la batería puesta) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -45,8 +45,8 @@ hardware), Verificada, Descartada.
 E1 y E2 tocan archivos distintos y se pueden hacer en paralelo. E5 y E6
 también. De E8 en adelante son pedidos del usuario del 2026-10-26, después
 de usarlo en el auto. E8 se descartó (ver la etapa): se sigue por E9. E10
-y E11 se pueden hacer en cualquier orden. E14 se decide aparte (ver la
-etapa).
+y E11 se pueden hacer en cualquier orden. E14 necesita la batería puesta
+(ver la etapa).
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -79,7 +79,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Protocolo              | `ATSP6` (CAN 11 bit 500 kbaud), confirmado en el DS3. Heredada.                                |
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
-| Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep y sin batería en la placa (confirmado en E7). |
+| Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep (confirmado en E7). El 2026-10-26 el usuario decidió ponerle una batería de 3,7 V, para que el RTC no pierda la hora (ver **Hardware de la placa**). La placa se sigue apagando con la llave: el firmware no activa `SYS_EN` |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
@@ -99,11 +99,11 @@ Según los ejemplos de Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-3.49`,
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) y el códec de audio. Un solo bus para todos |
 | TCA9554 (expansor)                     | Según el esquemático (E6): EXIO0 `TP_INT`, EXIO1 `BL_EN` (encendido de la luz, con resistencia a `VSYS`), EXIO2 y EXIO3 interrupciones del IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE`, EXIO6 `SYS_EN` (mantiene la alimentación desde la batería, ejemplo `07_BATT_PWR_Test`) y EXIO7 `NS_MODE` (el amplificador del parlante, ejemplo `08_Audio_Test`) |
-| RTC                                    | PCF85063 alimentado de los 3,3 V por un diodo (D2) con C15 de 1 µF: **sin pila ni supercapacitor**. Con el USB cortado por la llave pierde la hora en cada apagado (ver E14) |
+| RTC                                    | PCF85063 alimentado por dos diodos B5819WS: D3 desde `3V3` y otro desde `VBAT` (la batería), con C32 de 1 µF en su VDD (pata 10). **Con la batería puesta, sigue andando con la placa apagada**; sin batería, pierde la hora en cada apagado. (Corregido el 2026-10-26: las notas de E6 decían que solo tenía la entrada de 3,3 V) |
 | microSD                                | SPI: CS 38, MOSI 39, MISO 40, SCLK 41 |
 | Audio                                  | Códec ES8311 (salida al parlante) y ES7210 (micrófonos) por I2S: MCLK 7, SCLK 15, LRCK 46, salida 6, entrada 45; control por el I2C de la placa |
-| Batería                                | Su tensión se lee en GPIO4 (`BAT_ADC`). No se usa: va sin batería (E7) |
-| GPIO16                                 | El ejemplo 07 lo lee para saber si está prendida por batería. No usar. |
+| Batería                                | Una celda de 3,7 V en el conector J1 (MX1.25 de 2 pines; mirar la polaridad antes de enchufar). Protección DW01 + 8205 y cargador ETA6098, que la carga desde el USB. Sin el USB, alimenta a la placa solo con PWR apretado o con `SYS_EN` (EXIO6) en alto, por Q3; al RTC, siempre. Su tensión se lee en GPIO4 (`BAT_ADC`), por un divisor de 200 kΩ y 100 kΩ que gasta ~14 µA todo el tiempo. Ningún GPIO lee `VBUS` |
+| GPIO16                                 | `SYS_OUT`: el botón PWR (baja al apretarlo). El ejemplo 07 lo lee. No usar. |
 | Botones                                | BOOT (GPIO0), PWR y RESET, atrás                           |
 | Otros                                  | Conector de batería 3,7 V y 22 pines de expansión |
 
@@ -589,7 +589,9 @@ PC.
 - **El corte de luz.** El USB se corta con la llave, a veces mientras se
   escribe, y la tarjeta puede quedar dañada. *Propuesta:* escribir de a
   bloques cada pocos segundos, con `flush` después de cada uno, y aceptar
-  que se pierdan los últimos segundos del viaje.
+  que se pierdan los últimos segundos del viaje. La batería no se usa para
+  apagar con cuidado (decisión del usuario, 2026-10-26: complica el código;
+  si se corta, se corta).
 
 **Tareas:**
 
@@ -608,30 +610,26 @@ siga leyendo.
 
 **Objetivo:** la hora en la barra de arriba (y en el registro de E13).
 
-**El problema es de hardware:** el RTC (PCF85063, `0x51`) se alimenta de
-los 3,3 V de la placa por un diodo (D2) y solo tiene un capacitor de 1 µF
-(C15): no tiene pila ni supercapacitor. Como el USB se corta con la llave,
-pierde la hora cada vez que se apaga el auto.
+**Hace falta la batería.** El RTC (PCF85063, `0x51`) toma corriente de los
+3,3 V de la placa y de la batería, cada una por un diodo (ver **Hardware de
+la placa**). Sin batería, como el USB se corta con la llave, pierde la hora
+cada vez que se apaga el auto. Con la batería puesta (decisión del usuario,
+2026-10-26), sigue andando con la placa apagada: no hace falta soldar nada.
 
-**Antes de programar, decidir con el usuario:**
+Antes de empezar: con la batería puesta y la llave sacada, medir con un
+tester la tensión en C32, al lado del RTC (debería dar ~3,4–3,9 V). Si no
+da, la placa no es como el esquemático, y las opciones eran un
+supercapacitor o una pila en la pata 10 del RTC, o la hora por Wi-Fi con el
+celular.
 
-- **(a) Agregarle respaldo:** un supercapacitor (de 0,22 a 1 F, 5,5 V) o
-  una pila, en el VDD del RTC (pata 10, en paralelo con C15). D2 ya evita
-  que ese respaldo alimente al resto de la placa. Hay que soldar en la
-  placa. Con 0,47 F debería aguantar varios días.
-- **(b) Sin tocar la placa:** tomar la hora de internet por Wi-Fi (la
-  placa tiene Wi-Fi), con el hotspot del celular prendido cada vez que se
-  sube al auto.
-- **(c) No hacer el reloj.**
-
-**Tareas, si se hace:**
+**Tareas:**
 
 1. El PCF85063 en el I2C de la placa.
 2. Poner la hora con `!hora AAAA-MM-DD HH:MM` en la consola o desde la
    pantalla.
 3. Mostrarla en la barra. Si el RTC perdió la hora (el bit `OS` del
-   PCF85063 avisa que el oscilador se detuvo), no mostrar una hora falsa:
-   `--:--`.
+   PCF85063 avisa que el oscilador se detuvo, por ejemplo si se desconectó
+   la batería), no mostrar una hora falsa: `--:--`.
 
 **Verificación del usuario:** después de una noche con el auto apagado,
 la hora sigue bien.
@@ -694,6 +692,7 @@ De esta placa y el adaptador nuevo:
 | RAM interna y consultas por segundo con las páginas | Con el motor andando: RAM interna libre 128 KB (bloque mayor 87 KB; en E3, 157–158 KB) y 133 KB al arrancar, antes del BLE. Consultas por segundo: Motor 5–7 (RPM 5–6 por segundo), Aire/Volt y Carga 6–7, Mezcla 5–6 (140–168 ms). Refresco completo en Motor: 93 ms | E5    |
 | Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
+| RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
 
 ## Notas de traspaso
 
