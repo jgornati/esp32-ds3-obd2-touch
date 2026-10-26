@@ -28,12 +28,21 @@ constexpr uint8_t PIN_TOUCH_SDA = 17;
 constexpr uint8_t PIN_TOUCH_SCL = 18;
 constexpr uint8_t DIRECCION_TOUCH = 0x3B;
 
-// I2C de la placa. No se inicializa hasta que una etapa lo pida.
+// I2C de la placa. Lo inicia el sonido (E11); el RTC y el IMU, todavía no.
 constexpr uint8_t PIN_I2C_SDA = 47;
 constexpr uint8_t PIN_I2C_SCL = 48;
 constexpr uint8_t DIRECCION_RTC = 0x51;      // PCF85063
 constexpr uint8_t DIRECCION_IMU = 0x6B;      // QMI8658
 constexpr uint8_t DIRECCION_EXPANSOR = 0x20; // TCA9554; su pin 6 sostiene la batería
+constexpr uint8_t DIRECCION_CODEC = 0x18;    // ES8311, la salida al parlante
+
+// Audio (E11): el ES8311 por I2S, y el amplificador NS4150B, que se prende
+// con el pin 7 del TCA9554 (NS_MODE). Es igual en la V1 y la V2 de la placa.
+constexpr uint8_t PIN_I2S_MCLK = 7;
+constexpr uint8_t PIN_I2S_BCLK = 15;
+constexpr uint8_t PIN_I2S_WS = 46;
+constexpr uint8_t PIN_I2S_SALIDA = 45; // DSDIN del ES8311
+constexpr uint8_t PIN_EXPANSOR_AMPLIFICADOR = 7;
 
 // GPIO16 no se usa: el ejemplo 07 lo lee para saber si está prendida por batería.
 
@@ -105,6 +114,34 @@ constexpr uint32_t AVISO_MANTENER_MS = 500;
 constexpr float RPM_EN_MARCHA = 500;
 constexpr uint32_t ESPERA_VOLTAJE_VIAJE_MS = 5000;
 constexpr uint32_t MANTENER_VIAJE_MS = 3000;
+
+// Alarmas (E11). Cada una se prende con el valor en el umbral o más allá
+// durante el tiempo indicado, contado entre lecturas, y se apaga con el
+// valor en "normal" o más acá el mismo tiempo. Sin un valor actual se
+// apaga. El voltaje, solo con el motor en marcha desde hace
+// ESPERA_VOLTAJE_VIAJE_MS. Con varias, se alternan cada PERIODO_ALARMAS_MS.
+// ALARMAS_DE_PRUEBA pone umbrales que saltan manejando normal (motor tibio,
+// 13,6-14,1 V en marcha, 2000 rpm), para probarlas en el auto.
+constexpr bool ALARMAS_DE_PRUEBA = false;
+constexpr float REFRIGERANTE_ALARMA = ALARMAS_DE_PRUEBA ? 40 : 105; // °C
+constexpr float REFRIGERANTE_NORMAL = ALARMAS_DE_PRUEBA ? 37 : 102;
+constexpr uint32_t REFRIGERANTE_ALARMA_MS = 5000;
+constexpr float VOLTAJE_BAJO_ALARMA = ALARMAS_DE_PRUEBA ? 14.5f : 13.0f; // V
+constexpr float VOLTAJE_BAJO_NORMAL = ALARMAS_DE_PRUEBA ? 14.7f : 13.2f;
+constexpr float VOLTAJE_ALTO_ALARMA = ALARMAS_DE_PRUEBA ? 13.5f : 15.0f;
+constexpr float VOLTAJE_ALTO_NORMAL = ALARMAS_DE_PRUEBA ? 13.3f : 14.8f;
+constexpr uint32_t VOLTAJE_ALARMA_MS = 10000;
+// La zona roja de la barra de Motor
+constexpr float RPM_ALARMA = ALARMAS_DE_PRUEBA ? 2000 : 6000;
+constexpr float RPM_NORMAL = ALARMAS_DE_PRUEBA ? 1800 : 5800;
+constexpr uint32_t PERIODO_ALARMAS_MS = 3000;
+// Al prenderse cada alarma: PITIDOS_ALARMA pitidos de PITIDO_MS, separados
+// por SILENCIO_PITIDO_MS, a FRECUENCIA_PITIDO_HZ y VOLUMEN_PITIDO (de 0 a 1)
+constexpr uint8_t PITIDOS_ALARMA = 3;
+constexpr uint32_t PITIDO_MS = 150;
+constexpr uint32_t SILENCIO_PITIDO_MS = 100;
+constexpr uint32_t FRECUENCIA_PITIDO_HZ = 2500;
+constexpr float VOLUMEN_PITIDO = 0.5f;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se

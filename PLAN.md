@@ -34,7 +34,7 @@ que corresponda antes de portar un módulo.
 | E8    | Conexión al prender y apagar el auto   | E7         | Descartada |
 | E9    | Pantalla de espera con el DS3          | E7         | Verificada |
 | E10   | Viaje: máximos y recorrido             | E9         | Hecha (falta verificar en hardware) |
-| E11   | Alarmas                                | E9         | Pendiente |
+| E11   | Alarmas                                | E9         | Hecha (falta verificar en hardware) |
 | E12   | Fuerza G                               | E10        | Pendiente |
 | E13   | Registro del viaje en la microSD       | E10        | Pendiente |
 | E14   | Reloj                                  | —          | Pendiente (con la batería puesta) |
@@ -83,25 +83,29 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
-| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). |
+| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa, el audio y **solo el pin 7** del TCA9554; los demás pines del expansor no se tocan. |
 
 ## Hardware de la placa
 
 Según los ejemplos de Waveshare (`waveshareteam/ESP32-S3-Touch-LCD-3.49`,
 `Examples/Arduino/10_LVGL_V9_Test/user_config.h`). Se verifica en E0 y E1.
+Son los de la **V1**. La placa del usuario es la **3.49B V2** (`Rev1.1`, con
+caja, batería y parlante): lo que cambia en la V2 está en cada fila, según
+los ejemplos y el esquemático de `waveshareteam/ESP32-S3-Touch-LCD-3.49-V2`
+(visto en E11).
 
 | Parte                                  | Detalle                                                    |
 | -------------------------------------- | ---------------------------------------------------------- |
 | Chip                                   | ESP32-S3R8: 2 núcleos, 240 MHz, 8 MB de PSRAM (OPI), 16 MB de flash, Wi-Fi y BLE 5 |
 | Pantalla                               | IPS 3,49", 172×640, controlador AXS15231B por QSPI (`SPI3_HOST`) |
-| Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21                          |
-| Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`) |
+| Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21. **V2:** el GPIO21 es `LCD_TE` (una salida de la pantalla) y el reset es EXIO5 del TCA9554 |
+| Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`). **V2:** `LCD_BL` es el GPIO42, y el GPIO8 es `EXIO_INT` (la interrupción del TCA9554): por eso no cambiaba |
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) y el códec de audio. Un solo bus para todos |
-| TCA9554 (expansor)                     | Según el esquemático (E6): EXIO0 `TP_INT`, EXIO1 `BL_EN` (encendido de la luz, con resistencia a `VSYS`), EXIO2 y EXIO3 interrupciones del IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE`, EXIO6 `SYS_EN` (mantiene la alimentación desde la batería, ejemplo `07_BATT_PWR_Test`) y EXIO7 `NS_MODE` (el amplificador del parlante, ejemplo `08_Audio_Test`) |
+| TCA9554 (expansor)                     | Según el esquemático (E6): EXIO0 `TP_INT`, EXIO1 `BL_EN` (encendido de la luz, con resistencia a `VSYS`), EXIO2 y EXIO3 interrupciones del IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE` (**V2:** `LCD_RST`), EXIO6 `SYS_EN` (mantiene la alimentación desde la batería, ejemplo `07_BATT_PWR_Test`) y EXIO7 `NS_MODE` (el amplificador del parlante, ejemplo `08_Audio_Test`) |
 | RTC                                    | PCF85063 alimentado por dos diodos B5819WS: D3 desde `3V3` y otro desde `VBAT` (la batería), con C32 de 1 µF en su VDD (pata 10). **Con la batería puesta, sigue andando con la placa apagada**; sin batería, pierde la hora en cada apagado. (Corregido el 2026-10-26: las notas de E6 decían que solo tenía la entrada de 3,3 V) |
 | microSD                                | SPI: CS 38, MOSI 39, MISO 40, SCLK 41 |
-| Audio                                  | Códec ES8311 (salida al parlante) y ES7210 (micrófonos) por I2S: MCLK 7, SCLK 15, LRCK 46, salida 6, entrada 45; control por el I2C de la placa |
+| Audio                                  | Códec ES8311 (salida al parlante, `0x18`) y ES7210 (micrófonos) por I2S: MCLK 7, SCLK 15, LRCK 46; la placa manda el audio por el 45 (`DSDIN` del ES8311) y lo recibe por el 6 (corregido en E11: decía al revés); control por el I2C de la placa. Amplificador NS4150B, prendido con EXIO7 (`NS_MODE`) en alto. Igual en la V1 y la V2 |
 | Batería                                | Una celda de 3,7 V en el conector J1 (MX1.25 de 2 pines; mirar la polaridad antes de enchufar). Protección DW01 + 8205 y cargador ETA6098, que la carga desde el USB. Sin el USB, alimenta a la placa solo con PWR apretado o con `SYS_EN` (EXIO6) en alto, por Q3; al RTC, siempre. Su tensión se lee en GPIO4 (`BAT_ADC`), por un divisor de 200 kΩ y 100 kΩ que gasta ~14 µA todo el tiempo. Ningún GPIO lee `VBUS` |
 | GPIO16                                 | `SYS_OUT`: el botón PWR (baja al apretarlo). El ejemplo 07 lo lee. No usar. |
 | Botones                                | BOOT (GPIO0), PWR y RESET, atrás                           |
@@ -126,8 +130,9 @@ src/
   llanta.h/.cpp     gira las llantas, sin LVGL (E9)
   imagenes/         las imágenes de las animaciones, generadas (E9)
   boton.h/.cpp      botón BOOT: página siguiente (E4)
+  sonido.h/.cpp     el parlante: I2C de la placa, ES8311, I2S y el amplificador (E11)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10)
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10) y alarmas (E11)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -640,8 +645,9 @@ Fuera del plan; solo si el usuario las pide:
 
 - Oscurecer la imagen de noche, ya que la luz queda siempre al máximo
   (E6).
-- Revisar con un tester por qué el GPIO8 no regula la luz (los puntos a
-  medir están en las notas de E6).
+- **Pasar la pantalla a los pines de la V2** (visto en E11): la luz por el
+  GPIO42 (vuelve el brillo de E6), el GPIO21 como entrada (es `LCD_TE`) y el
+  reset por EXIO5 del TCA9554. Reemplaza a revisar el GPIO8 con un tester.
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
@@ -692,6 +698,7 @@ De esta placa y el adaptador nuevo:
 | RAM interna y consultas por segundo con las páginas | Con el motor andando: RAM interna libre 128 KB (bloque mayor 87 KB; en E3, 157–158 KB) y 133 KB al arrancar, antes del BLE. Consultas por segundo: Motor 5–7 (RPM 5–6 por segundo), Aire/Volt y Carga 6–7, Mezcla 5–6 (140–168 ms). Refresco completo en Motor: 93 ms | E5    |
 | Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
+| Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); el firmware sigue con los de la V1. Según los ejemplos y el esquemático de la V2, sin medir | E11   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
 
 ## Notas de traspaso
@@ -2431,6 +2438,181 @@ Para E13:
   mismo que se podría escribir en el CSV.
 
 ### E11
+
+Rama `e11-alarmas`, desde `main` con E10. **Maqueta** (agente, 2026-10-26),
+en el lienzo de E4 (https://claude.ai/artifact/41eQde6wkKUL81ZuDnHBGX),
+filas "Alarmas": A (la barra roja con la alarma y el valor, y el valor en
+rojo en su página) y B (un aviso grande que se acepta tocando), dos alarmas
+alternadas, la luz de falla en ámbar y la alarma sobre DS3.
+
+Elegido por el usuario (2026-10-26):
+
+- **Alarmas:** refrigerante alto (105 °C o más, se apaga en 102), voltaje de
+  carga con el motor en marcha (menos de 13,0 o más de 15,0 V durante más de
+  10 s) y RPM en zona roja (6000 o más). La luz de falla no.
+- **El diseño A:** la barra de arriba en rojo con la alarma y el valor, y el
+  valor en rojo en su página. Tocar sigue cambiando de página: no hay nada
+  que aceptar.
+- **Sonido: tres pitidos al aparecer** cada alarma, sin repetir.
+- **La placa es la V2** (`Rev1.1`). El agente había dicho que no traía
+  parlante, mirando la wiki de la 3.49 común: el usuario lo corrigió (la
+  3.49B, con caja, tiene parlante).
+
+**La V2 cambia pines** (descubierto al buscar el audio, 2026-10-26). Según
+los ejemplos de Waveshare para la V2
+(`waveshareteam/ESP32-S3-Touch-LCD-3.49-V2`, `user_config.h`) y su
+esquemático: la luz va por el **GPIO42** (`LCD_BL`), el GPIO8 pasa a ser
+`EXIO_INT` (la interrupción del TCA9554), el GPIO21 es `LCD_TE` (una salida
+de la pantalla) y el reset de la pantalla es **EXIO5** del TCA9554. El
+firmware usa los de la V1 (luz en GPIO8, reset en GPIO21): por eso en E6 el
+GPIO8 no cambiaba la luz y la demo de fábrica sí. No se toca en E11: queda
+para un arreglo aparte (ver **Datos descubiertos**). El audio es igual en las
+dos: ES8311 en `0x18` del I2C de la placa, I2S con MCLK 7, BCLK 15, WS 46,
+salida de la placa (`DSDIN` del ES8311) 45 y entrada 6, y el amplificador
+NS4150B prendido con EXIO7 (`NS_MODE`) en alto.
+
+Lo que se hizo:
+
+- **`lib/obd/alarmas`** (nuevo, sin Arduino):
+
+  ```cpp
+  struct ReglaAlarma { float umbral; float normal; bool porArriba;
+                       uint32_t paraPrender; uint32_t paraApagar; };
+  enum class CambioAlarma : uint8_t { NINGUNO, SE_PRENDIO, SE_APAGO };
+  class Alarma {
+    CambioAlarma revisar(bool hay, float valor, uint32_t momento);
+    bool activa() const;
+    float valor() const;
+  };
+  enum TipoAlarma : uint8_t { REFRIGERANTE_ALTO, VOLTAJE_BAJO, VOLTAJE_ALTO, RPM_ALTA, CANT_ALARMAS };
+  class Alarmas {
+    explicit Alarmas(const ReglaAlarma (&reglas)[CANT_ALARMAS]);
+    CambioAlarma revisar(TipoAlarma tipo, bool hay, float valor, uint32_t momento);
+    const Alarma &alarma(TipoAlarma tipo) const;
+    uint8_t activas() const;
+    bool aLaVista(uint32_t vuelta, TipoAlarma *tipo, uint8_t *numero) const;
+  };
+  void textoAlarma(TipoAlarma tipo, float valor, char *salida, size_t tam);
+  ```
+
+  - Se prende con el valor en el umbral o más allá y se apaga con el valor
+    en `normal` o más acá (la histéresis). El tiempo se cuenta con el
+    **momento de cada lectura**, no con el reloj: revisar la misma lectura
+    otra vez no cambia nada, un `NO DATA` suelto no la cambia (el valor
+    anterior sigue vigente) y un dato suelto tampoco (con `paraPrender` > 0
+    hacen falta dos lecturas). Sin un valor actual se apaga, y vuelve a
+    contar de cero: nunca queda un valor viejo a la vista.
+  - Con varias, `aLaVista()` da una por vuelta, en el orden de `TipoAlarma`.
+  - `textoAlarma()`: `REFRIGERANTE 106 °C`, `VOLTAJE BAJO 12.6 V`,
+    `VOLTAJE ALTO 15.4 V`, `ZONA ROJA 6250 RPM`.
+- **`Viaje::enMarchaDesdeHace(ahora, ms)`** (nuevo, público): la regla del
+  voltaje del viaje, que ahora usa también la alarma. Después de reiniciar
+  el viaje a mano vuelve a contar desde la RPM siguiente: la alarma de
+  voltaje se apaga y espera de nuevo 5 s.
+- **`config.h`:** los umbrales y tiempos (`REFRIGERANTE_ALARMA` 105 y
+  `_NORMAL` 102 con 5 s; `VOLTAJE_BAJO_ALARMA` 13,0 y `_NORMAL` 13,2,
+  `VOLTAJE_ALTO_ALARMA` 15,0 y `_NORMAL` 14,8, con 10 s; `RPM_ALARMA` 6000 y
+  `_NORMAL` 5800, al instante), `PERIODO_ALARMAS_MS` (3 s) y los pitidos
+  (3 de 150 ms cada 250 ms, a 2500 Hz y volumen 0,5). **`ALARMAS_DE_PRUEBA`**
+  (en `false`) cambia los umbrales por unos que saltan manejando normal:
+  refrigerante 40 °C, voltaje bajo 14,5 V y alto 13,5 V (los dos con
+  13,6–14,1 V de marcha), RPM 2000. Los pines del audio y `DIRECCION_CODEC`.
+- **`src/sonido`** (nuevo): `iniciar()`, `iniciado()` y `pitar(veces)`.
+  - El I2C de la placa en `I2C_NUM_0` (el del touch es el 1), a 300 kHz como
+    los ejemplos, con el ES8311 y el TCA9554.
+  - Como el ejemplo: primero el I2S (maestro, 16 kHz, 16 bits estéreo, MCLK
+    de 256 veces: 4,096 MHz, una combinación de la tabla del ES8311), que
+    queda mandando ceros (`auto_clear_after_cb`); después el ES8311, con la
+    secuencia del driver de Espressif (`esp_codec_dev`, Apache-2.0) para
+    reproducir, solo el DAC, como esclavo y a 0 dB; y al final el
+    amplificador.
+  - **Del TCA9554 se toca solo el pin 7**, leyendo y cambiando un bit:
+    primero la salida en alto y después como salida. Los demás quedan como
+    entradas: el 1 prende la luz (con resistencia a `VSYS`), el 6 sostendría
+    la placa con la batería y, en la V2, el 5 es el reset de la pantalla.
+  - Los pitidos los genera una tarea (`sonido`, núcleo 0, prioridad 2, 3 KB
+    de pila), con fase continua y una rampa de 5 ms al principio y al final
+    para que no hagan clic. `loop()` no espera.
+  - Si algo no contesta, `Sonido: no se pudo iniciar (...)` en el monitor y
+    sigue sin sonido.
+- **`pantalla`:** `pagina(..., alarma)`: con una alarma, la barra en `ROJO`
+  con `LV_SYMBOL_WARNING` (el triángulo, que trae Montserrat 20) y el texto
+  en blanco, en lugar del título; mantener apretada Viaje le gana.
+  `paginaCompleta(numero, total, alarma)`: en DS3 la barra se ve solo con
+  una alarma; por eso la barra pasó a estar arriba de todo
+  (`lv_obj_move_to_index(fondoBarra, -1)`). `ver()` decide si se ve la barra
+  de una vez, para no ocultarla y mostrarla en el mismo dibujo.
+- **`paginas`:** `AlarmaALaVista {texto, magnitudes}` y `dibujar(...,
+  alarma)`. Un valor actual de una magnitud con alarma va en `ROJO`:
+  refrigerante y RPM en Motor, voltaje en Aire/Volt.
+- **`main.cpp`:**
+  - `REGLAS_ALARMAS` y `Alarmas alarmas`, y `Sonido sonido`, que se inicia en
+    `setup()` después del botón.
+  - `revisarAlarmas()`, en cada vuelta de `loop()`: refrigerante, voltaje
+    (con `enMarchaDesdeHace(ahora, ESPERA_VOLTAJE_VIAJE_MS)`) y RPM, con
+    `valorActual()` y el momento de cada dato. Fuera de `LEYENDO` se apagan.
+    Al prenderse: `Alarma: REFRIGERANTE 106 °C` en el monitor y los pitidos;
+    al apagarse, `Alarma: termino (...)`.
+  - `alarmaALaVista()` arma el texto (con `  1/2` si hay varias, una cada
+    `PERIODO_ALARMAS_MS`) y las magnitudes en rojo.
+  - `!pitar` en la consola (nuevo): los pitidos de una alarma, para probar
+    el parlante. `!info` dice si el sonido anda, cuántas alarmas hay y si
+    los umbrales son de prueba.
+- Sin cambios en la lista blanca ni en lo que se le manda al auto: las
+  alarmas usan lo que ya se leía. La luz de falla no es alarma (el usuario
+  no la eligió).
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,7 %, flash 61,9 % de 3 MB; en E10, 10,2 % y
+  61,3 %). Con `-Wall -Wextra -Wshadow`, sin warnings propios.
+- `pio test -e native` 75/75: 7 nuevos en `test/test_alarmas/` (refrigerante
+  con un dato suelto, 5 s seguidos e histéresis; voltaje por abajo; RPM al
+  instante; sin valor; `millis()` que da la vuelta; varias alternadas; los
+  textos) y uno en `test_viaje` (`enMarchaDesdeHace()`).
+- **Render**, 101 revisiones, todas bien. Casos nuevos:
+  `w-alarma-refrigerante`, `x-alarma-zona-roja` (las RPM grandes en rojo),
+  `y-alarma-dos` (`VOLTAJE ALTO 15.4 V  1/2` en Aire/Volt),
+  `z-alarma-ds3` (la barra sobre la animación) y
+  `z-alarma-viaje-mantenida`. Revisa que la barra sea roja, que dibujar dos
+  veces no redibuje nada (también en DS3), que tocar la barra roja siga
+  cambiando de página, que sin alarma Motor quede como antes y DS3 sin la
+  barra, y que en Viaje mantener apretado le gane a la alarma.
+
+Sin probar (falta la placa): **todo el audio** (que el ES8311 conteste, que
+suene, el volumen, si hace ruido al prender o entre pitidos), la barra en la
+pantalla real y las alarmas en el auto.
+
+**Pruebas del usuario** (subir el firmware de esta rama):
+
+1. Al arrancar, en el monitor: `Sonido: listo` (si no, qué falló). La luz
+   y la pantalla, igual que antes (el expansor solo cambia el pin 7).
+2. `!pitar`: tres pitidos. ¿Se oyen bien en el auto? ¿Hace ruido al
+   prender la placa o entre pitidos? El volumen y el tono se cambian en
+   `config.h` (`VOLUMEN_PITIDO`, `FRECUENCIA_PITIDO_HZ`).
+3. Con `ALARMAS_DE_PRUEBA = true` en `config.h`, en el auto: a ~2000 rpm
+   sale `ZONA ROJA` (las RPM en rojo en Motor) y se va al bajar de 1800;
+   con el motor tibio, `REFRIGERANTE`; a los 15 s de arrancar, los dos
+   voltajes, alternando con `1/2`. Cada una con sus tres pitidos, y en el
+   monitor `Alarma: ...` y `Alarma: termino (...)`. Que tocar la barra roja
+   cambie de página. Al apagar el motor con el contacto puesto, las de
+   voltaje se van.
+4. Con `ALARMAS_DE_PRUEBA = false`, en un viaje normal no salta ninguna. Si
+   salta la de voltaje, mirar en VIAJE el mínimo y el máximo y ajustar.
+
+Para el arreglo de la V2 (o la etapa que toque la pantalla):
+
+- La luz va por el GPIO42 y el reset por EXIO5 del TCA9554. El firmware hoy
+  pone el GPIO21 como salida para el reset; en la V2 es `LCD_TE`, una salida
+  de la pantalla. Con TE apagado (no se manda `0x35`) parece no molestar,
+  pero conviene dejarlo como entrada. Ver **Ideas para después**.
+
+Para E12 y E14:
+
+- El I2C de la placa ya está iniciado (`Sonido::iniciar()`, `I2C_NUM_0`).
+  El IMU y el RTC tienen que usar el mismo bus
+  (`i2c_master_get_bus_handle(I2C_NUM_0, ...)`), no crear otro, y no tocar
+  los pines del TCA9554 que no son suyos.
 
 ### E12
 

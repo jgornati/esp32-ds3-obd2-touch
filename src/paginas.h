@@ -18,6 +18,13 @@ struct DatosInfo {
   int16_t rssi;                // dBm; 0: sin medir (siempre es negativo)
 };
 
+// La alarma que se ve en la barra (E11) y las magnitudes que van en rojo
+struct AlarmaALaVista {
+  const char *texto;   // "REFRIGERANTE 106 °C"; nullptr si no hay ninguna
+  uint16_t magnitudes; // un bit por Magnitud (1 << REFRIGERANTE)
+};
+static_assert(CANT_MAGNITUDES <= 16, "un bit por Magnitud en AlarmaALaVista");
+
 // Lo que se pide con los botones de Info y manteniendo apretada Viaje
 enum class Accion : uint8_t { NINGUNA, RECONECTAR, OLVIDAR, REINICIAR_VIAJE };
 
@@ -62,9 +69,10 @@ public:
   // MANTENER_VIAJE_MS apretada (ahora es la hora de millis()).
   Accion tomarAccion(uint32_t ahora);
   // fallas: la última lectura de la página Fallas. reintento: segundos
-  // hasta volver a leerla, que se muestran si falló y no hay códigos.
+  // hasta volver a leerla, que se muestran si falló y no hay códigos. alarma:
+  // va en la barra, en lugar del título, también en DS3.
   void dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-               uint32_t reintento, const Viaje &viaje);
+               uint32_t reintento, const Viaje &viaje, const AlarmaALaVista &alarma);
 
 private:
   Pantalla &pantalla;

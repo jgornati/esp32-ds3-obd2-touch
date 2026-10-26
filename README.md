@@ -124,6 +124,27 @@ pierde al sacarla: no se guarda.
   las demás. Reiniciar la placa desde la pantalla de espera también lo
   reinicia.
 
+### Alarmas
+
+En cualquier página, la barra de arriba se pone roja con un triángulo, la
+alarma y el valor (`REFRIGERANTE 106 °C`), y el valor va en rojo en su
+página. Al aparecer cada una suenan tres pitidos, sin repetir. Tocar sigue
+cambiando de página: no hay nada que aceptar, y la alarma se va sola.
+
+| Alarma                | Se prende                                   | Se apaga |
+| --------------------- | ------------------------------------------- | -------- |
+| `REFRIGERANTE`        | 105 °C o más, 5 s seguidos                  | 102 °C o menos, 5 s |
+| `VOLTAJE BAJO` / `ALTO` | Con el motor en marcha (desde 5 s después de arrancar): 13,0 V o menos, o 15,0 V o más, 10 s seguidos (falla de carga) | 13,2 V o más / 14,8 V o menos, 10 s |
+| `ZONA ROJA`           | 6000 rpm o más, al instante                 | 5800 rpm o menos |
+
+- Con varias a la vez, se alternan cada 3 s y la barra dice `1/2`.
+- Sin un valor actual (la ECU dejó de contestar, el motor se paró para el
+  voltaje) la alarma se apaga: nunca muestra un valor viejo.
+- En MEZCLA la RPM se lee cada ~2,5 s, así que la zona roja puede tardar.
+- Los umbrales están en `include/config.h`. Con `ALARMAS_DE_PRUEBA = true`
+  saltan manejando normal (40 °C, 2000 rpm y los voltajes de marcha), para
+  probarlas.
+
 ### Info
 
 - **Reconectar:** corta la conexión con el adaptador y vuelve a conectar.
@@ -145,6 +166,7 @@ borra las fallas, da `RECHAZADO`).
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
+| `!pitar`      | Los tres pitidos de una alarma, para probar el parlante |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
@@ -155,17 +177,20 @@ viaje.
 
 ## Hardware
 
-- Waveshare ESP32-S3-Touch-LCD-3.49: ESP32-S3R8 (8 MB de PSRAM, 16 MB de
-  flash), pantalla IPS de 172×640 con touch capacitivo (AXS15231B). Se usa
-  en horizontal, a 640×172.
+- Waveshare ESP32-S3-Touch-LCD-3.49B, V2 (la plaqueta dice `Rev1.1`):
+  ESP32-S3R8 (8 MB de PSRAM, 16 MB de flash), pantalla IPS de 172×640 con
+  touch capacitivo (AXS15231B), y parlante, con el códec ES8311 y el
+  amplificador NS4150B. Se usa en horizontal, a 640×172.
 - Adaptador OBD BLE: anuncia `OBDBLE` con el
   servicio `FFF0` y responde como `ELM327 v2.1`. Detalle en **Datos
   descubiertos** de `PLAN.md`.
 - Sin batería.
 
-La retroiluminación queda siempre al máximo: en esta placa no responde al
-pin de brillo (GPIO8), ni con el código de Waveshare. Ver las notas de E6
-en `PLAN.md`.
+La retroiluminación queda siempre al máximo. El firmware usa los pines de la
+V1 de la placa (la luz en el GPIO8 y el reset de la pantalla en el GPIO21);
+en la V2 la luz va por el GPIO42, y el reset, por el expansor TCA9554. Por
+eso el GPIO8 no cambiaba la luz (notas de E6 y E11 en `PLAN.md`). Arreglarlo
+está pendiente.
 
 ## Instalación en el auto
 
@@ -204,8 +229,8 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 ## Tests
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
-del ELM, PIDs, fallas y el viaje) tiene tests que corren en la PC, con
-respuestas reales del DS3 y del adaptador:
+del ELM, PIDs, fallas, el viaje y las alarmas) tiene tests que corren en la
+PC, con respuestas reales del DS3 y del adaptador:
 
 ```text
 ~/.platformio/penv/bin/pio test -e native

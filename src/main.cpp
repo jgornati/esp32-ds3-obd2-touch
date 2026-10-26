@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <alarmas.h>
 #include <comandos.h>
 #include <dtc.h>
 #include <esp_flash.h>
@@ -20,6 +21,7 @@
 #include "pantalla.h"
 #include "pantalla_hw.h"
 #include "sondeo.h"
+#include "sonido.h"
 
 // Máquina de estados de la conexión, portada del anterior. INICIO es setup().
 //
@@ -51,6 +53,16 @@ PidsSoportados soportados;
 Sondeo sondeo;
 // Desde que se puso el contacto: la placa arranca con la llave
 Viaje viaje({VIGENCIA_MS, RPM_EN_MARCHA, ESPERA_VOLTAJE_VIAJE_MS});
+// En el orden de TipoAlarma
+static const ReglaAlarma REGLAS_ALARMAS[CANT_ALARMAS] = {
+    {REFRIGERANTE_ALARMA, REFRIGERANTE_NORMAL, true, REFRIGERANTE_ALARMA_MS,
+     REFRIGERANTE_ALARMA_MS},
+    {VOLTAJE_BAJO_ALARMA, VOLTAJE_BAJO_NORMAL, false, VOLTAJE_ALARMA_MS, VOLTAJE_ALARMA_MS},
+    {VOLTAJE_ALTO_ALARMA, VOLTAJE_ALTO_NORMAL, true, VOLTAJE_ALARMA_MS, VOLTAJE_ALARMA_MS},
+    {RPM_ALARMA, RPM_NORMAL, true, 0, 0},
+};
+Alarmas alarmas(REGLAS_ALARMAS);
+Sonido sonido;
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -187,6 +199,45 @@ static void imprimirInfo() {
                 textoEstado(estado), direccion[0] != '\0' ? direccion : "-", elm.rssi(),
                 version[0] != '\0' ? version : "-", protocolo[0] != '\0' ? protocolo : "-",
                 soportados.cantidad());
+  Serial.printf("Sonido: %s; alarmas activas: %u%s\n", sonido.iniciado() ? "listo" : "no anda",
+                alarmas.activas(), ALARMAS_DE_PRUEBA ? " (umbrales de prueba)" : "");
+}
+
+// La magnitud de la página que va en rojo con cada alarma
+static Magnitud magnitudDe(TipoAlarma tipo) {
+  switch (tipo) {
+  case REFRIGERANTE_ALTO:
+    return REFRIGERANTE;
+  case RPM_ALTA:
+    return RPM;
+  default:
+    return VOLT_ELM;
+  }
+}
+
+// La de la barra: con varias, una distinta cada PERIODO_ALARMAS_MS, con
+// "1/2" detrás
+static AlarmaALaVista alarmaALaVista(uint32_t ahora) {
+  static char texto[40];
+  AlarmaALaVista vista = {nullptr, 0};
+  TipoAlarma tipo;
+  uint8_t numero;
+  if (!alarmas.aLaVista(ahora / PERIODO_ALARMAS_MS, &tipo, &numero)) {
+    return vista;
+  }
+  textoAlarma(tipo, alarmas.alarma(tipo).valor(), texto, sizeof(texto));
+  uint8_t activas = alarmas.activas();
+  if (activas > 1) {
+    size_t largo = strlen(texto);
+    snprintf(texto + largo, sizeof(texto) - largo, "  %u/%u", numero + 1, activas);
+  }
+  vista.texto = texto;
+  for (uint8_t i = 0; i < CANT_ALARMAS; i++) {
+    if (alarmas.alarma((TipoAlarma)i).activa()) {
+      vista.magnitudes |= 1 << magnitudDe((TipoAlarma)i);
+    }
+  }
+  return vista;
 }
 
 static bool yaEs(uint32_t momento) {
@@ -225,7 +276,7 @@ static void dibujar() {
   case Estado::LEYENDO:
     paginas.dibujar(
         ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion, rssi},
-        fallas, segundosHasta(proximaLecturaFallas), viaje);
+        fallas, segundosHasta(proximaLecturaFallas), viaje, alarmaALaVista(ahora));
     break;
   case Estado::SIN_ECU:
     if (ecuPerdida) {
@@ -976,6 +1027,39 @@ static void atenderReintento() {
   proximoIntento = millis();
 }
 
+static void revisarAlarma(TipoAlarma tipo, bool hay, float valor, uint32_t momento) {
+  CambioAlarma cambio = alarmas.revisar(tipo, hay, valor, momento);
+  if (cambio == CambioAlarma::NINGUNO) {
+    return;
+  }
+  char texto[32];
+  textoAlarma(tipo, alarmas.alarma(tipo).valor(), texto, sizeof(texto));
+  if (cambio == CambioAlarma::SE_PRENDIO) {
+    Serial.printf("Alarma: %s\n", texto);
+    sonido.pitar(PITIDOS_ALARMA);
+  } else {
+    Serial.printf("Alarma: termino (%s)\n", texto);
+  }
+}
+
+// Con los valores actuales de la ECU y del ELM, en cada vuelta. Fuera de
+// LEYENDO no hay valores: se apagan. Cada una cuenta el tiempo con el
+// momento de su lectura, así que revisar la misma lectura otra vez no cambia
+// nada. El voltaje, solo con el motor en marcha (la regla de VIAJE).
+static void revisarAlarmas() {
+  uint32_t ahora = millis();
+  bool leyendo = estado == Estado::LEYENDO && !descubriendo;
+  float valor = 0;
+  bool hay = leyendo && valorActual(REFRIGERANTE, ahora, &valor);
+  revisarAlarma(REFRIGERANTE_ALTO, hay, valor, dato(REFRIGERANTE).actualizadoMs);
+  hay = leyendo && valorActual(VOLT_ELM, ahora, &valor) &&
+        viaje.enMarchaDesdeHace(ahora, ESPERA_VOLTAJE_VIAJE_MS);
+  revisarAlarma(VOLTAJE_BAJO, hay, valor, dato(VOLT_ELM).actualizadoMs);
+  revisarAlarma(VOLTAJE_ALTO, hay, valor, dato(VOLT_ELM).actualizadoMs);
+  hay = leyendo && valorActual(RPM, ahora, &valor);
+  revisarAlarma(RPM_ALTA, hay, valor, dato(RPM).actualizadoMs);
+}
+
 // Mantener apretada la espera, por si la placa quedó trabada. Corre en un
 // evento de LVGL, que puede ser de la otra tarea si loop() está bloqueado.
 static void reiniciarPlaca() {
@@ -1040,6 +1124,7 @@ void setup() {
   }
 
   boton.iniciar();
+  sonido.iniciar();
   elm.iniciar();
   elm.mientrasEspera(alEsperar);
   consola.antesDeExplorar(alExplorar);
@@ -1047,7 +1132,7 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !escanear o !explorar N.");
+                 "!info, !pitar, !escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
@@ -1062,6 +1147,10 @@ void loop() {
   }
   if (consola.infoPedida()) {
     imprimirInfo();
+  }
+  if (consola.pitidoPedido()) {
+    Serial.println(sonido.iniciado() ? "Consola: pitando" : "Consola: el sonido no anda");
+    sonido.pitar(PITIDOS_ALARMA);
   }
 
   bool usaBt = estado != Estado::CONECTANDO_BT && estado != Estado::BT_PERDIDO;
@@ -1090,6 +1179,7 @@ void loop() {
     esperarReconexion();
     break;
   }
+  revisarAlarmas();
 
   if (millis() - ultimoDibujo >= PERIODO_PANTALLA_MS) {
     dibujar();

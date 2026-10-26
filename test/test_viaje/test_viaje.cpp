@@ -181,6 +181,27 @@ static void test_reiniciar() {
   TEST_ASSERT_FALSE(viaje.voltajeMaximo().hay);
 }
 
+static void test_en_marcha_desde_hace() {
+  // Lo que usa la alarma de voltaje (E11)
+  Viaje viaje(REGLAS);
+  TEST_ASSERT_FALSE(viaje.enMarchaDesdeHace(1000, 0));
+  viaje.rpm(0, 1000);
+  TEST_ASSERT_FALSE(viaje.enMarchaDesdeHace(1000, 0));
+  viaje.rpm(950, 2000);
+  TEST_ASSERT_TRUE(viaje.enMarchaDesdeHace(2000, 0));
+  TEST_ASSERT_FALSE(viaje.enMarchaDesdeHace(2000, 5000));
+  viaje.rpm(950, 4000);
+  viaje.rpm(950, 7000);
+  TEST_ASSERT_FALSE(viaje.enMarchaDesdeHace(6999, 5000));
+  TEST_ASSERT_TRUE(viaje.enMarchaDesdeHace(7000, 5000));
+  // Sin una RPM reciente, no
+  TEST_ASSERT_TRUE(viaje.enMarchaDesdeHace(10000, 5000));
+  TEST_ASSERT_FALSE(viaje.enMarchaDesdeHace(10001, 5000));
+  // Se para el motor: no
+  viaje.rpm(0, 8000);
+  TEST_ASSERT_FALSE(viaje.enMarchaDesdeHace(8000, 0));
+}
+
 static void test_millis_da_la_vuelta() {
   // millis() vuelve a 0 a los ~49 días
   Viaje viaje(REGLAS);
@@ -232,6 +253,7 @@ int main() {
   RUN_TEST(test_voltaje);
   RUN_TEST(test_maximos);
   RUN_TEST(test_reiniciar);
+  RUN_TEST(test_en_marcha_desde_hace);
   RUN_TEST(test_millis_da_la_vuelta);
   RUN_TEST(test_textos);
   return UNITY_END();

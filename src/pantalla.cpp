@@ -28,6 +28,7 @@ static const int ALTO_REINICIO = 5;
 static lv_obj_t *fondoBarra = nullptr;
 static lv_obj_t *rellenoBarra = nullptr; // mantener apretado
 static lv_obj_t *titulo = nullptr;
+static char textoAlarma[48]; // el triángulo y la alarma
 static lv_obj_t *puntos[MAX_PAGINAS];
 // Pantallas de estado: RENGLONES líneas de texto
 static lv_obj_t *vistaEstado = nullptr;
@@ -48,19 +49,27 @@ static bool reintento = false;
 static void (*alMantener)() = nullptr;
 
 // Muestra una vista y oculta las demás. La barra va con las de estado y
-// las páginas comunes.
-static void ver(lv_obj_t *vista) {
+// las páginas comunes, y en la completa solo con conBarra (una alarma).
+static void ver(lv_obj_t *vista, bool conBarra = false) {
   lv_obj_t *const vistas[] = {vistaEstado, vistaPaginas, vistaCompleta, vistaEspera};
   for (lv_obj_t *v : vistas) {
     mostrar(v, v == vista);
   }
-  mostrar(fondoBarra, vista == vistaEstado || vista == vistaPaginas);
+  mostrar(fondoBarra, vista == vistaEstado || vista == vistaPaginas || conBarra);
 }
 
 // Con total > 0, un punto por página pegado al margen derecho, numero en
 // blanco. Con mantenida > 0, el relleno rojo hasta esa fracción del ancho.
+// Si no, con una alarma, la barra en rojo con la alarma en lugar del texto.
 static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8_t total = 0,
-                  float mantenida = 0) {
+                  float mantenida = 0, const char *alarma = nullptr) {
+  bool conAlarma = alarma != nullptr && mantenida <= 0;
+  if (conAlarma) {
+    snprintf(textoAlarma, sizeof(textoAlarma), LV_SYMBOL_WARNING " %s", alarma);
+    texto = textoAlarma;
+    color = BLANCO;
+  }
+  ponerFondo(fondoBarra, conAlarma ? ROJO : FONDO_BARRA);
   ponerTexto(titulo, texto);
   ponerColor(titulo, color);
   int32_t lleno = lroundf(ANCHO * fminf(1, mantenida));
@@ -187,6 +196,8 @@ void Pantalla::iniciar() {
   vistaPaginas = caja(raiz, 0, ALTO_BARRA, ANCHO, ALTO - ALTO_BARRA);
   vistaCompleta = caja(raiz, 0, 0, ANCHO, ALTO);
   armarEspera(raiz);
+  // Arriba de todo: con una alarma, también sobre la página completa
+  lv_obj_move_to_index(fondoBarra, -1);
   lista = true;
   ver(vistaEspera);
 }
@@ -229,12 +240,13 @@ void Pantalla::descubriendo(uint16_t hechos, uint16_t total) {
   armarEstado("DESCUBRIENDO", CIAN, lineas);
 }
 
-void Pantalla::pagina(const char *texto, uint8_t numero, uint8_t total, float mantenida) {
+void Pantalla::pagina(const char *texto, uint8_t numero, uint8_t total, float mantenida,
+                      const char *alarma) {
   if (!lista) {
     return;
   }
   barra(texto, mantenida > 0 ? ROJO_CLARO : BLANCO, numero,
-        total < MAX_PAGINAS ? total : MAX_PAGINAS, mantenida);
+        total < MAX_PAGINAS ? total : MAX_PAGINAS, mantenida, alarma);
   ver(vistaPaginas);
 }
 
@@ -242,10 +254,14 @@ lv_obj_t *Pantalla::areaPaginas() const {
   return vistaPaginas;
 }
 
-void Pantalla::paginaCompleta() {
-  if (lista) {
-    ver(vistaCompleta);
+void Pantalla::paginaCompleta(uint8_t numero, uint8_t total, const char *alarma) {
+  if (!lista) {
+    return;
   }
+  if (alarma != nullptr) {
+    barra("", BLANCO, numero, total < MAX_PAGINAS ? total : MAX_PAGINAS, 0, alarma);
+  }
+  ver(vistaCompleta, alarma != nullptr);
 }
 
 lv_obj_t *Pantalla::areaCompleta() const {

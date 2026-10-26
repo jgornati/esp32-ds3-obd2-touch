@@ -53,13 +53,17 @@ void Viaje::refrigerante(float grados) {
 }
 
 void Viaje::voltaje(float volts, uint32_t ahora) {
-  bool enMarcha =
-      hayRpm && ultimaRpm >= reglas.rpmEnMarcha && ahora - momentoRpm <= reglas.huecoMaximoMs;
-  if (!enMarcha || ahora - enMarchaDesde < reglas.esperaVoltajeMs) {
+  if (!enMarchaDesdeHace(ahora, reglas.esperaVoltajeMs)) {
     return;
   }
   bajar(minVoltaje, volts);
   subir(maxVoltaje, volts);
+}
+
+bool Viaje::enMarchaDesdeHace(uint32_t ahora, uint32_t ms) const {
+  bool enMarcha =
+      hayRpm && ultimaRpm >= reglas.rpmEnMarcha && ahora - momentoRpm <= reglas.huecoMaximoMs;
+  return enMarcha && ahora - enMarchaDesde >= ms;
 }
 
 double Viaje::distanciaKm() const {

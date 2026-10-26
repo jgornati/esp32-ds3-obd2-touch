@@ -39,13 +39,17 @@ public:
   // 0 a total - 1, en blanco), y debajo el área de las páginas. mantenida,
   // de 0 a 1, es lo que lleva la página apretada para borrar algo: con más
   // de 0, la barra se llena de rojo hasta ahí y el título va en rojo claro.
-  void pagina(const char *titulo, uint8_t numero, uint8_t total, float mantenida = 0);
+  // alarma (E11), si no es nullptr: la barra en rojo con un triángulo y ese
+  // texto en lugar del título, salvo mientras se mantiene apretada.
+  void pagina(const char *titulo, uint8_t numero, uint8_t total, float mantenida = 0,
+              const char *alarma = nullptr);
   // Donde Paginas arma las suyas: 640x144, debajo de la barra. Se ve solo
   // después de pagina(). nullptr sin pantalla.
   lv_obj_t *areaPaginas() const;
   // Una página de 640x172, sin la barra (DS3). Se ve solo después de
-  // paginaCompleta(). nullptr sin pantalla.
-  void paginaCompleta();
+  // paginaCompleta(). nullptr sin pantalla. Con una alarma, la barra va
+  // arriba de la página, como en las demás.
+  void paginaCompleta(uint8_t numero, uint8_t total, const char *alarma = nullptr);
   lv_obj_t *areaCompleta() const;
 
 private:

@@ -150,14 +150,15 @@ static bool entraEnNumeros(const char *texto) {
   return strspn(texto, " %+,-./0123456789:") == strlen(texto);
 }
 
-static void ponerValor(Valor &v, const char *texto, bool actual) {
+// Un valor actual va en blanco, o en rojo si tiene una alarma
+static void ponerValor(Valor &v, const char *texto, bool actual, bool enAlarma = false) {
   const lv_font_t *fuente = v.fuente;
   if (fuente == &fuente_numeros_110 && !entraEnNumeros(texto)) {
     fuente = &lv_font_montserrat_48;
   }
   ponerFuente(v.numero, fuente);
   ponerTexto(v.numero, texto);
-  ponerColor(v.numero, actual ? BLANCO : GRIS);
+  ponerColor(v.numero, !actual ? GRIS : (enAlarma ? ROJO : BLANCO));
 
   int32_t ancho = lv_text_get_width(texto, strlen(texto), fuente, 0);
   bool conUnidad = v.unidad != nullptr && actual;
@@ -176,12 +177,15 @@ static void ponerUnidad(Valor &v, const char *unidad) {
   v.anchoUnidad = lv_text_get_width(unidad, strlen(unidad), NORMAL, 0);
 }
 
+// Las magnitudes con una alarma, un bit por cada una: van en rojo
+static uint16_t enAlarma = 0;
+
 // El texto de la magnitud según las convenciones de pantalla. true si es un
 // valor actual, y entonces queda en valor.
 static bool ponerMagnitud(Valor &v, Magnitud m, uint32_t ahora, float *valor = nullptr) {
   char texto[16];
   bool actual = textoValor(m, ahora, texto, sizeof(texto));
-  ponerValor(v, texto, actual);
+  ponerValor(v, texto, actual, (enAlarma >> m) & 1);
   float leido;
   return actual && valorActual(m, ahora, valor != nullptr ? valor : &leido);
 }
@@ -920,10 +924,11 @@ Accion Paginas::tomarAccion(uint32_t ahora) {
 }
 
 void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-                      uint32_t reintento, const Viaje &viaje) {
+                      uint32_t reintento, const Viaje &viaje, const AlarmaALaVista &alarma) {
   if (!armadas) {
     return;
   }
+  enAlarma = alarma.magnitudes;
   for (uint8_t i = 0; i < CANT_PAGINAS; i++) {
     mostrar(vistas[i], i == actual);
   }
@@ -957,8 +962,8 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
     break;
   case PAGINA_DS3:
     // Se mueve sola, con alAnimarPaseo
-    pantalla.paginaCompleta();
+    pantalla.paginaCompleta(actual, CANT_PAGINAS, alarma.texto);
     return;
   }
-  pantalla.pagina(titulo, actual, CANT_PAGINAS, apretada);
+  pantalla.pagina(titulo, actual, CANT_PAGINAS, apretada, alarma.texto);
 }
