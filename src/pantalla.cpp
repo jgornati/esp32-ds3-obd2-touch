@@ -149,13 +149,16 @@ void Pantalla::conectando(bool buscando) {
   hw.dibujarYa();
 }
 
-void Pantalla::sinConexion(const char *motivo, uint32_t segundos) {
+void Pantalla::sinAdaptador(uint32_t segundos) {
   if (!lista) {
     return;
   }
-  char reintento[24];
-  textoReintento(segundos, reintento, sizeof(reintento));
-  armarEstado("SIN CONEXION", ROJO, {{motivo, "", true}, VACIA, VACIA, {reintento, "", true}});
+  char abajo[24] = "Buscando...";
+  if (segundos > 0) {
+    textoReintento(segundos, abajo, sizeof(abajo));
+  }
+  armarEstado("SIN ADAPTADOR", ETIQUETA,
+              {{"Se prende con el contacto", "", true}, VACIA, VACIA, {abajo, "", true}});
 }
 
 void Pantalla::iniciandoElm(const char *comando) {

@@ -4,8 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include <respuesta.h>
-
 #include "config.h"
 #include "dibujo.h"
 
@@ -62,9 +60,12 @@ static const float LAMBDA_RICA = 0.8f;
 static const float LAMBDA_POBRE = 1.2f;
 static const float LAMBDA_TOLERANCIA = 0.03f;
 
-static const lv_color_t ZONA_ROJA = lv_color_hex(0x5A1A17);
-static const lv_color_t FONDO_RICA = lv_color_hex(0x3D2A00);
-static const lv_color_t FONDO_POBRE = lv_color_hex(0x0E3238);
+// Fondos: la zona roja de las RPM, las mitades rica y pobre de lambda y los
+// botones de Info apretados
+static const lv_color_t ROJO_OSCURO = lv_color_hex(0x5A1A17);
+static const lv_color_t AMBAR_OSCURO = lv_color_hex(0x3D2A00);
+static const lv_color_t CIAN_OSCURO = lv_color_hex(0x0E3238);
+static const lv_color_t ROJO_CLARO = lv_color_hex(0xFF6B60); // el texto de Olvidar
 
 // Medidas de la maqueta de E4, en el área de 640x144 debajo de la barra.
 // Las y de los textos son de la base de las letras: así quedan alineados
@@ -227,9 +228,9 @@ static void armarMotor(lv_obj_t *v) {
   // Zona roja debajo del relleno, con el extremo derecho redondeado como el fondo
   int32_t zona = lroundf(ANCHO_BARRA_ANCHA * RPM_ZONA_ROJA / RPM_MAXIMA);
   rectangulo(v, MARGEN + zona, Y_BARRA_ANCHA, ANCHO_BARRA_ANCHA - zona - ALTO_BARRA_ANCHA / 2,
-             ALTO_BARRA_ANCHA, ZONA_ROJA);
+             ALTO_BARRA_ANCHA, ROJO_OSCURO);
   rectangulo(v, BORDE_DERECHO - ALTO_BARRA_ANCHA, Y_BARRA_ANCHA, ALTO_BARRA_ANCHA, ALTO_BARRA_ANCHA,
-             ZONA_ROJA, ALTO_BARRA_ANCHA / 2);
+             ROJO_OSCURO, ALTO_BARRA_ANCHA / 2);
   lv_obj_move_to_index(barraRpm.relleno, -1);
 
   for (int miles = 1; miles * 1000 < RPM_MAXIMA; miles++) {
@@ -350,10 +351,10 @@ static void armarMezcla(lv_obj_t *v) {
   lambda = crearValor(v, &lv_font_montserrat_28, BORDE_DERECHO, 29, true);
   // Mitad rica y mitad pobre, redondeadas solo en los extremos
   int32_t medio = X_DERECHA + ANCHO_DERECHA / 2;
-  rectangulo(v, X_DERECHA, 42, 14, 14, FONDO_RICA, 7);
-  rectangulo(v, X_DERECHA + 7, 42, medio - X_DERECHA - 7, 14, FONDO_RICA);
-  rectangulo(v, medio, 42, BORDE_DERECHO - 7 - medio, 14, FONDO_POBRE);
-  rectangulo(v, BORDE_DERECHO - 14, 42, 14, 14, FONDO_POBRE, 7);
+  rectangulo(v, X_DERECHA, 42, 14, 14, AMBAR_OSCURO, 7);
+  rectangulo(v, X_DERECHA + 7, 42, medio - X_DERECHA - 7, 14, AMBAR_OSCURO);
+  rectangulo(v, medio, 42, BORDE_DERECHO - 7 - medio, 14, CIAN_OSCURO);
+  rectangulo(v, BORDE_DERECHO - 14, 42, 14, 14, CIAN_OSCURO, 7);
   rectangulo(v, medio - 1, 38, 2, 22, ETIQUETA);
   marcaLambda = rectangulo(v, medio - 4, 36, 8, 26, VERDE, 3);
   lv_obj_add_flag(marcaLambda, LV_OBJ_FLAG_HIDDEN);
@@ -560,35 +561,115 @@ static const char *dibujarFallas(uint32_t ahora, const LecturaFallas &lectura, u
   return tituloFallas;
 }
 
-// Info: lo que ya se sabe de la conexión. RSSI y las acciones son de E6.
+// Info: a la izquierda lo que se sabe del adaptador y la ECU; a la derecha
+// Reconectar y Olvidar adaptador, como en la maqueta. Los botones se quedan
+// con su toque: no llega a la raíz y no cambia la página.
 
-static const char *const NOMBRES_INFO[] = {"Adaptador", "ELM", "Protocolo", "Lectura"};
+static const char *const NOMBRES_INFO[] = {"Adaptador", "Direccion", "ELM", "Lectura"};
 static const uint8_t RENGLONES_INFO = sizeof(NOMBRES_INFO) / sizeof(NOMBRES_INFO[0]);
-static lv_obj_t *datosInfo[RENGLONES_INFO];
+static const int32_t ALTO_RENGLON_INFO = 36;
+static const int32_t X_VALOR_INFO = 132;
+static const int32_t X_BOTONES = 424;
+static const int32_t ANCHO_BOTONES = BORDE_DERECHO - X_BOTONES;
+static const int32_t ALTO_BOTONES = 56;
+static const int32_t Y_RECONECTAR = 10;
+static const int32_t Y_OLVIDAR = Y_RECONECTAR + ALTO_BOTONES + 12;
+static const int32_t BORDE_BOTON = 2;
+static const int32_t RADIO_BOTON = 8;
 
-static void armarInfo(lv_obj_t *v) {
-  // Renglones de 36 px
-  for (uint8_t i = 0; i < RENGLONES_INFO; i++) {
-    int32_t base = 25 + 36 * i;
-    fijo(v, NOMBRES_INFO[i], NORMAL, ETIQUETA, MARGEN, base);
-    datosInfo[i] = etiqueta(v, NORMAL, BLANCO);
-    lv_obj_set_pos(datosInfo[i], 132, yDeBase(NORMAL, base));
+static lv_obj_t *datosInfo[RENGLONES_INFO];
+static lv_obj_t *rellenoOlvidar = nullptr;
+static Accion accion = Accion::NINGUNA;
+static bool olvidando = false;    // Olvidar apretado
+static uint32_t olvidoDesde = 0;  // desde cuándo
+static bool olvidoPedido = false; // ya se pidió en esta apretada
+
+static void alSoltarBoton(lv_event_t *e) {
+  accion = (Accion)(uintptr_t)lv_event_get_user_data(e);
+}
+
+// Olvidar no cuenta al soltarlo sino después de MANTENER_OLVIDAR_MS
+// apretado: lo mide tomarAccion(). Si el dedo se va del botón, se cancela.
+static void alApretarOlvidar(lv_event_t *e) {
+  lv_event_code_t codigo = lv_event_get_code(e);
+  if (codigo == LV_EVENT_PRESSED) {
+    olvidando = true;
+    olvidoDesde = lv_tick_get();
+    olvidoPedido = false;
+  } else if (codigo == LV_EVENT_RELEASED || codigo == LV_EVENT_PRESS_LOST) {
+    olvidando = false;
   }
 }
 
-static void dibujarInfo(const InfoConexion &info) {
-  ponerTexto(datosInfo[0], BLE_NOMBRE_REMOTO);
-  ponerTexto(datosInfo[1], info.version);
-
-  char texto[40];
-  const char *nombre = nombreProtocolo(info.protocolo);
-  if (nombre != nullptr) {
-    snprintf(texto, sizeof(texto), "%s, %s", info.protocolo, nombre);
-  } else {
-    strlcpy(texto, info.protocolo, sizeof(texto));
+// Borde de color y, mientras se lo aprieta, el fondo en apretado. Sin
+// PRESS_LOCK: si el dedo se va del botón, deja de estar apretado y al soltar
+// no cuenta. alSoltar, si no es NINGUNA, queda como pedido al soltarlo.
+static lv_obj_t *boton(lv_obj_t *padre, int32_t x, int32_t y, int32_t ancho, int32_t alto,
+                       lv_color_t borde, lv_color_t apretado, Accion alSoltar) {
+  lv_obj_t *b = caja(padre, x, y, ancho, alto);
+  lv_obj_add_flag(b, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(b, LV_OBJ_FLAG_PRESS_LOCK);
+  lv_obj_set_style_radius(b, RADIO_BOTON, 0);
+  lv_obj_set_style_border_width(b, BORDE_BOTON, 0);
+  lv_obj_set_style_border_color(b, borde, 0);
+  lv_obj_set_style_bg_color(b, apretado, LV_STATE_PRESSED);
+  lv_obj_set_style_bg_opa(b, LV_OPA_COVER, LV_STATE_PRESSED);
+  if (alSoltar != Accion::NINGUNA) {
+    lv_obj_add_event_cb(b, alSoltarBoton, LV_EVENT_CLICKED, (void *)(uintptr_t)alSoltar);
   }
-  ponerTexto(datosInfo[2], texto);
+  return b;
+}
 
+// Un texto centrado en el botón, corrido dy hacia abajo
+static void textoBoton(lv_obj_t *b, const char *texto, const lv_font_t *fuente, lv_color_t color,
+                       int32_t dy = 0) {
+  lv_obj_t *e = etiqueta(b, fuente, color);
+  lv_label_set_text(e, texto);
+  lv_obj_align(e, LV_ALIGN_CENTER, 0, dy);
+}
+
+static void armarInfo(lv_obj_t *v) {
+  // Renglones de 36 px, como en la maqueta
+  for (uint8_t i = 0; i < RENGLONES_INFO; i++) {
+    int32_t base = 25 + ALTO_RENGLON_INFO * i;
+    fijo(v, NOMBRES_INFO[i], NORMAL, ETIQUETA, MARGEN, base);
+    datosInfo[i] = etiqueta(v, NORMAL, BLANCO);
+    lv_obj_set_pos(datosInfo[i], X_VALOR_INFO, yDeBase(NORMAL, base));
+  }
+
+  lv_obj_t *reconectar = boton(v, X_BOTONES, Y_RECONECTAR, ANCHO_BOTONES, ALTO_BOTONES, CIAN,
+                               CIAN_OSCURO, Accion::RECONECTAR);
+  textoBoton(reconectar, "Reconectar", NORMAL, CIAN);
+
+  // Apretado, el fondo sigue negro: lo que se ve es el relleno, que crece
+  // hasta MANTENER_OLVIDAR_MS. Va antes que los textos, para quedar abajo.
+  lv_obj_t *olvidar = boton(v, X_BOTONES, Y_OLVIDAR, ANCHO_BOTONES, ALTO_BOTONES, ROJO,
+                            lv_color_black(), Accion::NINGUNA);
+  static const lv_event_code_t EVENTOS[] = {LV_EVENT_PRESSED, LV_EVENT_RELEASED,
+                                            LV_EVENT_PRESS_LOST};
+  for (lv_event_code_t codigo : EVENTOS) {
+    lv_obj_add_event_cb(olvidar, alApretarOlvidar, codigo, nullptr);
+  }
+  rellenoOlvidar = rectangulo(olvidar, 0, 0, 0, ALTO_BOTONES - 2 * BORDE_BOTON, ROJO_OSCURO,
+                              RADIO_BOTON - BORDE_BOTON);
+  lv_obj_add_flag(rellenoOlvidar, LV_OBJ_FLAG_HIDDEN);
+  textoBoton(olvidar, "Olvidar adaptador", NORMAL, ROJO_CLARO, -8);
+  char texto[24];
+  snprintf(texto, sizeof(texto), "mantener %lu s", (unsigned long)(MANTENER_OLVIDAR_MS / 1000));
+  textoBoton(olvidar, texto, CHICA, ROJO_CLARO, 12);
+}
+
+static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
+  char texto[40];
+  if (info.rssi < 0) {
+    snprintf(texto, sizeof(texto), "%s, %d dBm", BLE_NOMBRE_REMOTO, info.rssi);
+  } else {
+    strlcpy(texto, BLE_NOMBRE_REMOTO, sizeof(texto));
+  }
+  ponerTexto(datosInfo[0], texto);
+  ponerTexto(datosInfo[1], info.direccion);
+  snprintf(texto, sizeof(texto), "%s, protocolo %s", info.version, info.protocolo);
+  ponerTexto(datosInfo[2], texto);
   if (info.consultasPorSegundo >= 0) {
     snprintf(texto, sizeof(texto), "%u PIDs, %d consultas/s", (unsigned)info.pids,
              info.consultasPorSegundo);
@@ -596,6 +677,16 @@ static void dibujarInfo(const InfoConexion &info) {
     snprintf(texto, sizeof(texto), "%u PIDs", (unsigned)info.pids);
   }
   ponerTexto(datosInfo[3], texto);
+
+  int32_t lleno = 0;
+  if (olvidando) {
+    float apretado = (int32_t)(ahora - olvidoDesde);
+    lleno = lroundf((ANCHO_BOTONES - 2 * BORDE_BOTON) * fraccion(apretado, 0, MANTENER_OLVIDAR_MS));
+  }
+  mostrar(rellenoOlvidar, lleno > 0);
+  if (lleno > 0) {
+    ponerAncho(rellenoOlvidar, lleno);
+  }
 }
 
 // Cuenta toda la pantalla, también la barra: los objetos de las páginas y de
@@ -655,13 +746,28 @@ bool Paginas::muestraFallas() const {
   return actual == PAGINA_FALLAS;
 }
 
+bool Paginas::muestraInfo() const {
+  return actual == PAGINA_INFO;
+}
+
 int8_t Paginas::tomarToque() {
   int8_t paso = toque;
   toque = 0;
   return paso;
 }
 
-void Paginas::dibujar(uint32_t ahora, const InfoConexion &info, const LecturaFallas &fallas,
+Accion Paginas::tomarAccion(uint32_t ahora) {
+  if (olvidando && !olvidoPedido && actual == PAGINA_INFO &&
+      (int32_t)(ahora - olvidoDesde) >= (int32_t)MANTENER_OLVIDAR_MS) {
+    olvidoPedido = true;
+    accion = Accion::OLVIDAR;
+  }
+  Accion pedida = accion;
+  accion = Accion::NINGUNA;
+  return pedida;
+}
+
+void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
                       uint32_t reintento) {
   if (!armadas) {
     return;
@@ -687,7 +793,7 @@ void Paginas::dibujar(uint32_t ahora, const InfoConexion &info, const LecturaFal
     titulo = dibujarFallas(ahora, fallas, reintento);
     break;
   case PAGINA_INFO:
-    dibujarInfo(info);
+    dibujarInfo(ahora, info);
     break;
   }
   pantalla.pagina(titulo, actual, CANT_PAGINAS);

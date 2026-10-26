@@ -422,6 +422,19 @@ void Elm327::desconectar() {
   seDesconecto = false;
 }
 
+String Elm327::direccion() {
+  if (!conectado()) {
+    return String();
+  }
+  String texto = cliente->getPeerAddress().toString();
+  texto.toUpperCase();
+  return texto;
+}
+
+int Elm327::rssi() {
+  return conectado() ? cliente->getRssi() : 0;
+}
+
 ResultadoComando Elm327::enviar(const char *comando, uint32_t timeoutMs, bool registrar) {
   ResultadoComando r{EstadoTransporte::OK, String(), 0};
   uint32_t inicio = millis();

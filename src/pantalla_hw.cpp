@@ -30,7 +30,6 @@ static const int RELOJ_PANEL_HZ = 40 * 1000 * 1000;
 static const i2c_port_num_t PUERTO_TOUCH = I2C_NUM_1;
 static const uint32_t RELOJ_TOUCH_HZ = 300000;
 static const int TIMEOUT_TOUCH_MS = 20;
-static const uint32_t FRECUENCIA_PWM_HZ = 50000;
 // Si una tanda no se terminó de mandar en esto, se sigue igual
 static const uint32_t TIMEOUT_TANDA_MS = 100;
 
@@ -43,7 +42,8 @@ static const axs15231b_lcd_init_cmd_t COMANDOS_PANEL[] = {
 };
 
 static bool lista = false;
-static uint8_t nivelBrillo = 0;
+static uint32_t ultimaAtencion = 0;
+static uint32_t hueco = 0;
 
 static esp_lcd_panel_handle_t panel = nullptr;
 static i2c_master_dev_handle_t touch = nullptr;
@@ -281,9 +281,9 @@ static void iniciarLvgl() {
 }
 
 bool PantallaHw::iniciar() {
-  // Lo más oscura posible mientras el panel muestra basura
-  ledcAttach(PIN_RETROILUMINACION, FRECUENCIA_PWM_HZ, 8);
-  ponerBrillo(0);
+  // Apagada mientras el panel muestra basura (en la placa del DS3 no se apaga)
+  pinMode(PIN_RETROILUMINACION, OUTPUT);
+  digitalWrite(PIN_RETROILUMINACION, HIGH);
 
   tandasLibres = xSemaphoreCreateCounting(2, 2);
   imagen = (uint16_t *)heap_caps_calloc(1, BYTES_IMAGEN, MALLOC_CAP_SPIRAM);
@@ -302,9 +302,9 @@ bool PantallaHw::iniciar() {
   iniciarLvgl();
   lista = true;
 
-  // Primero el negro y después la luz
+  // Primero el negro y después la luz, al máximo
   lv_refr_now(display);
-  ponerBrillo(BRILLO_INICIAL);
+  digitalWrite(PIN_RETROILUMINACION, LOW);
   return true;
 }
 
@@ -313,24 +313,27 @@ bool PantallaHw::iniciada() const {
 }
 
 void PantallaHw::atender() {
-  if (lista) {
-    lv_timer_handler();
+  if (!lista) {
+    return;
   }
+  uint32_t ahora = millis();
+  if (ultimaAtencion != 0 && ahora - ultimaAtencion > hueco) {
+    hueco = ahora - ultimaAtencion;
+  }
+  ultimaAtencion = ahora;
+  lv_timer_handler();
+}
+
+uint32_t PantallaHw::huecoMaximo() {
+  uint32_t maximo = hueco;
+  hueco = 0;
+  return maximo;
 }
 
 void PantallaHw::dibujarYa() {
   if (lista) {
     lv_refr_now(display);
   }
-}
-
-void PantallaHw::ponerBrillo(uint8_t nivel) {
-  nivelBrillo = nivel;
-  ledcWrite(PIN_RETROILUMINACION, RETROILUMINACION_INVERTIDA ? 255 - nivel : nivel);
-}
-
-uint8_t PantallaHw::brillo() const {
-  return nivelBrillo;
 }
 
 uint32_t PantallaHw::medirRefresco(uint32_t &envio) {

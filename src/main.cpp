@@ -65,7 +65,11 @@ static bool variosPids = false;         // la ECU contesta pedidos de varios PID
 static uint8_t incompletas = 0;         // respuestas seguidas a las que les faltó algún PID
 static uint8_t fallasElm = 0;
 static char version[12] = "";
-static char protocolo[4] = ""; // ATDPN
+static char protocolo[4] = "";  // ATDPN
+static char direccion[18] = ""; // del adaptador conectado, para Info
+static int16_t rssi = 0;        // del adaptador, en Info; 0 sin medir
+static uint32_t ultimoRssi = 0;
+static bool avisarConexion = true; // CONECTANDO y BUSCANDO; si no, SIN ADAPTADOR
 static bool descubriendo = false;
 static LecturaFallas fallas;              // la de la página Fallas
 static uint32_t proximaLecturaFallas = 0; // mientras se ve la página
@@ -172,10 +176,11 @@ static void imprimirInfo() {
   if (pantallaHw.iniciada()) {
     uint32_t envio;
     uint32_t total = pantallaHw.medirRefresco(envio);
-    Serial.printf("Pantalla: refresco completo %lu ms (envio al panel %lu ms), brillo %u\n",
-                  (unsigned long)total, (unsigned long)envio, pantallaHw.brillo());
+    Serial.printf("Pantalla: refresco completo %lu ms (envio al panel %lu ms)\n",
+                  (unsigned long)total, (unsigned long)envio);
   }
-  Serial.printf("Estado: %s; ELM %s, protocolo %s, %u PIDs soportados\n", textoEstado(estado),
+  Serial.printf("Estado: %s; adaptador %s, %d dBm; ELM %s, protocolo %s, %u PIDs soportados\n",
+                textoEstado(estado), direccion[0] != '\0' ? direccion : "-", elm.rssi(),
                 version[0] != '\0' ? version : "-", protocolo[0] != '\0' ? protocolo : "-",
                 soportados.cantidad());
 }
@@ -221,14 +226,15 @@ static void dibujar() {
     pantalla.buscandoEcu(version);
     break;
   case Estado::LEYENDO:
-    paginas.dibujar(ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo}, fallas,
-                    segundosHasta(proximaLecturaFallas));
+    paginas.dibujar(
+        ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion, rssi},
+        fallas, segundosHasta(proximaLecturaFallas));
     break;
   case Estado::SIN_ECU:
     pantalla.sinEcu(version, lineaDe(VOLT_ELM, ahora, voltaje, sizeof(voltaje)), motivo, segundos);
     break;
   case Estado::BT_PERDIDO:
-    pantalla.sinConexion(motivo, segundos);
+    pantalla.sinAdaptador(segundos);
     break;
   }
 }
@@ -282,6 +288,11 @@ static void atenderPaginas() {
   if (paginas.muestraFallas()) {
     reiniciarFallas();
   }
+  if (paginas.muestraInfo()) {
+    // El de la última vez ya no vale: se mide en la vuelta siguiente
+    rssi = 0;
+    ultimoRssi = millis() - PERIODO_RSSI_MS;
+  }
   actualizarVisibles();
   Serial.printf("Pagina: %s\n", paginas.titulo());
   dibujar();
@@ -306,10 +317,19 @@ static void esperar(uint32_t ms) {
   }
 }
 
+// Lo que se sabía del adaptador y de la ECU deja de valer
+static void olvidarDatos() {
+  version[0] = '\0';
+  direccion[0] = '\0';
+  rssi = 0;
+  marcarSinConexion();
+}
+
+// Los reintentos que siguen se ven como SIN ADAPTADOR, sin las fases
 static void perderConexion(const char *por) {
   motivo = por;
-  version[0] = '\0';
-  marcarSinConexion();
+  olvidarDatos();
+  avisarConexion = false;
   cambiarA(Estado::BT_PERDIDO, REINTENTO_BT_MS);
 }
 
@@ -342,17 +362,42 @@ static void atenderDescubrimiento() {
   dibujar();
 }
 
+// Al arrancar, y con Reconectar u Olvidar, se ve cada fase. En los
+// reintentos queda SIN ADAPTADOR: con la llave sacada el adaptador está
+// apagado, y alternar pantallas cada pocos segundos molesta.
 static void alCambiarFase(FaseConexion fase) {
-  pantalla.conectando(fase == FaseConexion::BUSCANDO);
+  if (avisarConexion) {
+    pantalla.conectando(fase == FaseConexion::BUSCANDO);
+  } else {
+    pantalla.sinAdaptador(0);
+    pantallaHw.dibujarYa();
+  }
+}
+
+// !reconectar, !olvidar y los botones de Info. Es una conexión pedida: se
+// ven CONECTANDO y BUSCANDO, y la pantalla cambia antes de soltar el
+// adaptador, que puede tardar.
+static void volverAConectar(bool olvidando) {
+  avisarConexion = true;
+  alCambiarFase(olvidando ? FaseConexion::BUSCANDO : FaseConexion::POR_DIRECCION);
+  if (olvidando) {
+    elm.olvidar();
+  } else {
+    elm.desconectar();
+  }
+  olvidarDatos();
+  cambiarA(Estado::CONECTANDO_BT);
 }
 
 static void conectarBt() {
   if (elm.conectar(alCambiarFase)) {
     fallasElm = 0;
+    strlcpy(direccion, elm.direccion().c_str(), sizeof(direccion));
     marcarConectado();
     cambiarA(Estado::INICIANDO_ELM);
   } else {
     motivo = "No conecta con el adaptador";
+    avisarConexion = false;
     cambiarA(Estado::BT_PERDIDO, REINTENTO_BT_MS);
   }
 }
@@ -727,9 +772,10 @@ static void imprimirTabla() {
   // Con el promedio de cada consulta se ve cuánto se va fuera de ellas
   uint32_t lapso = ahora - ultimaTabla;
   consultasPorSegundo = (int16_t)(consultas * 1000UL / lapso);
-  Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s\n", consultasPorSegundo,
-                (unsigned long)(consultas > 0 ? msConsultas / consultas : 0),
-                (unsigned long)lecturasRpm * 1000 / lapso);
+  // Y el rato más largo sin leer el touch: un toque más corto se pierde
+  Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s, touch sin leer hasta %lu ms\n",
+                consultasPorSegundo, (unsigned long)(consultas > 0 ? msConsultas / consultas : 0),
+                (unsigned long)lecturasRpm * 1000 / lapso, (unsigned long)pantallaHw.huecoMaximo());
   consultas = 0;
   msConsultas = 0;
   lecturasRpm = 0;
@@ -861,6 +907,36 @@ static void esperarReconexion() {
   }
 }
 
+// Mientras se ve Info. Lo da la radio de la placa: no usa el ELM.
+static void medirRssi() {
+  if (estado != Estado::LEYENDO || !paginas.muestraInfo() ||
+      millis() - ultimoRssi < PERIODO_RSSI_MS) {
+    return;
+  }
+  ultimoRssi = millis();
+  rssi = elm.rssi();
+}
+
+// Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
+// consola. Acá y no mientras se espera al ELM: los dos lo sueltan.
+static void atenderAcciones() {
+  Accion accion = paginas.tomarAccion(millis());
+  if (estado != Estado::LEYENDO || descubriendo) {
+    accion = Accion::NINGUNA;
+  }
+  if (accion == Accion::RECONECTAR) {
+    Serial.println("Pantalla: reconectando");
+  } else if (accion == Accion::OLVIDAR) {
+    Serial.println("Pantalla: olvidando el adaptador");
+  }
+  if (consola.reconexionPedida() || accion == Accion::RECONECTAR) {
+    volverAConectar(false);
+  }
+  if (consola.olvidoPedido() || accion == Accion::OLVIDAR) {
+    volverAConectar(true);
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -906,25 +982,9 @@ void setup() {
 void loop() {
   atenderPaginas();
   consola.atender();
-  if (consola.reconexionPedida()) {
-    elm.desconectar();
-    version[0] = '\0';
-    marcarSinConexion();
-    cambiarA(Estado::CONECTANDO_BT);
-  }
-  if (consola.olvidoPedido()) {
-    elm.olvidar();
-    version[0] = '\0';
-    marcarSinConexion();
-    cambiarA(Estado::CONECTANDO_BT);
-  }
+  atenderAcciones();
   if (consola.descubrimientoPedido()) {
     atenderDescubrimiento();
-  }
-  int ajuste = consola.ajusteBrillo();
-  if (ajuste != 0 && pantallaHw.iniciada()) {
-    pantallaHw.ponerBrillo(constrain(pantallaHw.brillo() + ajuste * PASO_BRILLO, 0, 255));
-    Serial.printf("Brillo: %u\n", pantallaHw.brillo());
   }
   if (consola.infoPedida()) {
     imprimirInfo();
@@ -934,6 +994,7 @@ void loop() {
   if (usaBt && !elm.conectado()) {
     perderConexion("Conexion perdida");
   }
+  medirRssi();
 
   switch (estado) {
   case Estado::CONECTANDO_BT:

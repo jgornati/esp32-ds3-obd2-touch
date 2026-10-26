@@ -34,7 +34,10 @@ public:
   void alimentacionBaja();
   // Se dibuja en el acto: conectar bloquea sin atender la pantalla
   void conectando(bool buscando);
-  void sinConexion(const char *motivo, uint32_t segundos);
+  // Sin el adaptador, perdido o sin aparecer. Con la llave sacada se apaga
+  // (va en el pin 1), así que es lo normal: en gris, no en rojo. segundos:
+  // hasta el próximo intento; 0 mientras se lo busca.
+  void sinAdaptador(uint32_t segundos);
   void iniciandoElm(const char *comando);
   void elmNoResponde(uint32_t segundos);
   void buscandoEcu(const char *version);

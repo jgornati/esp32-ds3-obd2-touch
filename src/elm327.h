@@ -27,6 +27,11 @@ public:
   void olvidar();
   bool conectado();
   void desconectar();
+  // Del adaptador conectado, en mayúsculas ("81:23:45:67:89:BA"); vacía sin conexión
+  String direccion();
+  // dBm de la conexión, según la radio de la placa (no le pregunta al ELM).
+  // 0 sin conexión o si no se pudo leer.
+  int rssi();
   // registrar = false: solo deja en el log lo que no salió OK (para el sondeo)
   ResultadoComando enviar(const char *comando, uint32_t timeoutMs, bool registrar = true);
   // funcion se llama mientras enviar() espera la respuesta y mientras se

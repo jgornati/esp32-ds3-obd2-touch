@@ -3,23 +3,23 @@
 #include <stdint.h>
 
 // Hardware de la pantalla: panel AXS15231B por QSPI, touch por I2C,
-// retroiluminación con PWM y el puerto de LVGL. LVGL dibuja en horizontal
-// (640x172) y la imagen se gira por software al mandarla al panel (172x640).
-// No hay tarea de LVGL: atender() llama a lv_timer_handler().
+// retroiluminación y el puerto de LVGL. LVGL dibuja en horizontal (640x172)
+// y la imagen se gira por software al mandarla al panel (172x640). No hay
+// tarea de LVGL: atender() llama a lv_timer_handler().
 class PantallaHw {
 public:
-  // Panel, touch y LVGL. Deja la pantalla en negro con BRILLO_INICIAL.
+  // Panel, touch y LVGL. Deja la pantalla en negro, con la luz al máximo.
   bool iniciar();
   bool iniciada() const;
-  // Llamar seguido desde loop() y mientras se espera al ELM
+  // Llamar seguido desde loop() y mientras se espera al ELM. El touch se lee
+  // solo acá.
   void atender();
+  // Lo más que pasó entre dos atender() desde la última llamada: un toque
+  // más corto que eso se puede perder
+  uint32_t huecoMaximo();
   // Dibuja y manda ya lo que cambió, sin esperar el período de LVGL. Para
   // antes de algo que bloquea sin llamar a atender().
   void dibujarYa();
-
-  // 0-255. En 0 queda lo más oscura que permita el hardware.
-  void ponerBrillo(uint8_t nivel);
-  uint8_t brillo() const;
 
   // Dibuja y manda la pantalla entera. Devuelve los ms del refresco
   // completo; envio, los de mandarla al panel.
