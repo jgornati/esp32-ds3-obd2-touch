@@ -1,10 +1,14 @@
 // Render de las pantallas en la PC, con el LVGL y el código de pantalla,
-// paginas y datos del firmware. PantallaHw es de mentira: la imagen va a un
-// búfer y de ahí a PNG (al doble de tamaño). Además revisa que dibujar dos
-// veces lo mismo no deje nada para redibujar (en la placa, cada redibujo
-// cuesta ~33 ms de envío), que el toque cambie de página como corresponde,
-// que los botones de Info pidan lo suyo sin cambiar de página y que los
+// paginas, animaciones y datos del firmware. PantallaHw es de mentira: la
+// imagen va a un búfer y de ahí a PNG (al doble de tamaño). Además revisa
+// que dibujar dos veces lo mismo no deje nada para redibujar (en la placa,
+// cada redibujo cuesta ~33 ms de envío), que el toque cambie de página como
+// corresponde, que los botones de Info pidan lo suyo sin cambiar de página,
+// que la espera reintente y reinicie, que las animaciones se muevan y que los
 // textos de Fallas e Info no se pasen de su columna.
+//
+// El reloj de LVGL es de mentira y no se refresca solo: las animaciones
+// avanzan con irA() y la imagen se dibuja al capturarla.
 // Lo arma el Makefile; sale con 1 si alguna revisión falla.
 
 #include <ctype.h>
@@ -24,8 +28,10 @@
 #include <dtc.h>
 #include <respuesta.h>
 
+#include "animaciones.h"
 #include "config.h"
 #include "datos.h"
+#include "imagenes/imagenes.h"
 #include "paginas.h"
 #include "pantalla.h"
 #include "pantalla_hw.h"
@@ -156,6 +162,13 @@ static void revisar(bool bien, const char *que) {
   }
 }
 
+// Lleva el reloj a momento y corre los temporizadores de LVGL (las
+// animaciones y la lectura del touch) una vez
+static void irA(uint32_t momento) {
+  reloj = momento;
+  lv_timer_handler();
+}
+
 static void irA(Paginas &paginas, const char *titulo) {
   for (int i = 0; i < MAX_PAGINAS && strcmp(paginas.titulo(), titulo) != 0; i++) {
     paginas.cambiar(1);
@@ -252,6 +265,20 @@ static bool mantener(lv_indev_t *indev, Paginas &paginas, uint32_t ms) {
   return pidio;
 }
 
+// Mantiene apretada la espera ms más, como mantener() pero con los
+// temporizadores de LVGL, que miden cuánto lleva
+static void mantenerEspera(uint32_t ms) {
+  for (uint32_t pasado = 0; pasado < ms; pasado += 100) {
+    irA(reloj + 100);
+  }
+}
+
+static int reinicios = 0;
+
+static void contarReinicio() {
+  reinicios++;
+}
+
 static size_t memoriaEnUso() {
 #ifdef __APPLE__
   malloc_statistics_t estadisticas;
@@ -272,6 +299,8 @@ int main(int argc, char **argv) {
   lv_indev_t *indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
   lv_indev_set_read_cb(indev, leerDedo);
+  // Se dibuja solo al capturar: así se ve qué quedó para redibujar
+  lv_timer_pause(lv_display_get_refr_timer(display));
 
   PantallaHw hw;
   Pantalla pantalla(hw);
@@ -286,7 +315,7 @@ int main(int argc, char **argv) {
   uint32_t reintento = 0;
   size_t antes = memoriaEnUso();
   paginas.iniciar();
-  for (uint8_t i = 0; i < 6; i++) {
+  for (uint8_t i = 0; i < 7; i++) {
     paginas.dibujar(reloj, info, fallas, reintento);
     lv_refr_now(nullptr);
     paginas.cambiar(1);
@@ -296,18 +325,62 @@ int main(int argc, char **argv) {
     printf("Paginas: %zu bytes de malloc en la PC (con punteros de 64 bits)\n", usada);
   }
 
-  pantalla.sinEcu("v2.1", {"", "12.0V", true}, "No responde", 7);
-  guardar(directorio, "0-sin-ecu");
-  revisar(tocar(indev, paginas, 500, 100) == 0,
-          "con SIN ECU a la vista, tocar no cambia de pagina");
-  pantalla.sinAdaptador(5);
-  guardar(directorio, "0-sin-adaptador");
-  pantalla.sinAdaptador(0);
-  guardar(directorio, "0-sin-adaptador-buscando");
-  revisar(tocar(indev, paginas, 500, 100) == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
-          "con SIN ADAPTADOR a la vista, tocar no hace nada");
+  // Espera: hasta los 5 s, negra con el estado abajo
+  uint32_t encendida = reloj; // la de Pantalla::iniciar()
+  pantalla.alMantenerApretada(contarReinicio);
+  pantalla.espera("Conectando con el adaptador...");
+  guardar(directorio, "0-espera-conectando");
+  revisar(tocar(indev, paginas, 500, 100) == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA &&
+              pantalla.tomarReintento(),
+          "espera: tocar pide reintentar, sin cambiar de pagina");
+  revisar(!pantalla.tomarReintento(), "espera: el reintento se pide una sola vez");
 
-  for (uint8_t i = 1; i <= 6; i++) {
+  // A los 5 s entra el auto; se guardan algunos cuadros de los originales
+  irA(encendida + ESPERA_ENTRADA_MS);
+  revisar(capturar() == guardadas.back(), "espera: en el cuadro 0 el auto todavia no se ve");
+  for (uint32_t cuadro : {6, 13, 20, 30}) {
+    irA(encendida + ESPERA_ENTRADA_MS + cuadro * entrada_ms_cuadro);
+    char nombre[32];
+    snprintf(nombre, sizeof(nombre), "0-espera-entrando-%02u", (unsigned)cuadro);
+    guardar(directorio, nombre);
+  }
+  irA(encendida + ESPERA_ENTRADA_MS + entrada_cantidad * entrada_ms_cuadro);
+  guardar(directorio, "0-espera-quieto");
+  irA(reloj + 1000);
+  pantalla.espera("Conectando con el adaptador...");
+  revisar(display->inv_p == 0, "espera: con el auto quieto, no se redibuja nada");
+  pantalla.espera("Esperando la ECU");
+  guardar(directorio, "0-espera-sin-ecu");
+  pantalla.espera("Sin respuesta de la ECU", true);
+  guardar(directorio, "0-espera-ecu-perdida");
+  revisar(franjaVacia(633, ANCHO - 1), "espera: nada pasa del borde derecho");
+
+  // Mantener apretado: la barra crece, a los 3 s reinicia una vez
+  apoyar(indev, 300, 80);
+  mantenerEspera(MANTENER_REINICIO_MS / 2);
+  guardar(directorio, "0-espera-mantener");
+  levantar(indev);
+  revisar(reinicios == 0 && pantalla.tomarReintento(),
+          "espera: soltarla antes de 3 s reintenta, sin reiniciar");
+  irA(reloj + 100);
+  revisar(capturar() == guardadas[guardadas.size() - 2], "espera: suelta, la barra desaparece");
+  apoyar(indev, 300, 80);
+  mantenerEspera(MANTENER_REINICIO_MS - 100);
+  revisar(reinicios == 0, "espera: antes de 3 s no reinicia");
+  mantenerEspera(200);
+  revisar(reinicios == 1, "espera: a los 3 s reinicia");
+  mantenerEspera(2000);
+  levantar(indev);
+  revisar(reinicios == 1 && !pantalla.tomarReintento() && paginas.tomarToque() == 0,
+          "espera: reinicia una sola vez, y al soltar no reintenta");
+
+  // Si a los 5 s se ven los datos, el auto no entra: después aparece quieto
+  Entrada sinVer;
+  sinVer.crear(lv_obj_create(nullptr), reloj, 0);
+  sinVer.mover(reloj, false);
+  revisar(sinVer.quieto(), "espera: si no se veia a los 5 s, el auto aparece quieto");
+
+  for (uint8_t i = 1; i <= 7; i++) {
     paginas.dibujar(reloj, info, fallas, reintento);
     char nombre[32];
     snprintf(nombre, sizeof(nombre), "%u-%s", i, paginas.titulo());
@@ -458,7 +531,32 @@ int main(int argc, char **argv) {
           "en Info, tocar a la derecha de los datos: siguiente");
   revisar(tocar(indev, paginas, 528, 100) == 1, "en Info, tocar entre los botones: siguiente");
 
+  // DS3: el paseo, a pantalla completa. Los momentos de los cuadros 0, 5 y
+  // 30 de los originales (la vuelta empieza con el reloj en 0).
+  irA(paginas, "DS3");
+  paginas.dibujar(reloj, info, fallas, reintento);
+  uint32_t vuelta = reloj - reloj % paseo.duracion_ms + paseo.duracion_ms;
+  for (uint32_t cuadro : {0, 5, 30}) {
+    irA(vuelta + cuadro * paseo.ms_cuadro);
+    char nombre[32];
+    snprintf(nombre, sizeof(nombre), "q-ds3-%02u", (unsigned)cuadro);
+    guardar(directorio, nombre);
+  }
+  revisar(guardadas[guardadas.size() - 1] != guardadas[guardadas.size() - 2], "DS3: se mueve");
+  irA(vuelta + paseo.duracion_ms);
+  revisar(capturar() == guardadas[guardadas.size() - 3], "DS3: a los 3 s vuelve a empezar");
+  paginas.dibujar(reloj, info, fallas, reintento);
+  revisar(display->inv_p == 0, "DS3: dibujar de nuevo lo mismo no redibuja nada");
+  revisar(tocar(indev, paginas, 100, 100) == -1, "en DS3, tocar a la izquierda: anterior");
+  paginas.cambiar(1);
+  revisar(tocar(indev, paginas, 500, 10) == 1, "en DS3, tocar arriba a la derecha: siguiente");
+  paginas.cambiar(-1);
+  irA(reloj + 1000);
+  revisar(display->inv_p == 0, "DS3: oculta, no se mueve");
+
   // Toques con las páginas a la vista
+  irA(paginas, "MOTOR");
+  paginas.dibujar(reloj, info, fallas, reintento);
   revisar(tocar(indev, paginas, 100, 100) == -1, "tocar a la izquierda: anterior");
   revisar(tocar(indev, paginas, 500, 100) == 1, "tocar a la derecha: siguiente");
   revisar(tocar(indev, paginas, 20, 10) == -1, "tocar la barra a la izquierda: anterior");

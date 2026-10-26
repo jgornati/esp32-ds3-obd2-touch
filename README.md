@@ -12,8 +12,9 @@ funcionamiento del auto. Nunca muestra datos simulados ni vencidos.
 
 ## Qué muestra
 
-Seis páginas, con los datos que da el DS3 VTI 1.6 16v por OBD genérico
-(17 PIDs del servicio 01, CAN 11 bit a 500 kbaud):
+Seis páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
+(17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), y al final una
+animación:
 
 | Página    | Datos |
 | --------- | ----- |
@@ -23,6 +24,7 @@ Seis páginas, con los datos que da el DS3 VTI 1.6 16v por OBD genérico
 | MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador |
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
 | INFO      | Adaptador y señal (RSSI), dirección, versión del ELM y protocolo, PIDs y consultas por segundo; botones Reconectar y Olvidar adaptador |
+| DS3       | El DS3 andando, con nubes y el camino corriéndose. Ocupa toda la pantalla, sin la barra ni datos |
 
 Cómo se ve cada dato:
 
@@ -47,19 +49,38 @@ En MEZCLA, la marca de lambda va en verde entre 0,97 y 1,03; más rica, en
 - Los puntos de la barra muestran en qué página se está.
 
 Las páginas se ven solo con la ECU conectada. La página se mantiene si la
-conexión se corta y vuelve.
+conexión se corta y vuelve. En DS3 no se ve la barra: se cambia de página
+igual, tocando a los costados.
 
-### Pantallas de estado
+### Pantalla de espera
+
+Mientras no hay datos, la pantalla queda negra con una línea abajo que dice
+en qué anda la conexión. Si a los 5 s de prenderse todavía no hay datos,
+entra un DS3 rojo desde la izquierda y se queda. Si los datos llegan antes,
+el auto no aparece; si después se cortan, aparece quieto.
+
+| Abajo a la izquierda            | Cuándo |
+| ------------------------------- | ------ |
+| `Iniciando...`                  | Al arrancar |
+| `Conectando con el adaptador...` | Por la dirección guardada (hasta 4 s) |
+| `Buscando el adaptador...`      | Por nombre (`OBDBLE`) o por servicio (hasta 6 s) |
+| `Esperando el adaptador`        | No aparece o se perdió. Con la llave sacada es lo normal: el adaptador se prende con el contacto. Reintenta cada 5 s |
+| `Iniciando el adaptador...`     | Configurando el ELM327. En ámbar, `El adaptador no responde`: reintenta a los 5 s |
+| `Buscando la ECU...`            | Hasta 10 s |
+| `Esperando la ECU`              | El adaptador anda pero la ECU no contesta. Reintenta cada 10 s |
+| `Sin respuesta de la ECU` (ámbar) | La ECU dejó de contestar con el motor andando |
+
+- **Tocar** la pantalla reintenta ya, sin esperar los 5 o 10 s. Con el auto
+  quieto, abajo a la derecha dice `Toca para reintentar`.
+- **Mantenerla apretada 3 s** reinicia la placa, por si quedó trabada: abajo
+  crece una barra roja y dice `Mantener para reiniciar`. Soltarla antes
+  reintenta. Anda también mientras la placa conecta con el adaptador.
+
+Ninguno de los dos le manda nada al auto. Quedan dos pantallas de estado,
+con la barra arriba:
 
 | Barra                    | Cuándo |
 | ------------------------ | ------ |
-| `DS3 OBDII`              | Al arrancar |
-| `CONECTANDO` (cian)      | Conectando con el adaptador por la dirección guardada (hasta 4 s) |
-| `BUSCANDO ADAPTADOR` (cian) | Buscándolo por nombre (`OBDBLE`) o por servicio (hasta 6 s) |
-| `SIN ADAPTADOR` (gris)   | El adaptador no aparece o se perdió. Con la llave sacada es lo normal: el adaptador se prende con el contacto. Reintenta cada 5 s |
-| `INICIANDO ELM` (cian)   | Configurando el ELM327. En ámbar, `El ELM no responde`: reintenta a los 5 s |
-| `BUSCANDO ECU` (cian)    | Buscando la ECU del auto (hasta 10 s) |
-| `SIN ECU` (ámbar)        | El adaptador anda pero la ECU no contesta. Muestra el voltaje y reintenta cada 10 s |
 | `ALIMENTACION` (rojo)    | La placa se reinició por falta de corriente (brownout): revisar los 5 V |
 | `DESCUBRIENDO`           | Durante `!descubrir` (consola) |
 
@@ -133,7 +154,8 @@ en `PLAN.md`.
   `include/config.h`; si se monta al revés, `true` la gira 180° junto con
   el touch.
 - Al poner el contacto, la placa y el adaptador arrancan juntos: lleva
-  unos segundos llegar a los datos.
+  unos segundos llegar a los datos. Si pasan más de 5 s, entra el DS3 de la
+  pantalla de espera.
 
 ## Entorno de desarrollo
 
@@ -172,7 +194,21 @@ make -C herramientas/render -j8
 
 Deja un PNG por pantalla en `herramientas/render/salida/` y revisa que
 dibujar dos veces lo mismo no redibuje nada, que los textos no se pasen de
-su lugar y que los toques hagan lo que corresponde.
+su lugar, que los toques hagan lo que corresponde y que las animaciones se
+muevan.
+
+## Las animaciones
+
+Las animaciones del DS3 (la entrada de la pantalla de espera y la página
+DS3) vienen como cuadros PNG de 640×172, que no entran en la flash. El
+script `herramientas/imagenes/convertir.py` (Python 3, sin dependencias)
+separa las partes (el auto, las llantas, las nubes, el fondo) y las escribe
+en `src/imagenes/`; la placa las mueve y gira las llantas. Para cambiarlas,
+reemplazar los archivos de `herramientas/imagenes/fuentes/` y correr:
+
+```text
+python3 herramientas/imagenes/convertir.py
+```
 
 ## Documentación
 

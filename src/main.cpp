@@ -69,7 +69,8 @@ static char protocolo[4] = "";  // ATDPN
 static char direccion[18] = ""; // del adaptador conectado, para Info
 static int16_t rssi = 0;        // del adaptador, en Info; 0 sin medir
 static uint32_t ultimoRssi = 0;
-static bool avisarConexion = true; // CONECTANDO y BUSCANDO; si no, SIN ADAPTADOR
+static bool avisarConexion = true; // la fase de la conexión; si no, "Esperando el adaptador"
+static bool ecuPerdida = false;    // SIN_ECU con el motor andando: no es lo normal
 static bool descubriendo = false;
 static LecturaFallas fallas;              // la de la página Fallas
 static uint32_t proximaLecturaFallas = 0; // mientras se ve la página
@@ -196,34 +197,27 @@ static uint32_t segundosHasta(uint32_t momento) {
   return (momento - millis() + 999) / 1000;
 }
 
-// La línea de la magnitud para la pantalla. El valor se escribe en texto.
-static LineaDato lineaDe(Magnitud m, uint32_t ahora, char *texto, size_t tam) {
-  textoDato(m, ahora, true, texto, tam);
-  float valor;
-  return {etiquetaDe(m), texto, valorActual(m, ahora, &valor)};
-}
-
-// Las pantallas de CONECTANDO_BT, de INICIANDO_ELM mientras configura y de
-// !descubrir las dibujan esos pasos.
+// Sin datos, la pantalla de espera dice solo en qué anda la conexión. La
+// de CONECTANDO_BT la pone alCambiarFase(), y la de !descubrir, ese paso.
 static void dibujar() {
   uint32_t ahora = millis();
   ultimoDibujo = ahora;
   if (descubriendo) {
     return;
   }
-  uint32_t segundos = segundosHasta(proximoIntento);
-  char voltaje[16];
 
   switch (estado) {
   case Estado::CONECTANDO_BT:
     break;
   case Estado::INICIANDO_ELM:
-    if (segundos > 0) {
-      pantalla.elmNoResponde(segundos);
+    if (yaEs(proximoIntento)) {
+      pantalla.espera("Iniciando el adaptador...");
+    } else {
+      pantalla.espera("El adaptador no responde", true);
     }
     break;
   case Estado::BUSCANDO_ECU:
-    pantalla.buscandoEcu(version);
+    pantalla.espera("Buscando la ECU...");
     break;
   case Estado::LEYENDO:
     paginas.dibujar(
@@ -231,10 +225,14 @@ static void dibujar() {
         fallas, segundosHasta(proximaLecturaFallas));
     break;
   case Estado::SIN_ECU:
-    pantalla.sinEcu(version, lineaDe(VOLT_ELM, ahora, voltaje, sizeof(voltaje)), motivo, segundos);
+    if (ecuPerdida) {
+      pantalla.espera("Sin respuesta de la ECU", true);
+    } else {
+      pantalla.espera("Esperando la ECU");
+    }
     break;
   case Estado::BT_PERDIDO:
-    pantalla.sinAdaptador(segundos);
+    pantalla.espera("Esperando el adaptador");
     break;
   }
 }
@@ -299,13 +297,16 @@ static void atenderPaginas() {
 }
 
 // Mientras se espera al ELM, la pantalla sigue al día: así un dato que se
-// vence mientras tanto no queda a la vista. No usa el ELM.
+// vence mientras tanto no queda a la vista. No usa el ELM. Corre también
+// mientras se busca el adaptador, con LVGL suelto (ver conectarBt()).
 static void alEsperar() {
+  pantallaHw.tomar();
   atenderPaginas();
   if (millis() - ultimoDibujo >= PERIODO_PANTALLA_MS) {
     dibujar();
   }
   pantallaHw.atender();
+  pantallaHw.soltar();
 }
 
 // Espera atendiendo la pantalla
@@ -325,11 +326,12 @@ static void olvidarDatos() {
   marcarSinConexion();
 }
 
-// Los reintentos que siguen se ven como SIN ADAPTADOR, sin las fases
+// Los reintentos que siguen dicen "Esperando el adaptador", sin las fases
 static void perderConexion(const char *por) {
   motivo = por;
   olvidarDatos();
   avisarConexion = false;
+  ecuPerdida = false;
   cambiarA(Estado::BT_PERDIDO, REINTENTO_BT_MS);
 }
 
@@ -362,35 +364,47 @@ static void atenderDescubrimiento() {
   dibujar();
 }
 
-// Al arrancar, y con Reconectar u Olvidar, se ve cada fase. En los
-// reintentos queda SIN ADAPTADOR: con la llave sacada el adaptador está
-// apagado, y alternar pantallas cada pocos segundos molesta.
+// Al arrancar, con Reconectar u Olvidar y al tocar la espera, se ve cada
+// fase. En los reintentos queda "Esperando el adaptador": con la llave
+// sacada el adaptador está apagado, y cambiar el texto cada pocos segundos
+// molesta. Se llama con LVGL suelto (ver conectarBt()).
 static void alCambiarFase(FaseConexion fase) {
-  if (avisarConexion) {
-    pantalla.conectando(fase == FaseConexion::BUSCANDO);
+  pantallaHw.tomar();
+  if (!avisarConexion) {
+    pantalla.espera("Esperando el adaptador");
+  } else if (fase == FaseConexion::BUSCANDO) {
+    pantalla.espera("Buscando el adaptador...");
   } else {
-    pantalla.sinAdaptador(0);
-    pantallaHw.dibujarYa();
+    pantalla.espera("Conectando con el adaptador...");
   }
+  pantallaHw.soltar();
 }
 
 // !reconectar, !olvidar y los botones de Info. Es una conexión pedida: se
-// ven CONECTANDO y BUSCANDO, y la pantalla cambia antes de soltar el
-// adaptador, que puede tardar.
+// ven las fases, y la pantalla cambia antes de soltar el adaptador, que
+// puede tardar.
 static void volverAConectar(bool olvidando) {
   avisarConexion = true;
+  pantallaHw.soltar();
   alCambiarFase(olvidando ? FaseConexion::BUSCANDO : FaseConexion::POR_DIRECCION);
   if (olvidando) {
     elm.olvidar();
   } else {
     elm.desconectar();
   }
+  pantallaHw.tomar();
   olvidarDatos();
   cambiarA(Estado::CONECTANDO_BT);
 }
 
+// Conectar bloquea hasta 4 s por intento, y hasta 30 s si el adaptador
+// conecta pero no contesta (ver las notas de E8). Mientras tanto LVGL queda
+// suelto: lo atiende la otra tarea de PantallaHw.
 static void conectarBt() {
-  if (elm.conectar(alCambiarFase)) {
+  pantallaHw.soltar();
+  bool conectado = elm.conectar(alCambiarFase);
+  pantallaHw.tomar();
+  if (conectado) {
     fallasElm = 0;
     strlcpy(direccion, elm.direccion().c_str(), sizeof(direccion));
     marcarConectado();
@@ -408,7 +422,6 @@ static void inicializarElm() {
   }
 
   for (const char *comando : INICIALIZACION) {
-    pantalla.iniciandoElm(comando);
     uint32_t timeout = strcmp(comando, "ATZ") == 0 ? TIMEOUT_ATZ_MS : TIMEOUT_COMANDO_MS;
     ResultadoComando r = elm.enviar(comando, timeout);
     if (r.estado == EstadoTransporte::DESCONECTADO) {
@@ -427,7 +440,6 @@ static void inicializarElm() {
   }
 
   // De "ELM327 v2.1" queda "v2.1"
-  pantalla.iniciandoElm("ATI");
   ResultadoComando r = elm.enviar("ATI", TIMEOUT_COMANDO_MS);
   char texto[20];
   if (r.estado == EstadoTransporte::OK &&
@@ -632,6 +644,7 @@ static void buscarEcu() {
       perderConexion("Conexion perdida");
       return;
     }
+    ecuPerdida = false;
     fallasEcu = 0;
     ultimaRespuestaEcu = millis();
     consultas = 0;
@@ -674,6 +687,8 @@ static bool registrarFalla(const char *comando, const ResultadoComando &r,
   }
   if (fallasEcu >= FALLAS_PARA_SIN_ECU && silencio >= SILENCIO_PARA_SIN_ECU_MS) {
     motivo = textoFalla(r.estado, respuesta.tipo);
+    // Con el motor andando la ECU no deja de contestar: no es lo normal
+    ecuPerdida = dato(RPM).estado == EstadoDato::VALIDO && dato(RPM).valor > 0;
     cambiarA(Estado::SIN_ECU, REINTENTO_ECU_MS);
     return false;
   }
@@ -917,6 +932,32 @@ static void medirRssi() {
   rssi = elm.rssi();
 }
 
+// Tocar la espera: el próximo intento va ya, sin esperar. Si hay uno en
+// curso, nada.
+static void atenderReintento() {
+  if (!pantalla.tomarReintento()) {
+    return;
+  }
+  bool esperando = estado == Estado::BT_PERDIDO || estado == Estado::SIN_ECU ||
+                   (estado == Estado::INICIANDO_ELM && !yaEs(proximoIntento));
+  if (!esperando) {
+    return;
+  }
+  Serial.println("Pantalla: reintento");
+  if (estado == Estado::BT_PERDIDO) {
+    // Pedida: se ven las fases
+    avisarConexion = true;
+  }
+  proximoIntento = millis();
+}
+
+// Mantener apretada la espera, por si la placa quedó trabada. Corre en un
+// evento de LVGL, que puede ser de la otra tarea si loop() está bloqueado.
+static void reiniciarPlaca() {
+  Serial.println("Pantalla: reiniciando la placa");
+  esp_restart();
+}
+
 // Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
 // consola. Acá y no mientras se espera al ELM: los dos lo sueltan.
 static void atenderAcciones() {
@@ -945,7 +986,8 @@ void setup() {
   bool conPantalla = pantallaHw.iniciar();
   pantalla.iniciar();
   paginas.iniciar();
-  pantalla.inicio();
+  pantalla.espera("Iniciando...");
+  pantalla.alMantenerApretada(reiniciarPlaca);
   uint32_t inicio = millis();
   while (!Serial && millis() - inicio < ESPERA_MONITOR_MS) {
     pantallaHw.atender();
@@ -983,6 +1025,7 @@ void loop() {
   atenderPaginas();
   consola.atender();
   atenderAcciones();
+  atenderReintento();
   if (consola.descubrimientoPedido()) {
     atenderDescubrimiento();
   }

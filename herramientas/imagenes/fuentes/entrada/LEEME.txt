@@ -1,0 +1,8 @@
+DS3 — animación de entrada con ruedas girando
+Pantalla horizontal: 640 x 172 píxeles.
+40 cuadros PNG transparentes, 40 ms por cuadro (25 fps). Reproducir una sola vez al arrancar y mantener el último cuadro.
+Spritesheet: 8 columnas x 5 filas, cada celda de 640 x 172.
+Las llantas giran en sentido horario proporcionalmente al desplazamiento del auto; desaceleran con él.
+Usar los cuadros PNG o la plancha para conservar el giro. auto.png es solamente el recurso estático.
+El GIF es una vista previa sobre negro; los PNG conservan transparencia.
+Estos archivos son recursos gráficos: integrarlos al programa de la placa para que se reproduzcan al encender.

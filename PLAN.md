@@ -32,7 +32,7 @@ que corresponda antes de portar un módulo.
 | E6    | Brillo y ajustes                       | E4         | Verificada (sin brillo: la placa no lo regula) |
 | E7    | Cierre e instalación                   | E5, E6     | Verificada (salvo el cuelgue ocasional, sin investigar) |
 | E8    | Conexión al prender y apagar el auto   | E7         | Descartada |
-| E9    | Pantalla de espera con el DS3          | E7         | Pendiente |
+| E9    | Pantalla de espera con el DS3          | E7         | Verificada |
 | E10   | Viaje: máximos y recorrido             | E9         | Pendiente |
 | E11   | Alarmas                                | E9         | Pendiente |
 | E12   | Fuerza G                               | E10        | Pendiente |
@@ -75,13 +75,14 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Biblioteca BLE         | *Propuesta:* la `BLE` del core (viene con la plataforma, sin dependencia nueva). Si da problemas, NimBLE-Arduino con versión fijada. E0 ya la usa: en el S3 corre sobre NimBLE, no Bluedroid (ver notas de E0). |
 | Gráficos               | *Propuesta:* LVGL 9.3.0 (la versión de los ejemplos de Waveshare) y el driver `esp_lcd_axs15231b` del ejemplo `10_LVGL_V9_Test`. |
 | Orientación            | Horizontal, 640×172, con rotación por software como en el ejemplo de Waveshare. Montada como en el banco: `PANTALLA_GIRADA = false` en `config.h` (confirmado en E7). |
-| Concurrencia           | *Propuesta:* la lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer (único punto concurrente). LVGL no tiene tarea propia: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. |
+| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). |
 | Protocolo              | `ATSP6` (CAN 11 bit 500 kbaud), confirmado en el DS3. Heredada.                                |
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
 | Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep y sin batería en la placa (confirmado en E7). |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
+| Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
 | Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). |
 
 ## Hardware de la placa
@@ -117,10 +118,13 @@ src/
   explorar.h/.cpp   !escanear, !explorar (E0; !usar salió en E2)
   elm327.h/.cpp     transporte BLE con la interfaz del anterior (E2)
   consola.h/.cpp    consola por el USB (E0, E2)
-  pantalla_hw.h/.cpp  QSPI, rotación, touch, brillo y puerto de LVGL (E1)
-  pantalla.h/.cpp   pantallas de estado (E3) y el marco de las páginas (E4)
+  pantalla_hw.h/.cpp  QSPI, rotación, touch y puerto de LVGL (E1); la tarea que lo atiende mientras se conecta (E9)
+  pantalla.h/.cpp   pantalla de espera (E9), pantallas de estado (E3) y el marco de las páginas (E4)
   paginas.h/.cpp    páginas y navegación táctil (E4)
   dibujo.h/.cpp     colores y funciones chicas de LVGL de pantalla y paginas (E4)
+  animaciones.h/.cpp  el DS3 que entra a la espera y el de la página DS3 (E9)
+  llanta.h/.cpp     gira las llantas, sin LVGL (E9)
+  imagenes/         las imágenes de las animaciones, generadas (E9)
   boton.h/.cpp      botón BOOT: página siguiente (E4)
   datos, sondeo, descubrimiento   portados del anterior (E3)
 lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h
@@ -128,6 +132,7 @@ lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
 herramientas/render/  las pantallas en la PC, a PNG (E4)
+herramientas/imagenes/  las animaciones a arreglos de C, y sus fuentes (E9)
 docs/descubrimiento/  logs crudos de las sesiones en el auto
 ```
 
@@ -139,8 +144,8 @@ Reglas de límites entre módulos (las mismas del anterior):
   `pio test -e native`.
 - Todo comando pasa por `comandoPermitido()` dentro de
   `Elm327::enviar()`. No existe otro camino para escribirle al ELM.
-- Lo de LVGL queda en `pantalla_hw`, `pantalla` y `paginas`. La máquina
-  de estados no llama a LVGL directamente.
+- Lo de LVGL queda en `pantalla_hw`, `pantalla`, `paginas`, `dibujo` y
+  `animaciones`. La máquina de estados no llama a LVGL directamente.
 
 ### Estados del programa
 
@@ -503,8 +508,9 @@ aparecen los datos, y tocar la pantalla reintenta.
 2. La velocidad entra en cada consulta aunque no se vea, para que la
    distancia salga bien (hoy, fuera de Motor, se lee cada 2,5 s). Entra en
    los 6 PIDs por consulta.
-3. La página, con sus casos en el render. Con VIAJE y FUERZA G (E12) son 8
-   páginas: es lo que entra en los puntos de la barra (`MAX_PAGINAS`).
+3. La página, con sus casos en el render. Con DS3 (E9), VIAJE y FUERZA G
+   (E12) son 9 páginas: hay que subir `MAX_PAGINAS` (8), los puntos de la
+   barra. Que VIAJE vaya antes de DS3, que es la última.
 
 **Verificación del usuario:** en un viaje, la distancia contra el
 parcial del tablero y los máximos contra lo que se vio.
@@ -2070,6 +2076,161 @@ el cuelgue vuelve a molestar (no está confirmado con datos del auto):
   `esp_core_dump_get_summary()`.
 
 ### E9
+
+Hecho (rama `e9-pantalla-de-espera`, desde `main` con el plan sin E8). Antes
+de programar, el usuario decidió (2026-10-26):
+
+- **Las imágenes:** trajo dos animaciones hechas aparte, en cuadros PNG de
+  640×172. Un DS3 rojo con techo negro que entra desde la izquierda (40
+  cuadros de 40 ms, una vez, y queda en el último): va en la espera, **a los
+  5 s de prender la pantalla**. Y el mismo auto andando, con nubes y el
+  camino (60 cuadros de 50 ms, en bucle): **una página más, al final**, "una
+  chuchería de espera".
+- **Cuando el auto termina de entrar, queda quieto** y abajo dice
+  `Toca para reintentar`.
+- **Tocar reintenta ya; mantener 3 s reinicia la placa.**
+- **Reemplaza** `CONECTANDO`, `BUSCANDO ADAPTADOR`, `SIN ADAPTADOR`,
+  `INICIANDO ELM`, `BUSCANDO ECU` y `SIN ECU`; quedan `ALIMENTACION` y
+  `DESCUBRIENDO`. Con el auto a la vista, la información es solo el renglón
+  de abajo. Si se pierde la ECU con el motor andando, el mismo auto con
+  `Sin respuesta de la ECU` en ámbar.
+
+Lo que se hizo:
+
+- **Las imágenes** (`herramientas/imagenes/`). Los cuadros enteros no entran
+  en la flash (100 × 220 KB). `convertir.py` (solo Python 3, con un lector de
+  PNG propio) los separa en partes y escribe `src/imagenes/entrada.c` y
+  `paseo.c`; `imagenes.h` declara lo que hay. En `fuentes/` quedan el auto,
+  los `animacion.json`, los `LEEME.txt` y 4 cuadros, no los 100.
+  - Entrada: el auto (`auto.png`) mezclado con el negro y sin alfa (RGB565,
+    334×139), la tabla de x y giro de cada cuadro y las dos llantas quietas.
+  - Paseo: las nubes (una franja de 640×50 que se corre todo el ancho en
+    cada vuelta; lo que el techo tapa en el cuadro 0 sale del cuadro 30,
+    corrido medio ancho), el fondo quieto (cielo, auto y camino, 640×109),
+    el techo que asoma entre las nubes (con alfa) y las llantas. Desde y 159,
+    el camino y las rayas los dibuja LVGL.
+  - En total ~315 KB: la flash pasa de 50,2 % a 61,1 % de 3 MB.
+  - **Las llantas no giran en círculo.** Cada una es una elipse de ~21×23 px,
+    y en los cuadros se la estira a un círculo, se la gira y se la vuelve a
+    achicar: con ese modelo el error contra los cuadros es ~7 de 255
+    (girando en círculo, 9–35). LVGL escala y gira en el otro orden, así que
+    `llanta.cpp` las gira en un búfer RGB565A8 (bilineal, con el borde
+    suavizado), solo cuando cambia el ángulo. Las elipses salen de comparar
+    el auto quieto con un cuadro donde giró.
+  - Medido en los cuadros del paseo: las llantas giran 24° por cuadro
+    (480°/s; el cuadro 15 es igual al 0), las nubes y las rayas se corren
+    640 px por vuelta (3 s) y las rayas son de 35×3 px cada 80.
+  - Los colores del camino salen redondeados como los de las imágenes: LVGL
+    trunca al pasar a RGB565, y sin eso se veía una costura en y 159.
+- **`llanta.h/.cpp`** (sin LVGL ni Arduino): `girarLlanta(fuente, grados,
+  salida)`.
+- **`animaciones.h/.cpp`:** `Entrada` (`crear(padre, aparece, y)`,
+  `mover(ahora, visible)`, `quieto()`) y `Paseo` (`crear()`, `mover()`). Los
+  mueve un temporizador de LVGL de quien los usa. Las posiciones salen de la
+  hora, no de contar cuadros: si LVGL se atrasa, saltea cuadros pero no se
+  frena. Los búferes de las llantas (4 de ~6,5 KB) van a la PSRAM.
+- **`pantalla`:** salen `inicio()`, `conectando()`, `sinAdaptador()`,
+  `iniciandoElm()`, `elmNoResponde()`, `buscandoEcu()`, `sinEcu()` y
+  `LineaDato`. Entran:
+
+  ```cpp
+  void espera(const char *estado, bool problema = false);
+  bool tomarReintento();                      // un toque desde la última llamada
+  void alMantenerApretada(void (*funcion)()); // a los MANTENER_REINICIO_MS
+  void paginaCompleta();                      // DS3: 640x172, sin la barra
+  lv_obj_t *areaCompleta() const;
+  ```
+
+  - La espera ocupa toda la pantalla, sin la barra: el auto 8 px más arriba
+    que en los cuadros (para que entre el renglón), el estado abajo a la
+    izquierda (gris, o ámbar si es un problema) y a la derecha
+    `Toca para reintentar`, con el auto quieto.
+  - Toda la espera recibe el toque. Al soltar, es un reintento. Apretada más
+    de 0,5 s, abajo crece una barra roja y dice `Mantener para reiniciar`; a
+    los 3 s llama una vez a la función de `alMantenerApretada()`. Lo mide un
+    temporizador de LVGL (cada 40 ms), que también mueve el auto.
+  - El auto entra a los `ESPERA_ENTRADA_MS` (5 s) de `Pantalla::iniciar()`,
+    si la espera está a la vista; si no, después aparece quieto.
+- **`paginas`:** la página `DS3`, al final (son 7), en `areaCompleta()`. El
+  toque en la raíz cuenta también con esa área a la vista. No tiene datos:
+  el sondeo pide los de Motor, como en Fallas e Info.
+- **`pantalla_hw`:** `tomar()` y `soltar()` (un mutex recursivo) y una tarea
+  `pantalla` (núcleo 1, prioridad 1, 8 KB de pila) que atiende LVGL solo
+  cuando `loop()` lo soltó. `atender()`, `dibujarYa()` y `medirRefresco()`
+  lo toman. **Cambia la decisión de concurrencia:** hasta acá LVGL era solo
+  de `loop()`, y mientras conectaba (`connect()`, hasta 4 s; hasta 30 s si el
+  adaptador conecta y no contesta, ver notas de E8) la pantalla quedaba
+  quieta. La entrada del auto cae justo en esos segundos, y mantener para
+  reiniciar es para cuando la placa se traba: la pantalla tenía que seguir.
+  El BLE corre en el núcleo 0.
+- **`main.cpp`:**
+  - `conectarBt()` suelta LVGL alrededor de `elm.conectar()`, y
+    `volverAConectar()`, alrededor de desconectar u olvidar.
+    `alCambiarFase()` y `alEsperar()`, que corren adentro, lo toman.
+  - `dibujar()` y `alCambiarFase()` ponen la espera con su texto.
+    `ecuPerdida`: al pasar de `LEYENDO` a `SIN_ECU` con las últimas RPM de
+    más de 0; se borra al encontrar la ECU o al perder el adaptador.
+  - `atenderReintento()`: en `BT_PERDIDO`, `SIN_ECU` o esperando para volver
+    a iniciar el ELM, adelanta el próximo intento (en el monitor,
+    `Pantalla: reintento`). En `BT_PERDIDO` vuelve a mostrar las fases, como
+    Reconectar.
+  - `reiniciarPlaca()`: `Pantalla: reiniciando la placa` y `esp_restart()`.
+- **`config.h`:** `ESPERA_ENTRADA_MS` (5 s) y `MANTENER_REINICIO_MS` (3 s).
+  **`lv_conf.h`:** `LV_USE_IMAGE 1`.
+- Sin cambios en `lib/obd`, en la lista blanca ni en `elm327`: tocar la
+  pantalla no le manda nada al auto.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,1 %, flash 61,1 % de 3 MB), sin warnings
+  propios también con `-Wall -Wextra -Wshadow`. `pio test -e native` 57/57.
+- **Render**, 70 revisiones, todas bien. Casos nuevos: `0-espera-*` (antes
+  del auto, entrando en los cuadros 6, 13, 20 y 30, quieto, los estados y
+  mantener apretado), `7-ds3` y `q-ds3-*` (cuadros 0, 5 y 30). Revisa que
+  tocar la espera reintente una vez sin cambiar de página; que soltarla
+  antes de 3 s reintente sin reiniciar y la barra desaparezca; que a los 3 s
+  reinicie una sola vez y al soltar no reintente; que con el auto quieto no
+  se redibuje nada; que si a los 5 s no se veía, aparezca quieto; que DS3 se
+  mueva, vuelva a empezar a los 3 s y oculta no se mueva, y que tocar a los
+  costados cambie de página. Los objetos piden ~51,8 KB de `malloc` en la PC
+  (en E6, ~33,8 KB); ~27 KB son los búferes de las llantas, que en la placa
+  van a la PSRAM.
+- **Contra los cuadros originales** (pasados a RGB565), los PNG del render
+  difieren en promedio de 0 a 1,2 sobre 255. Lo que cambia es el borde de los
+  rayos de las llantas (otra interpolación), el borde del techo cuando pasa
+  una nube por atrás y, en el cuadro 5, las nubes y las rayas (en el
+  original caen en fracciones de píxel).
+
+Sin probar (falta la placa): todo en la pantalla real, la tarea nueva de
+`PantallaHw`, cuántos cuadros por segundo salen, las consultas por segundo
+con DS3 a la vista (redibuja ~20 veces por segundo, y cada redibujo cuesta
+~33 ms de envío) y la RAM interna libre (la tarea suma 8 KB).
+
+**Pruebas del usuario** (subir el firmware de esta rama):
+
+1. Al prender: negro con `Iniciando...` y `Conectando con el adaptador...`
+   abajo. Si a los 5 s no hay datos, entra el DS3 sin trabarse y queda con
+   `Toca para reintentar`. Si llega a MOTOR antes, el auto no aparece.
+2. Con el adaptador apagado (en el banco, o la llave en accesorios si ahí el
+   pin 1 no tiene tensión): `Esperando el adaptador`. Tocar: en el monitor
+   `Pantalla: reintento`, y abajo `Conectando con el adaptador...`.
+3. Mantener apretada la espera: a los 0,5 s la barra roja y
+   `Mantener para reiniciar`; soltar antes de 3 s reintenta; a los 3 s se
+   reinicia (vuelve a `Iniciando...`). Probarlo también mientras dice
+   `Conectando con el adaptador...`.
+4. Con datos: la página DS3 después de INFO, fluida, y tocar a los costados
+   cambia de página. En el monitor, las consultas por segundo con DS3 a la
+   vista (en Motor, 5–7).
+5. `!info` con el motor andando: la RAM interna libre (en E5, 128 KB).
+
+**Verificado por el usuario** (2026-10-26: "listo probado"), con el firmware
+de esta rama. No detalló cada punto: no quedaron anotadas las consultas por
+segundo con DS3 a la vista ni la RAM interna libre.
+
+Para E10:
+
+- Ya hay 7 páginas: con VIAJE y FUERZA G son 9, y hay que subir
+  `MAX_PAGINAS` (8). DS3 tiene que seguir última.
 
 ### E10
 

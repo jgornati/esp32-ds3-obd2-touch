@@ -20,10 +20,12 @@ INCLUIR := -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -I$(PROYECTO)/include -I
            -I$(LVGL)/src -I$(PROYECTO)/lib/obd/src -I$(PROYECTO)/src
 
 # Lo del firmware que dibuja. PantallaHw es de mentira (render.cpp).
-CODIGO := render.cpp $(addprefix $(PROYECTO)/src/,paginas.cpp pantalla.cpp dibujo.cpp datos.cpp) \
-          $(wildcard $(PROYECTO)/lib/obd/src/*.cpp)
-CABECERAS := $(wildcard $(PROYECTO)/src/*.h $(PROYECTO)/include/*.h $(PROYECTO)/lib/obd/src/*.h)
+CODIGO := render.cpp $(addprefix $(PROYECTO)/src/,paginas.cpp pantalla.cpp dibujo.cpp datos.cpp \
+          animaciones.cpp llanta.cpp) $(wildcard $(PROYECTO)/lib/obd/src/*.cpp)
+CABECERAS := $(wildcard $(PROYECTO)/src/*.h $(PROYECTO)/src/imagenes/*.h $(PROYECTO)/include/*.h \
+             $(PROYECTO)/lib/obd/src/*.h)
 FUENTES_O := $(patsubst $(PROYECTO)/src/fuentes/%.c,$(OBJ)/fuentes/%.o,$(wildcard $(PROYECTO)/src/fuentes/*.c))
+IMAGENES_O := $(patsubst $(PROYECTO)/src/imagenes/%.c,$(OBJ)/imagenes/%.o,$(wildcard $(PROYECTO)/src/imagenes/*.c))
 LVGL_O := $(patsubst $(LVGL)/src/%.c,$(OBJ)/lvgl/%.o,$(shell find $(LVGL)/src -name '*.c'))
 
 .PHONY: render limpiar
@@ -33,11 +35,15 @@ render: $(OBJ)/render
 	@mkdir -p $(SALIDA)
 	@$(OBJ)/render $(SALIDA)
 
-$(OBJ)/render: $(CODIGO) $(CABECERAS) $(FUENTES_O) $(LVGL_O)
+$(OBJ)/render: $(CODIGO) $(CABECERAS) $(FUENTES_O) $(IMAGENES_O) $(LVGL_O)
 	@echo "Compilando el render"
-	@$(CXX) -std=c++17 -O1 -Wall $(INCLUIR) $(CODIGO) $(FUENTES_O) $(LVGL_O) -lz -o $@
+	@$(CXX) -std=c++17 -O1 -Wall $(INCLUIR) $(CODIGO) $(FUENTES_O) $(IMAGENES_O) $(LVGL_O) -lz -o $@
 
 $(OBJ)/fuentes/%.o: $(PROYECTO)/src/fuentes/%.c $(PROYECTO)/include/lv_conf.h
+	@mkdir -p $(@D)
+	@$(CC) -O1 -w $(INCLUIR) -c $< -o $@
+
+$(OBJ)/imagenes/%.o: $(PROYECTO)/src/imagenes/%.c $(PROYECTO)/src/imagenes/imagenes.h $(PROYECTO)/include/lv_conf.h
 	@mkdir -p $(@D)
 	@$(CC) -O1 -w $(INCLUIR) -c $< -o $@
 

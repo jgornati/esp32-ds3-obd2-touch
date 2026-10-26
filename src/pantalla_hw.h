@@ -4,16 +4,26 @@
 
 // Hardware de la pantalla: panel AXS15231B por QSPI, touch por I2C,
 // retroiluminación y el puerto de LVGL. LVGL dibuja en horizontal (640x172)
-// y la imagen se gira por software al mandarla al panel (172x640). No hay
-// tarea de LVGL: atender() llama a lv_timer_handler().
+// y la imagen se gira por software al mandarla al panel (172x640).
+//
+// LVGL es de loop(): atender() llama a lv_timer_handler(). Lo que bloquea
+// sin llamar a atender() (conectar el BLE: hasta 30 s si el adaptador no
+// contesta) va entre soltar() y tomar(), y mientras tanto otra tarea atiende
+// LVGL: las animaciones siguen y el touch se lee (mantener apretado para
+// reiniciar anda aunque loop() esté trabado). Lo que use LVGL desde adentro
+// de eso (los avisos de la conexión) va entre tomar() y soltar().
 class PantallaHw {
 public:
-  // Panel, touch y LVGL. Deja la pantalla en negro, con la luz al máximo.
+  // Panel, touch y LVGL. Deja la pantalla en negro, con la luz al máximo, y
+  // LVGL tomado por quien llama.
   bool iniciar();
   bool iniciada() const;
   // Llamar seguido desde loop() y mientras se espera al ELM. El touch se lee
   // solo acá.
   void atender();
+  // Se pueden anidar (es un mutex recursivo). iniciar() lo deja tomado una vez.
+  void soltar();
+  void tomar();
   // Lo más que pasó entre dos atender() desde la última llamada: un toque
   // más corto que eso se puede perder
   uint32_t huecoMaximo();

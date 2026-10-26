@@ -24,9 +24,10 @@ enum class Accion : uint8_t { NINGUNA, RECONECTAR, OLVIDAR };
 constexpr uint8_t MAX_VISIBLES = 6;
 
 // Las páginas de LEYENDO, como en la maqueta de E4: Motor, Aire/Volt,
-// Carga, Mezcla, Fallas e Info. Se pasa a la anterior o a la siguiente
-// tocando la mitad izquierda o derecha de la pantalla; después de la última
-// vuelve a la primera. Los botones de Info se quedan con su toque y no
+// Carga, Mezcla, Fallas e Info, y al final DS3 (E9), una animación a
+// pantalla completa. Se pasa a la anterior o a la siguiente tocando la
+// mitad izquierda o derecha de la pantalla; después de la última vuelve a
+// la primera. Los botones de Info se quedan con su toque y no
 // cambian la página. Los toques llegan en eventos de LVGL, dentro de
 // PantallaHw::atender(), que también corre mientras se espera al ELM:
 // quedan como pedidos (tomarToque() y tomarAccion()) y quien llama actúa.
