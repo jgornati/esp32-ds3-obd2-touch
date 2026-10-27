@@ -110,9 +110,9 @@ static uint32_t esperaCuadro = 0;
 static TiemposCuadro cuadroEnviando = {}; // el que tiene la tarea de envío
 static TiemposCuadro ultimoCuadro = {};
 // Los cuadros del segundo en curso: cuántos, la suma y el máximo de cada tiempo
-static uint32_t cuadros = 0;
-static TiemposCuadro suma = {};
-static TiemposCuadro maximo = {};
+static uint32_t cuadrosSegundo = 0;
+static TiemposCuadro sumaSegundo = {};
+static TiemposCuadro maximoSegundo = {};
 static uint32_t inicioSegundo = 0;
 static MedidasPantalla medidasSegundo = {};
 
@@ -145,11 +145,11 @@ static void sumar(uint32_t &total, uint32_t &mayor, uint32_t valor) {
 
 static void contarCuadro(const TiemposCuadro &t) {
   ultimoCuadro = t;
-  cuadros++;
-  sumar(suma.dibujo, maximo.dibujo, t.dibujo);
-  sumar(suma.espera, maximo.espera, t.espera);
-  sumar(suma.giro, maximo.giro, t.giro);
-  sumar(suma.envio, maximo.envio, t.envio);
+  cuadrosSegundo++;
+  sumar(sumaSegundo.dibujo, maximoSegundo.dibujo, t.dibujo);
+  sumar(sumaSegundo.espera, maximoSegundo.espera, t.espera);
+  sumar(sumaSegundo.giro, maximoSegundo.giro, t.giro);
+  sumar(sumaSegundo.envio, maximoSegundo.envio, t.envio);
 }
 
 // Con LVGL tomado: cada segundo, lo juntado pasa a medidasSegundo
@@ -160,19 +160,20 @@ static void cerrarSegundo() {
     return;
   }
   MedidasPantalla m = {};
-  m.cuadros = (cuadros * 1000 + lapso / 2) / lapso;
+  m.cuadros = (cuadrosSegundo * 1000 + lapso / 2) / lapso;
   uint32_t total = barridos;
   m.barridos = ((total - barridosAntes) * 1000 + lapso / 2) / lapso;
   barridosAntes = total;
-  if (cuadros > 0) {
-    m.promedio = {suma.dibujo / cuadros, suma.espera / cuadros, suma.giro / cuadros,
-                  suma.envio / cuadros};
-    m.maximo = maximo;
+  uint32_t n = cuadrosSegundo;
+  if (n > 0) {
+    m.promedio = {sumaSegundo.dibujo / n, sumaSegundo.espera / n, sumaSegundo.giro / n,
+                  sumaSegundo.envio / n};
+    m.maximo = maximoSegundo;
   }
   medidasSegundo = m;
-  cuadros = 0;
-  suma = {};
-  maximo = {};
+  cuadrosSegundo = 0;
+  sumaSegundo = {};
+  maximoSegundo = {};
   inicioSegundo = ahora;
 }
 
@@ -206,7 +207,7 @@ static void enviarImagen(const uint16_t *imagen, TiemposCuadro &t) {
 }
 
 static void IRAM_ATTR alBarrer(void *) {
-  barridos++;
+  barridos = barridos + 1;
   ultimoBarrido = xTaskGetTickCountFromISR();
   BaseType_t despertar = pdFALSE;
   xSemaphoreGiveFromISR(barrido, &despertar);
