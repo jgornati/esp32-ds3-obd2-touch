@@ -13,6 +13,7 @@
 #include <lvgl.h>
 
 #include "config.h"
+#include "giro.h"
 #include "placa.h"
 
 // A partir de lvgl_port.c del ejemplo 10_LVGL_V9_Test de Waveshare.
@@ -98,21 +99,6 @@ static bool alTerminarTanda(esp_lcd_panel_io_handle_t, esp_lcd_panel_io_event_da
   return despertar == pdTRUE;
 }
 
-// Copia las filas [fila, fila + FILAS_TANDA) del panel desde la imagen
-// horizontal: cada columna de la imagen es una fila del panel. De paso da
-// vuelta los bytes de cada píxel (el panel espera primero el alto).
-static void prepararTanda(int fila, uint16_t *destino) {
-  for (int y = 0; y < ALTO; y++) {
-    const uint16_t *origen = imagen + y * ANCHO;
-    int columna = PANTALLA_GIRADA ? y : ANCHO_PANEL - 1 - y;
-    for (int i = 0; i < FILAS_TANDA; i++) {
-      int x = PANTALLA_GIRADA ? ANCHO - 1 - (fila + i) : fila + i;
-      uint16_t p = origen[x];
-      destino[i * ANCHO_PANEL + columna] = (uint16_t)((p >> 8) | (p << 8));
-    }
-  }
-}
-
 static uint32_t microsDesde(int64_t inicio) {
   return (uint32_t)(esp_timer_get_time() - inicio);
 }
@@ -164,7 +150,7 @@ static void enviarImagen(TiemposCuadro &t) {
     uint16_t *tanda = tandas[proximaTanda];
     proximaTanda ^= 1;
     int64_t antes = esp_timer_get_time();
-    prepararTanda(fila, tanda);
+    girarTanda(imagen, ANCHO, ALTO, fila, FILAS_TANDA, PANTALLA_GIRADA, tanda);
     t.giro += microsDesde(antes);
     // No espera: la interrupción avisa cuando se mandó
     if (esp_lcd_panel_draw_bitmap(panel, 0, fila, ANCHO_PANEL, fila + FILAS_TANDA, tanda) !=
