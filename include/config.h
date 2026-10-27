@@ -81,8 +81,10 @@ constexpr float TOLERANCIA_QUIETA_G = 0.05f;
 constexpr uint32_t VIGENCIA_FUERZA_G_MS = 500;
 // Con FUERZA G a la vista, la página se redibuja cada esto (las demás, cada
 // PERIODO_PANTALLA_MS). Con 50, moviendo el punto, las consultas bajaban a 3
-// o 4 por segundo (registro de E13)
-constexpr uint32_t PERIODO_FUERZA_G_MS = 100;
+// o 4 por segundo (registro de E13), y pasó a 100. Vuelve a 50 en E17, con el
+// envío en otra tarea y LVGL a -O2: si en el auto bajan las consultas en
+// FUERZA G, volver a 100.
+constexpr uint32_t PERIODO_FUERZA_G_MS = 50;
 
 // microSD (E13), en modo SD de 1 bit, como el ejemplo 04_SD_Card de la V2.
 // D3 (GPIO38, el CS del modo SPI) tiene su resistencia a 3,3 V y no se toca;
