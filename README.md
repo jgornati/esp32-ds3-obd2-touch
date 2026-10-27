@@ -46,15 +46,18 @@ En MEZCLA, la marca de lambda va en verde entre 0,97 y 1,03; más rica, en
 
 ### Cambiar de página
 
-- Tocar la mitad izquierda de la pantalla: página anterior. La mitad
-  derecha: la siguiente. Cuenta toda la pantalla, también la barra de
-  arriba. Después de la última vuelve a la primera.
+- Deslizar el dedo hacia la izquierda: la página siguiente. Hacia la
+  derecha: la anterior. Alcanza con correrlo un dedo y medio (80 px), más de
+  costado que en vertical. Cuenta toda la pantalla, también la barra de
+  arriba y los botones de Info, que así no se aprietan. Después de la última
+  vuelve a la primera.
+- Tocar no cambia de página: un bache o un roce no la cambian.
 - El botón BOOT, atrás de la placa: la siguiente.
 - Los puntos de la barra muestran en qué página se está.
 
 Las páginas se ven solo con la ECU conectada. La página se mantiene si la
 conexión se corta y vuelve. En DS3 no se ve la barra: se cambia de página
-igual, tocando a los costados.
+igual, deslizando.
 
 ### Pantalla de espera
 
@@ -122,10 +125,9 @@ pierde al sacarla: no se guarda.
 - Hasta la primera lectura se ve `...`; con el voltaje, hasta 5 s después de
   arrancar. Si la ECU no da el dato del que sale, `N/D`.
 - **Mantener apretada la página 3 s** reinicia el viaje: arriba la barra se
-  llena de rojo y dice `Mantener para reiniciar el viaje`. Soltarla antes no
-  hace nada y no cambia de página; un toque corto cambia de página, como en
-  las demás. Reiniciar la placa desde la pantalla de espera también lo
-  reinicia.
+  llena de rojo y dice `Mantener para reiniciar el viaje`, con el dedo quieto:
+  si se corre, no cuenta. Soltarla antes no hace nada. Reiniciar la placa
+  desde la pantalla de espera también lo reinicia.
 
 ### Fuerza G
 
@@ -207,7 +209,7 @@ PCF85063), que sigue andando con la placa apagada gracias a la batería.
 
 En cualquier página, la barra de arriba se pone roja con un triángulo, la
 alarma y el valor (`REFRIGERANTE 106 °C`), y el valor va en rojo en su
-página. Al aparecer cada una suenan tres pitidos, sin repetir. Tocar sigue
+página. Al aparecer cada una suenan tres pitidos, sin repetir. Deslizar sigue
 cambiando de página: no hay nada que aceptar, y la alarma se va sola.
 
 | Alarma                | Se prende                                   | Se apaga |
@@ -339,8 +341,8 @@ make -C herramientas/render -j8
 
 Deja un PNG por pantalla en `herramientas/render/salida/` y revisa que
 dibujar dos veces lo mismo no redibuje nada, que los textos no se pasen de
-su lugar, que los toques hagan lo que corresponde y que las animaciones se
-muevan.
+su lugar, que los toques y los deslizamientos hagan lo que corresponde y que
+las animaciones se muevan.
 
 ## Las animaciones
 

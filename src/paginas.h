@@ -50,13 +50,14 @@ constexpr uint8_t MAX_VISIBLES = 6;
 
 // Las páginas de LEYENDO, como en la maqueta de E4: Motor, Aire/Volt,
 // Carga, Mezcla, Fallas e Info, después Viaje (E10) y Fuerza G (E12), y al
-// final DS3 (E9), una animación a pantalla completa. Se pasa a la anterior o a la siguiente
-// tocando la mitad izquierda o derecha de la pantalla; después de la última
-// vuelve a la primera. Los botones de Info se quedan con su toque y no
-// cambian la página; en Viaje, soltarla después de mantenerla apretada
-// tampoco. Los toques llegan en eventos de LVGL, dentro de
-// PantallaHw::atender(), que también corre mientras se espera al ELM:
-// quedan como pedidos (tomarToque() y tomarAccion()) y quien llama actúa.
+// final DS3 (E9), una animación a pantalla completa. Se pasa a la siguiente
+// deslizando el dedo hacia la izquierda, y a la anterior hacia la derecha
+// (E16), en cualquier parte de la pantalla, también sobre los botones de
+// Info, que entonces no se aprietan; después de la última vuelve a la
+// primera. Tocar no cambia de página. Los toques llegan en eventos de LVGL,
+// dentro de PantallaHw::atender(), que también corre mientras se espera al
+// ELM: quedan como pedidos (tomarToque() y tomarAccion()) y quien llama
+// actúa.
 class Paginas {
 public:
   explicit Paginas(Pantalla &marco) : pantalla(marco) {}
@@ -78,15 +79,15 @@ public:
   bool muestraInfo() const;
   // En Fuerza G el punto se mueve: quien llama la dibuja más seguido
   bool muestraFuerzaG() const;
-  // -1 o +1 si se tocó la mitad izquierda o derecha desde la última
-  // llamada; 0 si no. Solo cuenta con las páginas a la vista. En Viaje, un
-  // toque de AVISO_MANTENER_MS o más no cuenta: es para reiniciar.
+  // +1 si se deslizó el dedo hacia la izquierda (la siguiente) desde la
+  // última llamada, -1 hacia la derecha (la anterior); 0 si no. Solo cuenta
+  // con las páginas a la vista.
   int8_t tomarToque();
   // Lo que se pidió desde la última llamada. Reconectar y el brillo cuentan
-  // al soltarlos;
-  // Olvidar, una vez por apretada, cuando lleva MANTENER_OLVIDAR_MS
-  // apretado, y reiniciar el viaje, cuando la página Viaje lleva
-  // MANTENER_VIAJE_MS apretada (ahora es la hora de millis()).
+  // al soltarlos (si no fue un deslizamiento); Olvidar, una vez por
+  // apretada, cuando lleva MANTENER_OLVIDAR_MS apretado, y reiniciar el
+  // viaje, cuando la página Viaje lleva MANTENER_VIAJE_MS apretada con el
+  // dedo quieto (ahora es la hora de millis()).
   Accion tomarAccion(uint32_t ahora);
   // fallas: la última lectura de la página Fallas. reintento: segundos
   // hasta volver a leerla, que se muestran si falló y no hay códigos. alarma:

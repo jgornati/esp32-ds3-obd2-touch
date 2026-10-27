@@ -2,8 +2,9 @@
 // paginas, animaciones y datos del firmware. PantallaHw es de mentira: la
 // imagen va a un búfer y de ahí a PNG (al doble de tamaño). Además revisa
 // que dibujar dos veces lo mismo no deje nada para redibujar (en la placa,
-// cada redibujo cuesta ~33 ms de envío), que el toque cambie de página como
-// corresponde, que los botones de Info pidan lo suyo sin cambiar de página,
+// cada redibujo cuesta ~33 ms de envío), que deslizar el dedo cambie de
+// página como corresponde y tocar no, que los botones de Info pidan lo suyo
+// sin cambiar de página y no se aprieten al deslizar,
 // que la espera reintente y reinicie, que las animaciones se muevan, que
 // mantener apretada Viaje la reinicie, que las alarmas se vean y no
 // redibujen de más, que el punto de Fuerza G vaya para donde corresponde,
@@ -389,6 +390,22 @@ static int8_t tocar(lv_indev_t *indev, Paginas &paginas, int32_t x, int32_t y) {
   return paginas.tomarToque();
 }
 
+// Desliza el dedo de x1 a x2 en 5 pasos de 30 ms (unos 150 ms, como un dedo
+// rápido) y lo levanta. Devuelve el pedido de cambio de página.
+static int8_t deslizar(lv_indev_t *indev, Paginas &paginas, int32_t x1, int32_t x2, int32_t y,
+                       int32_t y2 = -1) {
+  apoyar(indev, x1, y);
+  for (int paso = 1; paso <= 5; paso++) {
+    reloj += 30;
+    dedo = {x1 + (x2 - x1) * paso / 5, y + ((y2 < 0 ? y : y2) - y) * paso / 5};
+    lv_indev_read(indev);
+  }
+  reloj += 30;
+  levantar(indev);
+  reloj += 80;
+  return paginas.tomarToque();
+}
+
 // Mantiene el dedo apoyado ms más, leyendo el touch cada 100 ms como la
 // placa. true si en ese rato se pidió alguna acción.
 static bool mantener(lv_indev_t *indev, Paginas &paginas, uint32_t ms) {
@@ -654,7 +671,8 @@ int main(int argc, char **argv) {
   guardar(directorio, "m-fallas-grupo-2");
   revisar(guardadas[guardadas.size() - 1] != guardadas[guardadas.size() - 2],
           "los dos grupos se ven distintos");
-  revisar(tocar(indev, paginas, 500, 100) == 1, "en Fallas, tocar a la derecha: siguiente");
+  revisar(deslizar(indev, paginas, 500, 300, 100) == 1,
+          "en Fallas, deslizar a la izquierda: siguiente");
 
   // Info: cada botón pide lo suyo sin cambiar de página. Los centros, con
   // la barra de 28 px: Reconectar (528, 66) y Olvidar (528, 134).
@@ -685,13 +703,28 @@ int main(int argc, char **argv) {
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
   revisar(capturar() == suelta, "Olvidar: suelto, el relleno desaparece");
 
+  // Para arriba, hasta Reconectar: no es un deslizamiento de costado
   apoyar(indev, 528, 134);
   mantener(indev, paginas, 500);
-  dedo = {300, 100};
+  dedo = {528, 66};
   bool pidio = mantener(indev, paginas, MANTENER_OLVIDAR_MS);
   levantar(indev);
-  revisar(!pidio && paginas.tomarToque() == 0,
-          "Olvidar: si el dedo se va del boton, no pide nada ni cambia de pagina");
+  revisar(!pidio && paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Olvidar: si el dedo se va del boton, no pide nada (ni Reconectar, donde se solto)");
+
+  // Deslizar sobre los botones cambia de página sin apretarlos: empezando en
+  // uno, dentro del mismo y cruzando - y +
+  revisar(deslizar(indev, paginas, 528, 300, 66) == 1 &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Info: deslizar desde Reconectar: siguiente, sin reconectar");
+  revisar(deslizar(indev, paginas, 440, 620, 66) == -1 &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Info: deslizar dentro de Reconectar: anterior, sin reconectar");
+  revisar(deslizar(indev, paginas, 160, 388, 149) == -1 &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Info: deslizar de - a +: anterior, sin cambiar el brillo");
+  revisar(deslizar(indev, paginas, 528, 300, 134) == 1 && !mantener(indev, paginas, 100),
+          "Info: deslizar desde Olvidar: siguiente, sin olvidar");
 
   // El brillo: - y + piden lo suyo al soltarlos, sin cambiar de página. Los
   // centros, con la barra: - (160, 149) y + (388, 149).
@@ -762,11 +795,11 @@ int main(int argc, char **argv) {
   capturar();
   revisar(horaEnLaBarra(BORDE_HORA, BLANCO), "Barra: con hora, de nuevo en blanco");
 
-  // Fuera de los botones, Info cambia de página como las demás
-  revisar(tocar(indev, paginas, 100, 100) == -1, "en Info, tocar los datos: anterior");
-  revisar(tocar(indev, paginas, 380, 60) == 1,
-          "en Info, tocar a la derecha de los datos: siguiente");
-  revisar(tocar(indev, paginas, 528, 100) == 1, "en Info, tocar entre los botones: siguiente");
+  // Fuera de los botones, Info cambia de página como las demás, y tocarla no
+  revisar(tocar(indev, paginas, 100, 100) == 0 && tocar(indev, paginas, 528, 100) == 0,
+          "en Info, tocar los datos o entre los botones no cambia de pagina");
+  revisar(deslizar(indev, paginas, 100, 300, 100) == -1,
+          "en Info, deslizar a la derecha: anterior");
 
   // DS3: el paseo, a pantalla completa. Los momentos de los cuadros 0, 5 y
   // 30 de los originales (la vuelta empieza con el reloj en 0).
@@ -784,9 +817,11 @@ int main(int argc, char **argv) {
   revisar(capturar() == guardadas[guardadas.size() - 3], "DS3: a los 3 s vuelve a empezar");
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
   revisar(display->inv_p == 0, "DS3: dibujar de nuevo lo mismo no redibuja nada");
-  revisar(tocar(indev, paginas, 100, 100) == -1, "en DS3, tocar a la izquierda: anterior");
+  revisar(deslizar(indev, paginas, 100, 400, 100) == -1, "en DS3, deslizar a la derecha: anterior");
   paginas.cambiar(1);
-  revisar(tocar(indev, paginas, 500, 10) == 1, "en DS3, tocar arriba a la derecha: siguiente");
+  revisar(deslizar(indev, paginas, 500, 200, 10) == 1,
+          "en DS3, deslizar arriba a la izquierda: siguiente");
+  revisar(tocar(indev, paginas, 500, 100) == 0, "en DS3, tocar no cambia de pagina");
   paginas.cambiar(-1);
   irA(reloj + 1000);
   revisar(display->inv_p == 0, "DS3: oculta, no se mueve");
@@ -829,14 +864,16 @@ int main(int argc, char **argv) {
   datosDeLaMaqueta();
 
   // Mantener apretada Viaje: la barra se llena de rojo y a los 3 s la
-  // reinicia, una vez; al soltarla no cambia de página. Un toque, sí.
+  // reinicia, una vez; al soltarla no cambia de página. Deslizar, sí.
   viaje = viajeDe(38, 37.4f, 118, 5120, 94, 13.6f, 14.3f);
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
   std::vector<uint16_t> sinApretar = capturar();
-  revisar(tocar(indev, paginas, 500, 100) == 1 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
-          "en Viaje, tocar a la derecha: siguiente");
-  revisar(tocar(indev, paginas, 100, 10) == -1,
-          "en Viaje, tocar la barra a la izquierda: anterior");
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1 &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "en Viaje, deslizar a la izquierda: siguiente");
+  revisar(deslizar(indev, paginas, 100, 400, 10) == -1,
+          "en Viaje, deslizar sobre la barra a la derecha: anterior");
+  revisar(tocar(indev, paginas, 500, 100) == 0, "en Viaje, tocar no cambia de pagina");
   apoyar(indev, 500, 100);
   pidio = mantener(indev, paginas, AVISO_MANTENER_MS - 100);
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
@@ -869,7 +906,23 @@ int main(int argc, char **argv) {
   revisar(paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
           "Viaje: al soltarla despues de reiniciar no cambia de pagina");
 
-  // En las otras páginas, un toque largo sigue cambiando de página
+  // Si el dedo se corre mientras la mantiene, no reinicia: deslizar empezando
+  // con el dedo quieto, o un dedo que se mueve sin llegar a deslizar
+  apoyar(indev, 300, 100);
+  pidio = mantener(indev, paginas, 1000);
+  dedo = {300 + QUIETO_PX + 10, 100};
+  pidio = mantener(indev, paginas, MANTENER_VIAJE_MS) || pidio;
+  levantar(indev);
+  revisar(!pidio && paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Viaje: con el dedo corrido no reinicia ni cambia de pagina");
+  apoyar(indev, 500, 100);
+  pidio = mantener(indev, paginas, 1000);
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1 && !pidio &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Viaje: quieta 1 s y despues deslizar: siguiente, sin reiniciar");
+  paginas.cambiar(-1);
+
+  // En las otras páginas, mantenerla no hace nada
   irA(paginas, "MOTOR");
   datosDeLaMaqueta();
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
@@ -881,8 +934,8 @@ int main(int argc, char **argv) {
   revisar(capturar() == motor, "en Motor, mantenerla no llena la barra");
   pidio = mantener(indev, paginas, MANTENER_VIAJE_MS) || pidio;
   levantar(indev);
-  revisar(!pidio && paginas.tomarToque() == 1,
-          "en Motor, mantener y soltar: siguiente, sin reiniciar el viaje");
+  revisar(!pidio && paginas.tomarToque() == 0,
+          "en Motor, mantener y soltar: no cambia de pagina ni reinicia el viaje");
 
   // Alarmas: la barra en rojo con el texto y el valor en rojo en su página.
   // El texto es el de lib/obd, como en main.cpp.
@@ -930,8 +983,11 @@ int main(int argc, char **argv) {
                 horaEnLaBarra(BORDE_HORA, BLANCO, ROJO) &&
                 hayColor(X_MARCA_SD, X_MARCA_SD + 25, Y_MARCA_SD, Y_MARCA_SD + 15, ETIQUETA),
             que);
-    snprintf(que, sizeof(que), "%s: tocar la barra roja sigue cambiando de pagina", caso.nombre);
-    revisar(tocar(indev, paginas, 600, 10) == 1 && tocar(indev, paginas, 20, 10) == -1, que);
+    snprintf(que, sizeof(que), "%s: deslizar sobre la barra roja sigue cambiando de pagina",
+             caso.nombre);
+    revisar(deslizar(indev, paginas, 600, 300, 10) == 1 &&
+                deslizar(indev, paginas, 20, 320, 10) == -1,
+            que);
   }
   // Sin alarma, todo vuelve a como estaba; en DS3, sin la barra
   alarma = {nullptr, 0};
@@ -1008,23 +1064,33 @@ int main(int argc, char **argv) {
     revisar(display->inv_p == 0, que);
   }
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
-  revisar(tocar(indev, paginas, 100, 100) == -1, "en Fuerza G, tocar a la izquierda: anterior");
+  revisar(deslizar(indev, paginas, 100, 400, 100) == -1,
+          "en Fuerza G, deslizar a la derecha: anterior");
   paginas.cambiar(1);
-  revisar(tocar(indev, paginas, 500, 100) == 1, "en Fuerza G, tocar a la derecha: siguiente");
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1,
+          "en Fuerza G, deslizar a la izquierda: siguiente");
   paginas.cambiar(-1);
   apoyar(indev, 500, 100);
   pidio = mantener(indev, paginas, MANTENER_VIAJE_MS + 500);
   levantar(indev);
-  revisar(!pidio && paginas.tomarToque() == 1,
-          "en Fuerza G, mantener y soltar: siguiente, sin reiniciar el viaje");
+  revisar(!pidio && paginas.tomarToque() == 0,
+          "en Fuerza G, mantener y soltar: no cambia de pagina ni reinicia el viaje");
 
-  // Toques con las páginas a la vista
+  // Deslizar con las páginas a la vista: en cualquier parte, también la barra,
+  // con DESLIZAR_PX o más y más de costado que en vertical. Tocar, nada.
   irA(paginas, "MOTOR");
   paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
-  revisar(tocar(indev, paginas, 100, 100) == -1, "tocar a la izquierda: anterior");
-  revisar(tocar(indev, paginas, 500, 100) == 1, "tocar a la derecha: siguiente");
-  revisar(tocar(indev, paginas, 20, 10) == -1, "tocar la barra a la izquierda: anterior");
-  revisar(tocar(indev, paginas, 600, 10) == 1, "tocar la barra a la derecha: siguiente");
+  revisar(deslizar(indev, paginas, 100, 400, 100) == -1, "deslizar a la derecha: anterior");
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1, "deslizar a la izquierda: siguiente");
+  revisar(deslizar(indev, paginas, 20, 320, 10) == -1, "deslizar sobre la barra: anterior");
+  revisar(deslizar(indev, paginas, 300, 300 - DESLIZAR_PX, 100) == 1,
+          "deslizar justo DESLIZAR_PX: cuenta");
+  revisar(deslizar(indev, paginas, 300, 300 - DESLIZAR_PX + 10, 100) == 0,
+          "deslizar menos de DESLIZAR_PX: no cuenta");
+  revisar(deslizar(indev, paginas, 300, 210, 20, 150) == 0,
+          "deslizar mas en vertical que de costado: no cuenta");
+  revisar(tocar(indev, paginas, 100, 100) == 0 && tocar(indev, paginas, 600, 10) == 0,
+          "tocar no cambia de pagina");
   revisar(paginas.tomarToque() == 0, "sin tocar no hay pedido");
 
   guardarTodas(directorio);

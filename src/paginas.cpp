@@ -105,6 +105,16 @@ static lv_obj_t *area = nullptr;
 static lv_obj_t *areaCompleta = nullptr;
 static lv_obj_t *vistas[CANT_PAGINAS];
 static int8_t toque = 0;
+// Dónde se apoyó el dedo, y si el último toque fue un deslizamiento
+static lv_point_t inicioDedo = {0, 0};
+static bool deslizado = false;
+
+// Lo que se corrió el dedo desde que se apoyó
+static lv_point_t corrimiento() {
+  lv_point_t punto;
+  lv_indev_get_point(lv_indev_active(), &punto);
+  return {punto.x - inicioDedo.x, punto.y - inicioDedo.y};
+}
 
 enum class Alineacion { IZQUIERDA, CENTRO, DERECHA };
 
@@ -614,8 +624,11 @@ static bool olvidando = false;    // Olvidar apretado
 static uint32_t olvidoDesde = 0;  // desde cuándo
 static bool olvidoPedido = false; // ya se pidió en esta apretada
 
+// Si el dedo se deslizó dentro del botón, es para cambiar de página
 static void alSoltarBoton(lv_event_t *e) {
-  accion = (Accion)(uintptr_t)lv_event_get_user_data(e);
+  if (!deslizado) {
+    accion = (Accion)(uintptr_t)lv_event_get_user_data(e);
+  }
 }
 
 // Olvidar no cuenta al soltarlo sino después de MANTENER_OLVIDAR_MS
@@ -761,7 +774,6 @@ static Valor rpmMaxima, refrigeranteMaximo, voltajeMinimo, voltajeMaximo;
 static bool mantenida = false;
 static uint32_t mantenidaDesde = 0;
 static bool reinicioPedido = false; // ya se pidió en esta apretada
-static bool toqueLargo = false;     // el último toque duró AVISO_MANTENER_MS o más
 
 // Casilla 0 a 7, de izquierda a derecha y de arriba abajo: nombre y valor.
 // Si el nombre cambia (Fuerza G), queda en etiquetaNombre.
@@ -847,13 +859,19 @@ static float fraccionMantenida(uint32_t ahora) {
   return tiempo >= (int32_t)AVISO_MANTENER_MS ? fraccion(tiempo, 0, MANTENER_VIAJE_MS) : 0;
 }
 
-// Los toques que llegan a la raíz. Al soltar, LVGL manda RELEASED antes que
-// el CLICKED de alTocar.
+// Los toques que llegan a la raíz: los que empiezan fuera de los botones.
+// Mantenerla deja de contar si el dedo se corre.
 static void alApretar(lv_event_t *e) {
-  if (lv_event_get_code(e) == LV_EVENT_PRESSED) {
+  lv_event_code_t codigo = lv_event_get_code(e);
+  if (codigo == LV_EVENT_PRESSED) {
     mantenida = true;
     mantenidaDesde = lv_tick_get();
     reinicioPedido = false;
+  } else if (codigo == LV_EVENT_PRESSING) {
+    lv_point_t corrido = corrimiento();
+    if (LV_ABS(corrido.x) > QUIETO_PX || LV_ABS(corrido.y) > QUIETO_PX) {
+      mantenida = false;
+    }
   } else {
     mantenida = false;
   }
@@ -961,17 +979,24 @@ static void alAnimarPaseo(lv_timer_t *) {
   paseoDs3.mover(lv_tick_get());
 }
 
-// Cuenta toda la pantalla, también la barra: los objetos de las páginas y de
-// la barra no reciben toques, así que el evento llega a la raíz.
-static void alTocar(lv_event_t *) {
-  if (lv_obj_has_flag(area, LV_OBJ_FLAG_HIDDEN) &&
-      lv_obj_has_flag(areaCompleta, LV_OBJ_FLAG_HIDDEN)) {
-    return;
+// En el touch, sobre cualquier objeto: LVGL manda al indev el PRESSED del
+// objeto donde se apoyó el dedo y el RELEASED del objeto donde se levantó,
+// antes que a ellos (y antes del CLICKED de un botón). Si el dedo pasa de un
+// botón a otro objeto, el botón pierde el toque y el otro no se aprieta.
+static void alDeslizar(lv_event_t *e) {
+  lv_event_code_t codigo = lv_event_get_code(e);
+  if (codigo == LV_EVENT_PRESSED) {
+    lv_indev_get_point(lv_indev_active(), &inicioDedo);
+    deslizado = false;
+  } else if (codigo == LV_EVENT_RELEASED) {
+    lv_point_t corrido = corrimiento();
+    deslizado = LV_ABS(corrido.x) >= DESLIZAR_PX && LV_ABS(corrido.x) > LV_ABS(corrido.y);
+    bool conPaginas = !lv_obj_has_flag(area, LV_OBJ_FLAG_HIDDEN) ||
+                      !lv_obj_has_flag(areaCompleta, LV_OBJ_FLAG_HIDDEN);
+    if (deslizado && conPaginas) {
+      toque = corrido.x < 0 ? 1 : -1;
+    }
   }
-  lv_point_t punto;
-  lv_indev_get_point(lv_indev_active(), &punto);
-  toque = punto.x < ANCHO / 2 ? -1 : 1;
-  toqueLargo = lv_tick_get() - mantenidaDesde >= AVISO_MANTENER_MS;
 }
 
 void Paginas::iniciar() {
@@ -996,11 +1021,16 @@ void Paginas::iniciar() {
   paseoDs3.crear(vistas[PAGINA_DS3]);
   lv_timer_create(alAnimarPaseo, paseo.ms_cuadro, nullptr);
   lv_obj_t *raiz = lv_screen_active();
-  lv_obj_add_event_cb(raiz, alTocar, LV_EVENT_CLICKED, nullptr);
-  static const lv_event_code_t EVENTOS[] = {LV_EVENT_PRESSED, LV_EVENT_RELEASED,
+  static const lv_event_code_t EVENTOS[] = {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_RELEASED,
                                             LV_EVENT_PRESS_LOST};
   for (lv_event_code_t codigo : EVENTOS) {
     lv_obj_add_event_cb(raiz, alApretar, codigo, nullptr);
+  }
+  // El touch es el único indev (PantallaHw)
+  lv_indev_t *touch = lv_indev_get_next(nullptr);
+  if (touch != nullptr) {
+    lv_indev_add_event_cb(touch, alDeslizar, LV_EVENT_PRESSED, nullptr);
+    lv_indev_add_event_cb(touch, alDeslizar, LV_EVENT_RELEASED, nullptr);
   }
   armadas = true;
 }
@@ -1042,10 +1072,6 @@ bool Paginas::muestraFuerzaG() const {
 
 int8_t Paginas::tomarToque() {
   int8_t paso = toque;
-  // En Viaje, soltarla después de mantenerla no cambia la página
-  if (toqueLargo && actual == PAGINA_VIAJE) {
-    paso = 0;
-  }
   toque = 0;
   return paso;
 }
