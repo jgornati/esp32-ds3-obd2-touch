@@ -228,9 +228,10 @@ static void imprimirInfo() {
   Serial.printf("Ultimo reinicio: %s\n", motivoReinicio(esp_reset_reason()));
 
   if (pantallaHw.iniciada()) {
+    MedidasPantalla m = pantallaHw.medidas();
     Serial.print("Pantalla en el ultimo segundo: ");
-    imprimirMedidas(pantallaHw.medidas());
-    Serial.println(" (promedio/maximo)");
+    imprimirMedidas(m);
+    Serial.printf(" (promedio/maximo); LCD_TE %u barridos/s\n", m.barridos);
     TiemposCuadro t = pantallaHw.medirRefresco();
     Serial.printf("Pantalla: refresco completo %.1f ms: dibujo %.1f, espera %.1f, giro %.1f, envio "
                   "%.1f ms\n",

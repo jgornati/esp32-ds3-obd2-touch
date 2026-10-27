@@ -15,6 +15,7 @@ struct MedidasPantalla {
   uint16_t cuadros;
   TiemposCuadro promedio;
   TiemposCuadro maximo;
+  uint16_t barridos; // del panel, por el LCD_TE; 0 si no llega
 };
 
 // Hardware de la pantalla: panel AXS15231B por QSPI, touch por I2C,

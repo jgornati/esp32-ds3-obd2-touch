@@ -15,9 +15,12 @@ constexpr uint8_t PIN_PANTALLA_D0 = 11;
 constexpr uint8_t PIN_PANTALLA_D1 = 12;
 constexpr uint8_t PIN_PANTALLA_D2 = 13;
 constexpr uint8_t PIN_PANTALLA_D3 = 14;
-// El reset de la pantalla es el pin 5 del TCA9554. El GPIO21 es LCD_TE (una
-// salida de la pantalla) y el GPIO8, la interrupción del TCA9554: no se usan.
+// El reset de la pantalla es el pin 5 del TCA9554. El GPIO8 es la
+// interrupción del TCA9554: no se usa.
 constexpr uint8_t PIN_EXPANSOR_RESET_PANTALLA = 5;
+// LCD_TE: una salida del panel, que sube en cada barrido de la imagen. Solo se
+// lee (E17): el envío empieza con el barrido.
+constexpr uint8_t PIN_PANTALLA_TE = 21;
 
 // LVGL dibuja en horizontal (640x172) y pantalla_hw gira la imagen. true la
 // gira 180° más, para montarla con el USB-C del otro lado.

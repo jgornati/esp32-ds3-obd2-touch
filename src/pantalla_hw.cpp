@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <axs15231b/esp_lcd_axs15231b.h>
+#include <driver/gpio.h>
 #include <driver/i2c_master.h>
 #include <driver/ledc.h>
 #include <driver/spi_master.h>
@@ -48,16 +49,23 @@ static const uint32_t TIMEOUT_ENVIO_MS = 2000;
 static const uint32_t PILA_ENVIO = 4096;
 static const UBaseType_t PRIORIDAD_ENVIO = 2;
 static const BaseType_t NUCLEO_ENVIO = 0;
+// El envío espera el barrido del panel (LCD_TE) hasta esto, y solo si hubo
+// uno hace menos de TE_VIGENTE_MS: si el TE no llega, se manda sin esperar
+static const uint32_t ESPERA_TE_MS = 40;
+static const uint32_t TE_VIGENTE_MS = 200;
 // La tarea que atiende LVGL mientras loop() bloquea: entre una atención y
 // la siguiente deja correr a las demás
 static const uint32_t PILA_APARTE = 8192;
 static const uint32_t PAUSA_APARTE_MS = 5;
 
 // Los del ejemplo: salir del modo sueño y prender la imagen. El driver
-// manda antes MADCTL y COLMOD.
+// manda antes MADCTL y COLMOD. En el medio, TEON (E17): que avise cada
+// barrido por el LCD_TE, solo en el blanking vertical (modo 0).
 static const uint8_t SIN_DATOS[] = {0x00};
+static const uint8_t TE_SOLO_VERTICAL[] = {0x00};
 static const axs15231b_lcd_init_cmd_t COMANDOS_PANEL[] = {
     {0x11, SIN_DATOS, 0, 100},
+    {0x35, TE_SOLO_VERTICAL, 1, 0},
     {0x29, SIN_DATOS, 0, 100},
 };
 
@@ -89,6 +97,11 @@ static uint16_t *tandas[2] = {nullptr, nullptr};
 static int proximaTanda = 0;
 static SemaphoreHandle_t tandasLibres = nullptr;
 static bool avisoTanda = false;
+// El LCD_TE: la interrupción da el semáforo y cuenta
+static SemaphoreHandle_t barrido = nullptr;
+static volatile uint32_t barridos = 0;
+static volatile TickType_t ultimoBarrido = 0;
+static uint32_t barridosAntes = 0; // los de cerrarSegundo()
 
 // Lo que tarda cada cuadro (E17). Al empezar a dibujar, LVGL avisa con
 // LV_EVENT_REFR_START; lo que espera al envío anterior no es dibujo.
@@ -148,6 +161,9 @@ static void cerrarSegundo() {
   }
   MedidasPantalla m = {};
   m.cuadros = (cuadros * 1000 + lapso / 2) / lapso;
+  uint32_t total = barridos;
+  m.barridos = ((total - barridosAntes) * 1000 + lapso / 2) / lapso;
+  barridosAntes = total;
   if (cuadros > 0) {
     m.promedio = {suma.dibujo / cuadros, suma.espera / cuadros, suma.giro / cuadros,
                   suma.envio / cuadros};
@@ -189,12 +205,34 @@ static void enviarImagen(const uint16_t *imagen, TiemposCuadro &t) {
   t.envio = microsDesde(inicio);
 }
 
+static void IRAM_ATTR alBarrer(void *) {
+  barridos++;
+  ultimoBarrido = xTaskGetTickCountFromISR();
+  BaseType_t despertar = pdFALSE;
+  xSemaphoreGiveFromISR(barrido, &despertar);
+  if (despertar == pdTRUE) {
+    portYIELD_FROM_ISR();
+  }
+}
+
+// El panel muestra lo que tiene en la memoria con un barrido de arriba abajo.
+// Si se le escribe la imagen nueva justo cuando empieza, el barrido no la
+// alcanza y no se ve cortada (la mitad vieja y la mitad nueva).
+static void esperarBarrido() {
+  if (xTaskGetTickCount() - ultimoBarrido > pdMS_TO_TICKS(TE_VIGENTE_MS)) {
+    return;
+  }
+  xSemaphoreTake(barrido, 0); // el de antes ya pasó
+  xSemaphoreTake(barrido, pdMS_TO_TICKS(ESPERA_TE_MS));
+}
+
 // La tarea de envío: gira y manda cada imagen que le pasa alDibujar(). No
 // toca LVGL: la imagen es suya hasta que da envioListo.
 static void enviarAparte(void *) {
   for (;;) {
     uint32_t pixeles = 0;
     xTaskNotifyWait(0, 0, &pixeles, portMAX_DELAY);
+    esperarBarrido();
     TiemposCuadro t = {};
     enviarImagen((const uint16_t *)(uintptr_t)pixeles, t);
     tiemposEnvio = t;
@@ -398,6 +436,30 @@ static bool iniciarPanel() {
   return true;
 }
 
+// El GPIO21 como entrada, con una interrupción en cada barrido. Con el
+// pull-down, si el panel no lo maneja queda en bajo, sin interrupciones.
+static bool iniciarBarrido() {
+  gpio_config_t te = {};
+  te.pin_bit_mask = 1ULL << PIN_PANTALLA_TE;
+  te.mode = GPIO_MODE_INPUT;
+  te.pull_down_en = GPIO_PULLDOWN_ENABLE;
+  te.intr_type = GPIO_INTR_POSEDGE;
+  esp_err_t err = gpio_config(&te);
+  if (err != ESP_OK) {
+    return falla("el LCD_TE", err);
+  }
+  // Puede estar ya instalado
+  err = gpio_install_isr_service(0);
+  if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+    return falla("las interrupciones del LCD_TE", err);
+  }
+  err = gpio_isr_handler_add((gpio_num_t)PIN_PANTALLA_TE, alBarrer, nullptr);
+  if (err != ESP_OK) {
+    return falla("la interrupcion del LCD_TE", err);
+  }
+  return true;
+}
+
 static bool iniciarTouch() {
   i2c_master_bus_config_t bus = {};
   bus.i2c_port = PUERTO_TOUCH;
@@ -468,6 +530,7 @@ bool PantallaHw::iniciar(uint8_t brillo) {
 
   tandasLibres = xSemaphoreCreateCounting(2, 2);
   envioListo = xSemaphoreCreateBinary();
+  barrido = xSemaphoreCreateBinary();
   // En negro las dos
   for (uint16_t *&imagen : imagenes) {
     imagen = (uint16_t *)heap_caps_calloc(1, BYTES_IMAGEN, MALLOC_CAP_SPIRAM);
@@ -475,8 +538,9 @@ bool PantallaHw::iniciar(uint8_t brillo) {
   for (uint16_t *&tanda : tandas) {
     tanda = (uint16_t *)heap_caps_malloc(BYTES_TANDA, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
   }
-  if (tandasLibres == nullptr || envioListo == nullptr || imagenes[0] == nullptr ||
-      imagenes[1] == nullptr || tandas[0] == nullptr || tandas[1] == nullptr) {
+  if (tandasLibres == nullptr || envioListo == nullptr || barrido == nullptr ||
+      imagenes[0] == nullptr || imagenes[1] == nullptr || tandas[0] == nullptr ||
+      tandas[1] == nullptr) {
     Serial.println("Pantalla: falta memoria");
     return false;
   }
@@ -484,6 +548,8 @@ bool PantallaHw::iniciar(uint8_t brillo) {
   if (!iniciarPanel() || !iniciarTouch()) {
     return false;
   }
+  // Sin él se manda igual, sin esperar el barrido
+  iniciarBarrido();
   if (xTaskCreatePinnedToCore(enviarAparte, "envio", PILA_ENVIO, nullptr, PRIORIDAD_ENVIO,
                               &tareaEnvio, NUCLEO_ENVIO) != pdPASS) {
     Serial.println("Pantalla: no se pudo crear la tarea del envio");

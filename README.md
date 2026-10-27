@@ -250,7 +250,7 @@ borra las fallas, da `RECHAZADO`).
 
 | Comando       | Qué hace |
 | ------------- | -------- |
-| `!info`       | Chip, memoria, último reinicio, pantalla (los cuadros del último segundo y un refresco completo), adaptador, ECU, tarjeta y reloj |
+| `!info`       | Chip, memoria, último reinicio, pantalla (los cuadros del último segundo, los barridos del panel por el `LCD_TE` y un refresco completo), adaptador, ECU, tarjeta y reloj |
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
