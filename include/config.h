@@ -196,12 +196,14 @@ constexpr float RPM_ALARMA = ALARMAS_DE_PRUEBA ? 2000 : 6000;
 constexpr float RPM_NORMAL = ALARMAS_DE_PRUEBA ? 1800 : 5800;
 constexpr uint32_t PERIODO_ALARMAS_MS = 3000;
 // Al prenderse cada alarma: PITIDOS_ALARMA pitidos de PITIDO_MS, separados
-// por SILENCIO_PITIDO_MS, a FRECUENCIA_PITIDO_HZ y VOLUMEN_PITIDO (de 0 a 1)
+// por SILENCIO_PITIDO_MS, a FRECUENCIA_PITIDO_HZ y VOLUMEN_PITIDO (de 0 a 1).
+// Estaba en 0,5; el usuario lo pidió más fuerte (2026-10-27): 1 es lo más
+// que entra sin recortar la onda.
 constexpr uint8_t PITIDOS_ALARMA = 3;
 constexpr uint32_t PITIDO_MS = 150;
 constexpr uint32_t SILENCIO_PITIDO_MS = 100;
 constexpr uint32_t FRECUENCIA_PITIDO_HZ = 2500;
-constexpr float VOLUMEN_PITIDO = 0.5f;
+constexpr float VOLUMEN_PITIDO = 1.0f;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se
