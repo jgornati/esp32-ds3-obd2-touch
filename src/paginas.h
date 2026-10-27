@@ -16,6 +16,7 @@ struct DatosInfo {
   int16_t consultasPorSegundo; // -1: todavía no se midió
   const char *direccion;       // del adaptador: "81:23:45:67:89:BA"
   int16_t rssi;                // dBm; 0: sin medir (siempre es negativo)
+  uint8_t brillo;              // nivel, de 1 a CANT_NIVELES_BRILLO
 };
 
 // La alarma que se ve en la barra (E11) y las magnitudes que van en rojo
@@ -26,7 +27,14 @@ struct AlarmaALaVista {
 static_assert(CANT_MAGNITUDES <= 16, "un bit por Magnitud en AlarmaALaVista");
 
 // Lo que se pide con los botones de Info y manteniendo apretada Viaje
-enum class Accion : uint8_t { NINGUNA, RECONECTAR, OLVIDAR, REINICIAR_VIAJE };
+enum class Accion : uint8_t {
+  NINGUNA,
+  RECONECTAR,
+  OLVIDAR,
+  BAJAR_BRILLO,
+  SUBIR_BRILLO,
+  REINICIAR_VIAJE
+};
 
 // Magnitudes de una página: entran en una sola consulta de varios PIDs
 constexpr uint8_t MAX_VISIBLES = 6;
@@ -63,7 +71,8 @@ public:
   // llamada; 0 si no. Solo cuenta con las páginas a la vista. En Viaje, un
   // toque de AVISO_MANTENER_MS o más no cuenta: es para reiniciar.
   int8_t tomarToque();
-  // Lo que se pidió desde la última llamada. Reconectar cuenta al soltarlo;
+  // Lo que se pidió desde la última llamada. Reconectar y el brillo cuentan
+  // al soltarlos;
   // Olvidar, una vez por apretada, cuando lleva MANTENER_OLVIDAR_MS
   // apretado, y reiniciar el viaje, cuando la página Viaje lleva
   // MANTENER_VIAJE_MS apretada (ahora es la hora de millis()).

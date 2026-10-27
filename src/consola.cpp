@@ -5,7 +5,7 @@
 #include "config.h"
 
 static const char *const AYUDA = "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
-                                 "!info, !pitar, !escanear, !explorar N";
+                                 "!info, !pitar, !brillo N, !escanear, !explorar N";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -57,6 +57,12 @@ bool Consola::pitidoPedido() {
   return pedido;
 }
 
+uint8_t Consola::brilloPedido() {
+  uint8_t pedido = brillo;
+  brillo = 0;
+  return pedido;
+}
+
 // El adaptador acepta una sola conexión y, conectado, no se anuncia: para
 // explorar hay que soltarlo. Después se reconecta solo.
 void Consola::soltarElm() {
@@ -96,6 +102,8 @@ void Consola::ejecutar(const char *texto) {
     info = true;
   } else if (strcasecmp(comando, "!pitar") == 0) {
     pitido = true;
+  } else if (strcasecmp(comando, "!brillo") == 0 && leidos >= 2 && numero > 0) {
+    brillo = numero > UINT8_MAX ? UINT8_MAX : numero;
   } else if (strcasecmp(comando, "!escanear") == 0) {
     soltarElm();
     explorador.escanear();

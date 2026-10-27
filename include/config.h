@@ -2,8 +2,10 @@
 
 #include <stdint.h>
 
-// Waveshare ESP32-S3-Touch-LCD-3.49, según los ejemplos de Waveshare
-// (10_LVGL_V9_Test/user_config.h).
+// Waveshare ESP32-S3-Touch-LCD-3.49B V2 (la plaqueta dice Rev1.1), según los
+// ejemplos de Waveshare para la V2 (ESP32-S3-Touch-LCD-3.49-V2,
+// 10_LVGL_V9_Test/user_config.h) y su esquemático. En la V1 cambian la luz y
+// el reset de la pantalla (notas de E11 y E15).
 
 // Pantalla: AXS15231B por QSPI (SPI3_HOST), 172x640
 constexpr uint8_t PIN_PANTALLA_CS = 9;
@@ -12,23 +14,32 @@ constexpr uint8_t PIN_PANTALLA_D0 = 11;
 constexpr uint8_t PIN_PANTALLA_D1 = 12;
 constexpr uint8_t PIN_PANTALLA_D2 = 13;
 constexpr uint8_t PIN_PANTALLA_D3 = 14;
-constexpr uint8_t PIN_PANTALLA_RST = 21;
+// El reset de la pantalla es el pin 5 del TCA9554. El GPIO21 es LCD_TE (una
+// salida de la pantalla) y el GPIO8, la interrupción del TCA9554: no se usan.
+constexpr uint8_t PIN_EXPANSOR_RESET_PANTALLA = 5;
 
 // LVGL dibuja en horizontal (640x172) y pantalla_hw gira la imagen. true la
 // gira 180° más, para montarla con el USB-C del otro lado.
 constexpr bool PANTALLA_GIRADA = false;
 
-// Retroiluminación (LCD_BL del esquemático): en bajo, al máximo; en alto,
-// apagada. Queda siempre al máximo: en la placa del DS3 el pin no cambia la
-// luz, ni con el código de Waveshare (E6).
-constexpr uint8_t PIN_RETROILUMINACION = 8;
+// Retroiluminación (LCD_BL del esquemático), con PWM: en bajo, al máximo; en
+// alto, apagada (como el programa de fábrica: duty = 255 - brillo). El
+// regulador se prende con el pin 1 del TCA9554 (BL_EN). El brillo va en
+// niveles, de 1 a CANT_NIVELES_BRILLO, guardado en Preferences; arranca en
+// el más alto.
+constexpr uint8_t PIN_RETROILUMINACION = 42;
+constexpr uint8_t PIN_EXPANSOR_LUZ = 1;
+constexpr uint32_t FRECUENCIA_RETROILUMINACION_HZ = 50000; // la del ejemplo
+constexpr uint8_t BRILLOS[] = {12, 40, 90, 160, 255};      // de 0 a 255, por nivel
+constexpr uint8_t CANT_NIVELES_BRILLO = sizeof(BRILLOS) / sizeof(BRILLOS[0]);
 
 // Touch, en el mismo AXS15231B. I2C sin INT ni RST.
 constexpr uint8_t PIN_TOUCH_SDA = 17;
 constexpr uint8_t PIN_TOUCH_SCL = 18;
 constexpr uint8_t DIRECCION_TOUCH = 0x3B;
 
-// I2C de la placa. Lo inicia el sonido (E11); el RTC y el IMU, todavía no.
+// I2C de la placa. Se inicia antes que la pantalla (placa.h), con el
+// TCA9554; el RTC y el IMU todavía no se usan.
 constexpr uint8_t PIN_I2C_SDA = 47;
 constexpr uint8_t PIN_I2C_SCL = 48;
 constexpr uint8_t DIRECCION_RTC = 0x51;      // PCF85063

@@ -3,8 +3,9 @@
 #include <stdint.h>
 
 // Hardware de la pantalla: panel AXS15231B por QSPI, touch por I2C,
-// retroiluminación y el puerto de LVGL. LVGL dibuja en horizontal (640x172)
-// y la imagen se gira por software al mandarla al panel (172x640).
+// retroiluminación y el puerto de LVGL. En la V2 de la placa, el reset del
+// panel y el encendido de la luz van por el TCA9554: iniciarPlaca() antes. LVGL dibuja en
+// horizontal (640x172) y la imagen se gira por software al mandarla al panel (172x640).
 //
 // LVGL es de loop(): atender() llama a lv_timer_handler(). Lo que bloquea
 // sin llamar a atender() (conectar el BLE: hasta 30 s si el adaptador no
@@ -14,9 +15,9 @@
 // de eso (los avisos de la conexión) va entre tomar() y soltar().
 class PantallaHw {
 public:
-  // Panel, touch y LVGL. Deja la pantalla en negro, con la luz al máximo, y
-  // LVGL tomado por quien llama.
-  bool iniciar();
+  // Panel, touch y LVGL. Deja la pantalla en negro, con la luz en brillo
+  // (de 0 a 255), y LVGL tomado por quien llama.
+  bool iniciar(uint8_t brillo);
   bool iniciada() const;
   // Llamar seguido desde loop() y mientras se espera al ELM. El touch se lee
   // solo acá.
@@ -37,4 +38,8 @@ public:
 
   // Última lectura del touch, sin girar (para calibrar). false sin dedo.
   bool toqueCrudo(uint16_t &x, uint16_t &y) const;
+
+  // De 0 (apagada) a 255 (al máximo)
+  void ponerBrillo(uint8_t nivel);
+  uint8_t brillo() const;
 };
