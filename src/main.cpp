@@ -11,6 +11,7 @@
 #include <viaje.h>
 
 #include "boton.h"
+#include "brillo.h"
 #include "config.h"
 #include "consola.h"
 #include "datos.h"
@@ -20,6 +21,7 @@
 #include "paginas.h"
 #include "pantalla.h"
 #include "pantalla_hw.h"
+#include "placa.h"
 #include "sondeo.h"
 #include "sonido.h"
 
@@ -63,6 +65,7 @@ static const ReglaAlarma REGLAS_ALARMAS[CANT_ALARMAS] = {
 };
 Alarmas alarmas(REGLAS_ALARMAS);
 Sonido sonido;
+Brillo brillo;
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -199,6 +202,8 @@ static void imprimirInfo() {
                 textoEstado(estado), direccion[0] != '\0' ? direccion : "-", elm.rssi(),
                 version[0] != '\0' ? version : "-", protocolo[0] != '\0' ? protocolo : "-",
                 soportados.cantidad());
+  Serial.printf("Placa: I2C %s; brillo %u de %u\n", busPlaca() != nullptr ? "listo" : "no anda",
+                brillo.nivel(), CANT_NIVELES_BRILLO);
   Serial.printf("Sonido: %s; alarmas activas: %u%s\n", sonido.iniciado() ? "listo" : "no anda",
                 alarmas.activas(), ALARMAS_DE_PRUEBA ? " (umbrales de prueba)" : "");
 }
@@ -274,9 +279,10 @@ static void dibujar() {
     pantalla.espera("Buscando la ECU...");
     break;
   case Estado::LEYENDO:
-    paginas.dibujar(
-        ahora, {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion, rssi},
-        fallas, segundosHasta(proximaLecturaFallas), viaje, alarmaALaVista(ahora));
+    paginas.dibujar(ahora,
+                    {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion,
+                     rssi, brillo.nivel()},
+                    fallas, segundosHasta(proximaLecturaFallas), viaje, alarmaALaVista(ahora));
     break;
   case Estado::SIN_ECU:
     if (ecuPerdida) {
@@ -1067,9 +1073,19 @@ static void reiniciarPlaca() {
   esp_restart();
 }
 
+// De Info (- y +) o de la consola (!brillo N). No usa el ELM.
+static void cambiarBrillo(uint8_t nivel) {
+  if (brillo.poner(nivel)) {
+    pantallaHw.ponerBrillo(brillo.valor());
+    dibujar();
+  }
+  Serial.printf("Pantalla: brillo %u de %u\n", brillo.nivel(), CANT_NIVELES_BRILLO);
+}
+
 // Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
 // consola. Acá y no mientras se espera al ELM: los dos lo sueltan. Y
-// reiniciar el viaje, de la página Viaje, que no usa el ELM.
+// reiniciar el viaje, de la página Viaje, y el brillo, de Info, que no usan
+// el ELM.
 static void atenderAcciones() {
   Accion accion = paginas.tomarAccion(millis());
   if (estado != Estado::LEYENDO || descubriendo) {
@@ -1084,6 +1100,14 @@ static void atenderAcciones() {
                   (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
     viaje.reiniciar();
     dibujar();
+  } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
+    cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
+  }
+  uint8_t nivel = consola.brilloPedido();
+  if (nivel > CANT_NIVELES_BRILLO) {
+    Serial.printf("Consola: el brillo va de 1 a %u\n", CANT_NIVELES_BRILLO);
+  } else if (nivel > 0) {
+    cambiarBrillo(nivel);
   }
   if (consola.reconexionPedida() || accion == Accion::RECONECTAR) {
     volverAConectar(false);
@@ -1096,9 +1120,12 @@ static void atenderAcciones() {
 void setup() {
   Serial.begin(115200);
 
-  // La pantalla antes que el BLE: necesita RAM interna con DMA. Lo que no
-  // anduvo se informa cuando abre el monitor.
-  bool conPantalla = pantallaHw.iniciar();
+  // La pantalla antes que el BLE: necesita RAM interna con DMA. Y el I2C de
+  // la placa antes que la pantalla: en la V2, el reset del panel y la luz van
+  // por el TCA9554. Lo que no anduvo se informa cuando abre el monitor (!info).
+  iniciarPlaca();
+  brillo.iniciar();
+  bool conPantalla = pantallaHw.iniciar(brillo.valor());
   pantalla.iniciar();
   paginas.iniciar();
   pantalla.espera("Iniciando...");
@@ -1132,7 +1159,7 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !escanear o !explorar N.");
+                 "!info, !pitar, !brillo N, !escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }

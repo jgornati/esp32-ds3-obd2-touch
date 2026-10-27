@@ -25,6 +25,8 @@ public:
   bool infoPedida();
   // true una sola vez después de un !pitar (los pitidos de una alarma)
   bool pitidoPedido();
+  // El nivel de un !brillo N, una sola vez; 0 si no hubo
+  uint8_t brilloPedido();
   // !log lo cambia: con true se ve cada consulta periódica, no solo las fallas
   bool detalle() const {
     return conDetalle;
@@ -49,6 +51,7 @@ private:
   bool descubrir = false;
   bool info = false;
   bool pitido = false;
+  uint8_t brillo = 0;
   bool conDetalle = false;
   void (*alSoltar)() = nullptr;
 };

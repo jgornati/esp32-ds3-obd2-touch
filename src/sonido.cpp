@@ -6,6 +6,7 @@
 #include <math.h>
 
 #include "config.h"
+#include "placa.h"
 
 // 16 kHz con MCLK de 256 veces (4,096 MHz): una de las combinaciones de la
 // tabla del ES8311
@@ -17,13 +18,7 @@ static const uint32_t RAMPA_MS = 5;
 // Lo que se genera de una vez: 10 ms, estéreo
 static const uint32_t CUADROS_POR_TANDA = MUESTREO_HZ / 100;
 
-// TCA9554
-static const uint8_t SALIDAS = 0x01;
-static const uint8_t DIRECCIONES = 0x03; // 1: entrada
-
-static i2c_master_bus_handle_t bus = nullptr;
 static i2c_master_dev_handle_t codec = nullptr;
-static i2c_master_dev_handle_t expansor = nullptr;
 static i2s_chan_handle_t canal = nullptr;
 static TaskHandle_t tarea = nullptr;
 static bool listo = false;
@@ -173,26 +168,15 @@ static void alPitar(void *) {
 }
 
 bool Sonido::iniciar() {
-  i2c_master_bus_config_t configBus = {};
-  configBus.i2c_port = I2C_NUM_0; // el del touch es el 1
-  configBus.sda_io_num = (gpio_num_t)PIN_I2C_SDA;
-  configBus.scl_io_num = (gpio_num_t)PIN_I2C_SCL;
-  configBus.clk_source = I2C_CLK_SRC_DEFAULT;
-  configBus.glitch_ignore_cnt = 7;
-  configBus.flags.enable_internal_pullup = true;
-  if (i2c_new_master_bus(&configBus, &bus) != ESP_OK) {
-    return falla("el I2C de la placa");
+  if (busPlaca() == nullptr) {
+    return falla("sin el I2C de la placa");
   }
-  i2c_device_config_t configDispositivo = {};
-  configDispositivo.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-  configDispositivo.scl_speed_hz = VELOCIDAD_I2C_HZ;
-  configDispositivo.device_address = DIRECCION_CODEC;
-  if (i2c_master_bus_add_device(bus, &configDispositivo, &codec) != ESP_OK) {
+  i2c_device_config_t configCodec = {};
+  configCodec.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+  configCodec.scl_speed_hz = VELOCIDAD_I2C_HZ;
+  configCodec.device_address = DIRECCION_CODEC;
+  if (i2c_master_bus_add_device(busPlaca(), &configCodec, &codec) != ESP_OK) {
     return falla("el ES8311 en el I2C");
-  }
-  configDispositivo.device_address = DIRECCION_EXPANSOR;
-  if (i2c_master_bus_add_device(bus, &configDispositivo, &expansor) != ESP_OK) {
-    return falla("el TCA9554 en el I2C");
   }
 
   // Como el ejemplo: el I2S, después el códec y al final el amplificador
@@ -202,10 +186,7 @@ bool Sonido::iniciar() {
   if (!iniciarCodec()) {
     return falla("el ES8311 no contesta");
   }
-  // Solo el pin del amplificador: primero la salida en alto y después como
-  // salida, así no pasa por bajo
-  uint8_t pin = 1 << PIN_EXPANSOR_AMPLIFICADOR;
-  if (!cambiar(expansor, SALIDAS, pin, pin) || !cambiar(expansor, DIRECCIONES, pin, 0)) {
+  if (!salidaExpansor(PIN_EXPANSOR_AMPLIFICADOR, true)) {
     return falla("el TCA9554 no contesta");
   }
   if (xTaskCreatePinnedToCore(alPitar, "sonido", 3072, nullptr, 2, &tarea, 0) != pdPASS) {

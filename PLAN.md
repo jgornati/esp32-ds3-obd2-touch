@@ -38,6 +38,7 @@ que corresponda antes de portar un módulo.
 | E12   | Fuerza G                               | E10        | Pendiente |
 | E13   | Registro del viaje en la microSD       | E10        | Pendiente |
 | E14   | Reloj                                  | —          | Pendiente (con la batería puesta) |
+| E15   | La placa V2: pines de la pantalla y brillo | E11    | Hecha (falta verificar en hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -46,7 +47,8 @@ E1 y E2 tocan archivos distintos y se pueden hacer en paralelo. E5 y E6
 también. De E8 en adelante son pedidos del usuario del 2026-10-26, después
 de usarlo en el auto. E8 se descartó (ver la etapa): se sigue por E9. E10
 y E11 se pueden hacer en cualquier orden. E14 necesita la batería puesta
-(ver la etapa).
+(ver la etapa). E15 la pidió el usuario el 2026-10-26, al saberse en E11 que
+la placa es la V2; se hizo antes que E12.
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -81,9 +83,9 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
 | Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep (confirmado en E7). El 2026-10-26 el usuario decidió ponerle una batería de 3,7 V, para que el RTC no pierda la hora (ver **Hardware de la placa**). La placa se sigue apagando con la llave: el firmware no activa `SYS_EN` |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
-| Brillo                 | Siempre al máximo, sin regulación (2026-10-26, E6): en esta placa la luz no responde al GPIO8. |
+| Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15). Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
-| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa, el audio y **solo el pin 7** del TCA9554; los demás pines del expansor no se tocan. |
+| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. |
 
 ## Hardware de la placa
 
@@ -98,8 +100,8 @@ los ejemplos y el esquemático de `waveshareteam/ESP32-S3-Touch-LCD-3.49-V2`
 | -------------------------------------- | ---------------------------------------------------------- |
 | Chip                                   | ESP32-S3R8: 2 núcleos, 240 MHz, 8 MB de PSRAM (OPI), 16 MB de flash, Wi-Fi y BLE 5 |
 | Pantalla                               | IPS 3,49", 172×640, controlador AXS15231B por QSPI (`SPI3_HOST`) |
-| Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21. **V2:** el GPIO21 es `LCD_TE` (una salida de la pantalla) y el reset es EXIO5 del TCA9554 |
-| Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`). **V2:** `LCD_BL` es el GPIO42, y el GPIO8 es `EXIO_INT` (la interrupción del TCA9554): por eso no cambiaba |
+| Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21. **V2:** el GPIO21 es `LCD_TE` (una salida de la pantalla) y el reset es EXIO5 del TCA9554. El firmware usa los de la V2 desde E15 |
+| Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`). **V2:** `LCD_BL` es el GPIO42, y el GPIO8 es `EXIO_INT` (la interrupción del TCA9554): por eso no cambiaba. Igual que en la V1, en bajo queda al máximo (el programa de fábrica pone duty = 255 − brillo). El firmware usa el GPIO42 desde E15 |
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) y el códec de audio. Un solo bus para todos |
 | TCA9554 (expansor)                     | Según el esquemático (E6): EXIO0 `TP_INT`, EXIO1 `BL_EN` (encendido de la luz, con resistencia a `VSYS`), EXIO2 y EXIO3 interrupciones del IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE` (**V2:** `LCD_RST`), EXIO6 `SYS_EN` (mantiene la alimentación desde la batería, ejemplo `07_BATT_PWR_Test`) y EXIO7 `NS_MODE` (el amplificador del parlante, ejemplo `08_Audio_Test`) |
@@ -131,6 +133,8 @@ src/
   imagenes/         las imágenes de las animaciones, generadas (E9)
   boton.h/.cpp      botón BOOT: página siguiente (E4)
   sonido.h/.cpp     el parlante: I2C de la placa, ES8311, I2S y el amplificador (E11)
+  placa.h/.cpp      el I2C de la placa y el TCA9554, antes que la pantalla (E15)
+  brillo.h/.cpp     el nivel de brillo, guardado en Preferences (E15)
   datos, sondeo, descubrimiento   portados del anterior (E3)
 lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10) y alarmas (E11)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
@@ -639,15 +643,39 @@ celular.
 **Verificación del usuario:** después de una noche con el auto apagado,
 la hora sigue bien.
 
+### E15 — La placa V2: pines de la pantalla y brillo
+
+**Objetivo:** que el firmware use los pines de la V2, que es la placa del
+usuario (ver notas de E11), y que el brillo se pueda regular.
+
+Lo decidió el usuario (2026-10-26): hacerlo aparte de E11, después de
+mergearla, y con el brillo en 5 niveles en Info, como se había hecho en E6.
+
+**Tareas:**
+
+1. El I2C de la placa y el TCA9554 antes que la pantalla, compartidos con el
+   sonido.
+2. El reset del panel por EXIO5; el GPIO21 (`LCD_TE`) y el GPIO8
+   (`EXIO_INT`) sin tocar.
+3. La luz por PWM en el GPIO42, con `BL_EN` (EXIO1). Apagada hasta mandar
+   el primer cuadro negro.
+4. El brillo en 5 niveles: - y + en Info, `!brillo N` en la consola (para
+   probarlo en el banco, sin la ECU), guardado en `Preferences`.
+
+**Verificación del usuario:** la pantalla arranca bien, sin basura; el
+brillo cambia con cada nivel y se mantiene al apagar y prender.
+
 ## Ideas para después
 
 Fuera del plan; solo si el usuario las pide:
 
-- Oscurecer la imagen de noche, ya que la luz queda siempre al máximo
-  (E6).
-- **Pasar la pantalla a los pines de la V2** (visto en E11): la luz por el
-  GPIO42 (vuelve el brillo de E6), el GPIO21 como entrada (es `LCD_TE`) y el
-  reset por EXIO5 del TCA9554. Reemplaza a revisar el GPIO8 con un tester.
+- Que la pantalla sea más fluida (la animación de DS3, los cambios de
+  página): compilar LVGL optimizado para velocidad en vez de para tamaño
+  (`-Os`, lo normal en Arduino) y girar la imagen de a dos píxeles (hoy se
+  lleva ~20 de los ~33 ms de cada envío). Medir antes y después con `!info`.
+  No cambia las consultas por segundo: las limita el adaptador.
+- Usar el `LCD_TE` de la V2 (GPIO21) para mandar la imagen sincronizada con
+  el panel: evitaría cortes en la animación.
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
@@ -698,7 +726,7 @@ De esta placa y el adaptador nuevo:
 | RAM interna y consultas por segundo con las páginas | Con el motor andando: RAM interna libre 128 KB (bloque mayor 87 KB; en E3, 157–158 KB) y 133 KB al arrancar, antes del BLE. Consultas por segundo: Motor 5–7 (RPM 5–6 por segundo), Aire/Volt y Carga 6–7, Mezcla 5–6 (140–168 ms). Refresco completo en Motor: 93 ms | E5    |
 | Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
-| Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); el firmware sigue con los de la V1. Según los ejemplos y el esquemático de la V2, sin medir | E11   |
+| Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); desde E15 el firmware usa los de la V2. Según los ejemplos y el esquemático de la V2, sin medir | E11, E15 |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
 
 ## Notas de traspaso
@@ -2619,3 +2647,83 @@ Para E12 y E14:
 ### E13
 
 ### E14
+
+### E15
+
+Rama `placa-v2`, desde `main` con E11 (que el usuario pidió mergear antes).
+
+Lo que se hizo:
+
+- **`src/placa`** (nuevo): `iniciarPlaca()`, `busPlaca()` y
+  `salidaExpansor(pin, nivel)`. El I2C de la placa (`I2C_NUM_0`, 300 kHz) y el
+  TCA9554, que antes creaba el sonido. Se inicia en `setup()` antes que la
+  pantalla. `salidaExpansor()` lee y cambia solo el bit del pin: primero el
+  nivel y después la dirección, así no pasa por el otro. Comprueba el
+  expansor con `i2c_master_probe()`.
+- **Pines del TCA9554 que se usan:** 1 (`BL_EN`, el regulador de la luz), 5
+  (el reset de la pantalla, V2) y 7 (el amplificador, E11). Los demás quedan
+  como entradas, como arrancan; el 6 (`SYS_EN`) no se toca.
+- **`pantalla_hw`:**
+  - `iniciar(brillo)`: la luz por PWM en el GPIO42 con el LEDC del ESP-IDF,
+    como el programa de fábrica de la V2 (baja velocidad, timer 3, canal 1, 8
+    bits, `FRECUENCIA_RETROILUMINACION_HZ` 50 kHz), arranca apagada (duty
+    255) con `BL_EN` en bajo; después del primer cuadro negro, el brillo y
+    `BL_EN` en alto.
+  - El reset del panel por EXIO5 (alto 30 ms, bajo 250, alto 30, los tiempos
+    del ejemplo). Sin el expansor no se hace (al prender, el panel arranca
+    reseteado) y lo dice el monitor.
+  - Ya no toca el GPIO21 (en la V2, `LCD_TE`: antes quedaba como salida en
+    alto) ni el GPIO8 (`EXIO_INT`).
+  - `ponerBrillo(0-255)` y `brillo()`: duty = 255 − brillo, como el programa
+    de fábrica (en bajo, al máximo).
+- **`src/brillo`** (nuevo, como el de E6 que no quedó en ningún commit):
+  `iniciar()`, `nivel()`, `valor()` y `poner(nivel)`. Niveles de 1 a
+  `CANT_NIVELES_BRILLO` (5), con `BRILLOS` {12, 40, 90, 160, 255} en
+  `config.h`. Se guarda en `Preferences` (`pantalla`/`brillo`); sin nada
+  guardado, el más alto (como hasta ahora).
+- **`paginas`, Info:** los 4 renglones pasan de 36 a 24 px, y abajo va
+  `Brillo` con `-` y `+` (56×38, borde gris, `LV_SYMBOL_MINUS` y
+  `LV_SYMBOL_PLUS`) y un segmento por nivel en el medio. `DatosInfo` suma
+  `brillo` (el nivel). `Accion::BAJAR_BRILLO` y `SUBIR_BRILLO`, al soltar el
+  botón, que se queda con el toque (no cambia la página).
+- **`main.cpp`:** `cambiarBrillo()` (desde Info o `!brillo N`): lo guarda, lo
+  pone en la luz y escribe `Pantalla: brillo N de 5`. `!info` dice si anda el
+  I2C de la placa y el brillo.
+- **`consola`:** `!brillo N` (de 1 a 5), que anda en cualquier estado: así
+  se prueba en el banco, sin la ECU.
+- **`sonido`:** usa `busPlaca()` y `salidaExpansor()`; ya no crea el bus.
+- **`config.h`:** sale `PIN_PANTALLA_RST`; `PIN_RETROILUMINACION` pasa a 42;
+  nuevos `PIN_EXPANSOR_RESET_PANTALLA`, `PIN_EXPANSOR_LUZ`,
+  `FRECUENCIA_RETROILUMINACION_HZ`, `BRILLOS` y `CANT_NIVELES_BRILLO`.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,7 %, flash 62,2 % de 3 MB). Con `-Wall -Wextra
+  -Wshadow`, sin warnings propios. `pio test -e native` 75/75 (`lib/obd` no
+  cambió).
+- **Render**, 105 revisiones, todas bien. Caso nuevo `p-info-brillo-maximo`;
+  `6-info` con el brillo en 3. Revisa que `-` y `+` pidan lo suyo una sola
+  vez sin cambiar de página, que dibujar dos veces no redibuje nada y que
+  los datos de Info sigan sin llegar a los botones.
+
+Sin probar (falta la placa): todo. Es la primera vez que el firmware toca el
+GPIO42, `BL_EN` y el reset por el expansor.
+
+**Pruebas del usuario** (subir el firmware de esta rama):
+
+1. Al prender: la pantalla negra, sin basura, y después la espera como
+   siempre. En el monitor, sin `Placa: no se pudo iniciar...` ni `Pantalla:
+   sin el TCA9554...`. `!info`: `Placa: I2C listo; brillo 5 de 5`.
+2. `!brillo 1` a `!brillo 5` en el banco: la luz cambia en cada nivel. Si va
+   al revés (1 es el más claro), la polaridad es la otra: avisar. Anotar el
+   nivel cómodo de día y de noche.
+3. En el auto, en Info: `-` y `+` cambian el brillo y los segmentos, sin
+   cambiar de página.
+4. Apagar y prender: arranca con el último brillo.
+5. Que siga sonando `!pitar` (el sonido ahora usa el bus de `placa`).
+
+Para E12 y E14:
+
+- El IMU y el RTC van en `busPlaca()`; el TCA9554, con `salidaExpansor()`
+  (sus interrupciones son entradas: EXIO2 y EXIO3 del IMU, EXIO4 del RTC,
+  que se leerían con un registro de lectura que hoy no hay).

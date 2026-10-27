@@ -3,10 +3,8 @@
 #include <stdint.h>
 
 // El parlante (E11): pitidos generados acá, por el códec ES8311 y el
-// amplificador NS4150B. Usa el I2C de la placa, el I2S y el pin 7 del
-// TCA9554 (NS_MODE). Los demás pines del expansor no se tocan: el 1 prende
-// la luz, el 6 sostiene la placa con la batería y, en la V2, el 5 es el
-// reset de la pantalla.
+// amplificador NS4150B. Usa el I2C de la placa (iniciarPlaca() antes), el I2S
+// y el pin 7 del TCA9554 (NS_MODE).
 class Sonido {
 public:
   // false si algo no respondió: queda sin sonido, y pitar() no hace nada.

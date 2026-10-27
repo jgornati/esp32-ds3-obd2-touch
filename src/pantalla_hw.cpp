@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <axs15231b/esp_lcd_axs15231b.h>
 #include <driver/i2c_master.h>
+#include <driver/ledc.h>
 #include <driver/spi_master.h>
 #include <esp_heap_caps.h>
 #include <esp_lcd_panel_io.h>
@@ -11,6 +12,7 @@
 #include <lvgl.h>
 
 #include "config.h"
+#include "placa.h"
 
 // A partir de lvgl_port.c del ejemplo 10_LVGL_V9_Test de Waveshare.
 //
@@ -30,6 +32,10 @@ static const int RELOJ_PANEL_HZ = 40 * 1000 * 1000;
 static const i2c_port_num_t PUERTO_TOUCH = I2C_NUM_1;
 static const uint32_t RELOJ_TOUCH_HZ = 300000;
 static const int TIMEOUT_TOUCH_MS = 20;
+// La luz, con el LEDC del ESP-IDF como el programa de fábrica: 8 bits
+static const ledc_mode_t MODO_LUZ = LEDC_LOW_SPEED_MODE;
+static const ledc_timer_t TIMER_LUZ = LEDC_TIMER_3;
+static const ledc_channel_t CANAL_LUZ = LEDC_CHANNEL_1;
 // Si una tanda no se terminó de mandar en esto, se sigue igual
 static const uint32_t TIMEOUT_TANDA_MS = 100;
 // La tarea que atiende LVGL mientras loop() bloquea: entre una atención y
@@ -46,6 +52,7 @@ static const axs15231b_lcd_init_cmd_t COMANDOS_PANEL[] = {
 };
 
 static bool lista = false;
+static uint8_t brilloActual = 0;
 static uint32_t ultimaAtencion = 0;
 static uint32_t hueco = 0;
 // LVGL: lo tiene loop(), salvo entre soltar() y tomar()
@@ -250,14 +257,17 @@ static bool iniciarPanel() {
     return falla("el driver del panel", err);
   }
 
-  // Reset por hardware, con los tiempos del ejemplo
-  pinMode(PIN_PANTALLA_RST, OUTPUT);
-  digitalWrite(PIN_PANTALLA_RST, HIGH);
-  delay(30);
-  digitalWrite(PIN_PANTALLA_RST, LOW);
-  delay(250);
-  digitalWrite(PIN_PANTALLA_RST, HIGH);
-  delay(30);
+  // Reset por hardware, por el TCA9554, con los tiempos del ejemplo. Sin el
+  // expansor no se hace: al prender la placa el panel arranca reseteado.
+  if (salidaExpansor(PIN_EXPANSOR_RESET_PANTALLA, true)) {
+    delay(30);
+    salidaExpansor(PIN_EXPANSOR_RESET_PANTALLA, false);
+    delay(250);
+    salidaExpansor(PIN_EXPANSOR_RESET_PANTALLA, true);
+    delay(30);
+  } else {
+    Serial.println("Pantalla: sin el TCA9554, sin reset del panel");
+  }
   err = esp_lcd_panel_init(panel);
   if (err != ESP_OK) {
     return falla("la inicializacion del panel", err);
@@ -306,10 +316,29 @@ static void iniciarLvgl() {
   lv_obj_set_style_bg_color(lv_screen_active(), lv_color_black(), 0);
 }
 
-bool PantallaHw::iniciar() {
-  // Apagada mientras el panel muestra basura (en la placa del DS3 no se apaga)
-  pinMode(PIN_RETROILUMINACION, OUTPUT);
-  digitalWrite(PIN_RETROILUMINACION, HIGH);
+// El PWM de la luz, apagada, y el regulador apagado
+static bool iniciarLuz() {
+  ledc_timer_config_t timer = {};
+  timer.speed_mode = MODO_LUZ;
+  timer.duty_resolution = LEDC_TIMER_8_BIT;
+  timer.timer_num = TIMER_LUZ;
+  timer.freq_hz = FRECUENCIA_RETROILUMINACION_HZ;
+  timer.clk_cfg = LEDC_AUTO_CLK;
+  ledc_channel_config_t canal = {};
+  canal.gpio_num = PIN_RETROILUMINACION;
+  canal.speed_mode = MODO_LUZ;
+  canal.channel = CANAL_LUZ;
+  canal.timer_sel = TIMER_LUZ;
+  canal.duty = 255; // en alto, apagada
+  salidaExpansor(PIN_EXPANSOR_LUZ, false);
+  return ledc_timer_config(&timer) == ESP_OK && ledc_channel_config(&canal) == ESP_OK;
+}
+
+bool PantallaHw::iniciar(uint8_t brillo) {
+  // Apagada mientras el panel muestra basura
+  if (!iniciarLuz()) {
+    Serial.println("Pantalla: no se pudo iniciar el PWM de la luz");
+  }
 
   tandasLibres = xSemaphoreCreateCounting(2, 2);
   imagen = (uint16_t *)heap_caps_calloc(1, BYTES_IMAGEN, MALLOC_CAP_SPIRAM);
@@ -338,10 +367,22 @@ bool PantallaHw::iniciar() {
   }
   lista = true;
 
-  // Primero el negro y después la luz, al máximo
+  // Primero el negro y después la luz
   lv_refr_now(display);
-  digitalWrite(PIN_RETROILUMINACION, LOW);
+  ponerBrillo(brillo);
+  salidaExpansor(PIN_EXPANSOR_LUZ, true);
   return true;
+}
+
+void PantallaHw::ponerBrillo(uint8_t nivel) {
+  brilloActual = nivel;
+  // En bajo, al máximo
+  ledc_set_duty(MODO_LUZ, CANAL_LUZ, 255 - nivel);
+  ledc_update_duty(MODO_LUZ, CANAL_LUZ);
+}
+
+uint8_t PantallaHw::brillo() const {
+  return brilloActual;
 }
 
 bool PantallaHw::iniciada() const {

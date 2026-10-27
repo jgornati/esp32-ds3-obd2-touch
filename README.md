@@ -23,7 +23,7 @@ y al final una animación:
 | CARGA     | Carga del motor, avance del encendido y acelerador, cada uno con su barra |
 | MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador |
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
-| INFO      | Adaptador y señal (RSSI), dirección, versión del ELM y protocolo, PIDs y consultas por segundo; botones Reconectar y Olvidar adaptador |
+| INFO      | Adaptador y señal (RSSI), dirección, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
 | VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
 | DS3       | El DS3 andando, con nubes y el camino corriéndose. Ocupa toda la pantalla, sin la barra ni datos |
 
@@ -151,8 +151,10 @@ cambiando de página: no hay nada que aceptar, y la alarma se va sola.
 - **Olvidar adaptador:** hay que mantenerlo apretado 3 s (se llena de rojo
   mientras tanto); soltarlo antes o correr el dedo lo cancela. Borra la
   dirección guardada y busca el adaptador de cero.
+- **Brillo:** `-` y `+` lo cambian en 5 niveles (los segmentos del medio).
+  Queda guardado para el próximo arranque; sin nada guardado, al máximo.
 
-Ninguno de los dos le manda nada al auto.
+Ninguno le manda nada al auto.
 
 ### Consola
 
@@ -167,6 +169,7 @@ borra las fallas, da `RECHAZADO`).
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
 | `!pitar`      | Los tres pitidos de una alarma, para probar el parlante |
+| `!brillo N`   | El brillo, de 1 a 5, como en Info (anda también sin la ECU) |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
@@ -186,11 +189,10 @@ viaje.
   descubiertos** de `PLAN.md`.
 - Sin batería.
 
-La retroiluminación queda siempre al máximo. El firmware usa los pines de la
-V1 de la placa (la luz en el GPIO8 y el reset de la pantalla en el GPIO21);
-en la V2 la luz va por el GPIO42, y el reset, por el expansor TCA9554. Por
-eso el GPIO8 no cambiaba la luz (notas de E6 y E11 en `PLAN.md`). Arreglarlo
-está pendiente.
+El firmware usa los pines de la V2: la luz por PWM en el GPIO42 y el reset de
+la pantalla por el expansor TCA9554. Hasta E15 usaba los de la V1 (la luz en
+el GPIO8), y por eso el brillo no se podía regular (notas de E6, E11 y E15
+en `PLAN.md`). Con una V1 no anda: habría que volver a esos pines.
 
 ## Instalación en el auto
 

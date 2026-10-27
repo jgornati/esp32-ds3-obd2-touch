@@ -354,7 +354,7 @@ int main(int argc, char **argv) {
   Paginas paginas(pantalla);
   // Lo que piden las páginas armadas y dibujadas una vez
   datosDeLaMaqueta();
-  DatosInfo info = {"v2.1", "6", 17, 6, "81:23:45:67:89:BA", -58};
+  DatosInfo info = {"v2.1", "6", 17, 6, "81:23:45:67:89:BA", -58, 3};
   // La de la maqueta, con la luz encendida y 2 códigos según 0101
   LecturaFallas fallas =
       lecturaFallas("410182076100", "43 02 04 20 01 71", "47 01 03 00", "NO DATA");
@@ -574,6 +574,22 @@ int main(int argc, char **argv) {
   levantar(indev);
   revisar(!pidio && paginas.tomarToque() == 0,
           "Olvidar: si el dedo se va del boton, no pide nada ni cambia de pagina");
+
+  // El brillo: - y + piden lo suyo al soltarlos, sin cambiar de página. Los
+  // centros, con la barra: - (160, 149) y + (388, 149).
+  revisar(tocar(indev, paginas, 160, 149) == 0 &&
+              paginas.tomarAccion(reloj) == Accion::BAJAR_BRILLO,
+          "Brillo: - pide bajarlo, sin cambiar de pagina");
+  revisar(tocar(indev, paginas, 388, 149) == 0 &&
+              paginas.tomarAccion(reloj) == Accion::SUBIR_BRILLO,
+          "Brillo: + pide subirlo, sin cambiar de pagina");
+  revisar(paginas.tomarAccion(reloj) == Accion::NINGUNA, "Brillo: lo pide una sola vez");
+  info.brillo = CANT_NIVELES_BRILLO;
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, alarma);
+  guardar(directorio, "p-info-brillo-maximo");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, alarma);
+  revisar(display->inv_p == 0, "Info con el brillo al maximo: dibujar de nuevo no redibuja nada");
+  info.brillo = 3;
 
   // Fuera de los botones, Info cambia de página como las demás
   revisar(tocar(indev, paginas, 100, 100) == -1, "en Info, tocar los datos: anterior");

@@ -578,13 +578,22 @@ static const char *dibujarFallas(uint32_t ahora, const LecturaFallas &lectura, u
   return tituloFallas;
 }
 
-// Info: a la izquierda lo que se sabe del adaptador y la ECU; a la derecha
-// Reconectar y Olvidar adaptador, como en la maqueta. Los botones se quedan
-// con su toque: no llega a la raíz y no cambia la página.
+// Info: a la izquierda lo que se sabe del adaptador y la ECU y, abajo, el
+// brillo con - y +; a la derecha Reconectar y Olvidar adaptador, como en la
+// maqueta. Los botones se quedan con su toque: no llega a la raíz y no
+// cambia la página.
 
 static const char *const NOMBRES_INFO[] = {"Adaptador", "Direccion", "ELM", "Lectura"};
 static const uint8_t RENGLONES_INFO = sizeof(NOMBRES_INFO) / sizeof(NOMBRES_INFO[0]);
-static const int32_t ALTO_RENGLON_INFO = 36;
+// Renglones de 24 px (en la maqueta, 36): abajo va el brillo
+static const int32_t ALTO_RENGLON_INFO = 24;
+// El brillo: - y + a los costados y un segmento por nivel en el medio
+static const int32_t Y_BRILLO = 102;
+static const int32_t ALTO_BOTON_BRILLO = 38;
+static const int32_t ANCHO_BOTON_BRILLO = 56;
+static const int32_t ANCHO_SEGMENTO = 24;
+static const int32_t ENTRE_SEGMENTOS = 6;
+static const int32_t ALTO_SEGMENTO = 10;
 static const int32_t X_VALOR_INFO = 132;
 static const int32_t X_BOTONES = 424;
 static const int32_t ANCHO_BOTONES = BORDE_DERECHO - X_BOTONES;
@@ -595,6 +604,7 @@ static const int32_t BORDE_BOTON = 2;
 static const int32_t RADIO_BOTON = 8;
 
 static lv_obj_t *datosInfo[RENGLONES_INFO];
+static lv_obj_t *segmentosBrillo[CANT_NIVELES_BRILLO];
 static lv_obj_t *rellenoOlvidar = nullptr;
 static Accion accion = Accion::NINGUNA;
 static bool olvidando = false;    // Olvidar apretado
@@ -645,10 +655,28 @@ static void textoBoton(lv_obj_t *b, const char *texto, const lv_font_t *fuente, 
   lv_obj_align(e, LV_ALIGN_CENTER, 0, dy);
 }
 
+static void armarBrillo(lv_obj_t *v) {
+  int32_t medio = Y_BRILLO + ALTO_BOTON_BRILLO / 2;
+  fijo(v, "Brillo", NORMAL, ETIQUETA, MARGEN, medio + 7);
+  lv_obj_t *menos = boton(v, X_VALOR_INFO, Y_BRILLO, ANCHO_BOTON_BRILLO, ALTO_BOTON_BRILLO,
+                          ETIQUETA, FONDO_ESCALA, Accion::BAJAR_BRILLO);
+  textoBoton(menos, LV_SYMBOL_MINUS, NORMAL, BLANCO);
+  int32_t ancho = CANT_NIVELES_BRILLO * (ANCHO_SEGMENTO + ENTRE_SEGMENTOS) - ENTRE_SEGMENTOS;
+  int32_t x = X_BOTONES - MARGEN - ANCHO_BOTON_BRILLO;
+  int32_t inicio = (X_VALOR_INFO + ANCHO_BOTON_BRILLO + x - ancho) / 2;
+  for (uint8_t i = 0; i < CANT_NIVELES_BRILLO; i++) {
+    segmentosBrillo[i] =
+        rectangulo(v, inicio + i * (ANCHO_SEGMENTO + ENTRE_SEGMENTOS), medio - ALTO_SEGMENTO / 2,
+                   ANCHO_SEGMENTO, ALTO_SEGMENTO, FONDO_ESCALA, 3);
+  }
+  lv_obj_t *mas = boton(v, x, Y_BRILLO, ANCHO_BOTON_BRILLO, ALTO_BOTON_BRILLO, ETIQUETA,
+                        FONDO_ESCALA, Accion::SUBIR_BRILLO);
+  textoBoton(mas, LV_SYMBOL_PLUS, NORMAL, BLANCO);
+}
+
 static void armarInfo(lv_obj_t *v) {
-  // Renglones de 36 px, como en la maqueta
   for (uint8_t i = 0; i < RENGLONES_INFO; i++) {
-    int32_t base = 25 + ALTO_RENGLON_INFO * i;
+    int32_t base = 22 + ALTO_RENGLON_INFO * i;
     fijo(v, NOMBRES_INFO[i], NORMAL, ETIQUETA, MARGEN, base);
     datosInfo[i] = etiqueta(v, NORMAL, BLANCO);
     lv_obj_set_pos(datosInfo[i], X_VALOR_INFO, yDeBase(NORMAL, base));
@@ -674,6 +702,7 @@ static void armarInfo(lv_obj_t *v) {
   char texto[24];
   snprintf(texto, sizeof(texto), "mantener %lu s", (unsigned long)(MANTENER_OLVIDAR_MS / 1000));
   textoBoton(olvidar, texto, CHICA, ROJO_CLARO, 12);
+  armarBrillo(v);
 }
 
 static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
@@ -694,6 +723,9 @@ static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
     snprintf(texto, sizeof(texto), "%u PIDs", (unsigned)info.pids);
   }
   ponerTexto(datosInfo[3], texto);
+  for (uint8_t i = 0; i < CANT_NIVELES_BRILLO; i++) {
+    ponerFondo(segmentosBrillo[i], i < info.brillo ? BLANCO : FONDO_ESCALA);
+  }
 
   int32_t lleno = 0;
   if (olvidando) {
