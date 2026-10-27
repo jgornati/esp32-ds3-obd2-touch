@@ -19,9 +19,10 @@ endif
 INCLUIR := -DLV_CONF_INCLUDE_SIMPLE -DLV_KCONFIG_IGNORE -I$(PROYECTO)/include -I$(LVGL) \
            -I$(LVGL)/src -I$(PROYECTO)/lib/obd/src -I$(PROYECTO)/src
 
-# Lo del firmware que dibuja. PantallaHw es de mentira (render.cpp).
+# Lo del firmware que dibuja, y el giro de la imagen para el panel. PantallaHw
+# es de mentira (render.cpp).
 CODIGO := render.cpp $(addprefix $(PROYECTO)/src/,paginas.cpp pantalla.cpp dibujo.cpp datos.cpp \
-          animaciones.cpp llanta.cpp) $(wildcard $(PROYECTO)/lib/obd/src/*.cpp)
+          animaciones.cpp llanta.cpp giro.cpp) $(wildcard $(PROYECTO)/lib/obd/src/*.cpp)
 CABECERAS := $(wildcard $(PROYECTO)/src/*.h $(PROYECTO)/src/imagenes/*.h $(PROYECTO)/include/*.h \
              $(PROYECTO)/lib/obd/src/*.h)
 FUENTES_O := $(patsubst $(PROYECTO)/src/fuentes/%.c,$(OBJ)/fuentes/%.o,$(wildcard $(PROYECTO)/src/fuentes/*.c))

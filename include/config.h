@@ -15,9 +15,12 @@ constexpr uint8_t PIN_PANTALLA_D0 = 11;
 constexpr uint8_t PIN_PANTALLA_D1 = 12;
 constexpr uint8_t PIN_PANTALLA_D2 = 13;
 constexpr uint8_t PIN_PANTALLA_D3 = 14;
-// El reset de la pantalla es el pin 5 del TCA9554. El GPIO21 es LCD_TE (una
-// salida de la pantalla) y el GPIO8, la interrupción del TCA9554: no se usan.
+// El reset de la pantalla es el pin 5 del TCA9554. El GPIO8 es la
+// interrupción del TCA9554: no se usa.
 constexpr uint8_t PIN_EXPANSOR_RESET_PANTALLA = 5;
+// LCD_TE: una salida del panel, que sube en cada barrido de la imagen. Solo se
+// lee (E17): el envío empieza con el barrido.
+constexpr uint8_t PIN_PANTALLA_TE = 21;
 
 // LVGL dibuja en horizontal (640x172) y pantalla_hw gira la imagen. true la
 // gira 180° más, para montarla con el USB-C del otro lado.
@@ -78,8 +81,10 @@ constexpr float TOLERANCIA_QUIETA_G = 0.05f;
 constexpr uint32_t VIGENCIA_FUERZA_G_MS = 500;
 // Con FUERZA G a la vista, la página se redibuja cada esto (las demás, cada
 // PERIODO_PANTALLA_MS). Con 50, moviendo el punto, las consultas bajaban a 3
-// o 4 por segundo (registro de E13)
-constexpr uint32_t PERIODO_FUERZA_G_MS = 100;
+// o 4 por segundo (registro de E13), y pasó a 100. Vuelve a 50 en E17, con el
+// envío en otra tarea y LVGL a -O2: si en el auto bajan las consultas en
+// FUERZA G, volver a 100.
+constexpr uint32_t PERIODO_FUERZA_G_MS = 50;
 
 // microSD (E13), en modo SD de 1 bit, como el ejemplo 04_SD_Card de la V2.
 // D3 (GPIO38, el CS del modo SPI) tiene su resistencia a 3,3 V y no se toca;
@@ -88,7 +93,7 @@ constexpr uint8_t PIN_SD_CLK = 41;
 constexpr uint8_t PIN_SD_CMD = 39;
 constexpr uint8_t PIN_SD_D0 = 40;
 // Registro del viaje: una línea cada PERIODO_LINEA_MS, que espera en un búfer
-// de TAM_BUFER_REGISTRO bytes (~50 s de líneas). La tarea de la tarjeta la
+// de TAM_BUFER_REGISTRO bytes (~35 s de líneas). La tarea de la tarjeta la
 // escribe cada PERIODO_REGISTRO_MS: si se corta la luz, se pierde eso.
 constexpr uint32_t PERIODO_LINEA_MS = 1000;
 constexpr uint32_t PERIODO_REGISTRO_MS = 5000;

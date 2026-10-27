@@ -9,8 +9,9 @@
 // mantener apretada Viaje la reinicie, que las alarmas se vean y no
 // redibujen de más, que el punto de Fuerza G vaya para donde corresponde,
 // que la tarjeta de Info y la marca SD de la barra tengan el color de su
-// estado, que la hora esté en la barra y en la espera, y que los textos de
-// Fallas, Info, Viaje y Fuerza G no se pasen de su columna.
+// estado, que la hora esté en la barra y en la espera, que los textos de
+// Fallas, Info, Viaje y Fuerza G no se pasen de su columna, y que el giro de
+// la imagen para el panel dé lo mismo que píxel por píxel.
 //
 // El reloj de LVGL es de mentira y no se refresca solo: las animaciones
 // avanzan con irA() y la imagen se dibuja al capturarla.
@@ -41,6 +42,7 @@
 #include "config.h"
 #include "datos.h"
 #include "dibujo.h"
+#include "giro.h"
 #include "imagenes/imagenes.h"
 #include "paginas.h"
 #include "pantalla.h"
@@ -447,6 +449,35 @@ static bool horaEnLaBarra(int borde, lv_color_t color, lv_color_t fondo = FONDO_
          todoDeColor(borde, borde + 11, 0, 27, fondo);
 }
 
+// girarTanda() (giro.cpp, de a 2x2 píxeles) contra el giro de a un píxel que
+// tenía pantalla_hw: cada columna de la imagen es una fila del panel, con los
+// bytes de cada píxel dados vuelta. Con una imagen al azar, en tandas de 64
+// filas como en la placa.
+static bool giroComoPixelAPixel(bool girada) {
+  const int FILAS = 64;
+  alignas(4) static uint16_t imagen[ANCHO * ALTO];
+  alignas(4) static uint16_t tanda[ALTO * FILAS];
+  uint32_t semilla = 12345;
+  for (uint16_t &p : imagen) {
+    semilla = semilla * 1103515245 + 12345;
+    p = semilla >> 16;
+  }
+  for (int fila = 0; fila < ANCHO; fila += FILAS) {
+    girarTanda(imagen, ANCHO, ALTO, fila, FILAS, girada, tanda);
+    for (int y = 0; y < ALTO; y++) {
+      int columna = girada ? y : ALTO - 1 - y;
+      for (int i = 0; i < FILAS; i++) {
+        int x = girada ? ANCHO - 1 - (fila + i) : fila + i;
+        uint16_t p = imagen[y * ANCHO + x];
+        if (tanda[i * ALTO + columna] != (uint16_t)((p >> 8) | (p << 8))) {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 static size_t memoriaEnUso() {
 #ifdef __APPLE__
   malloc_statistics_t estadisticas;
@@ -459,6 +490,8 @@ static size_t memoriaEnUso() {
 
 int main(int argc, char **argv) {
   const char *directorio = argc > 1 ? argv[1] : ".";
+  revisar(giroComoPixelAPixel(false), "giro para el panel: igual que de a un pixel");
+  revisar(giroComoPixelAPixel(true), "giro para el panel, girada: igual que de a un pixel");
   lv_init();
   lv_tick_set_cb(tick);
   lv_display_t *display = lv_display_create(ANCHO, ALTO);
