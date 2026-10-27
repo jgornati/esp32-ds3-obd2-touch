@@ -17,6 +17,7 @@ enum : uint8_t {
   PAGINA_FALLAS,
   PAGINA_INFO,
   PAGINA_VIAJE,
+  PAGINA_FUERZA_G,
   PAGINA_DS3,
   CANT_PAGINAS
 };
@@ -47,6 +48,7 @@ static const Definicion PAGINAS[] = {
     {"FALLAS", nullptr, 0},
     {"INFO", nullptr, 0},
     {"VIAJE", nullptr, 0},
+    {"FUERZA G", nullptr, 0},
     {"DS3", nullptr, 0},
 };
 static_assert(sizeof(PAGINAS) / sizeof(PAGINAS[0]) == CANT_PAGINAS,
@@ -755,12 +757,16 @@ static uint32_t mantenidaDesde = 0;
 static bool reinicioPedido = false; // ya se pidió en esta apretada
 static bool toqueLargo = false;     // el último toque duró AVISO_MANTENER_MS o más
 
-// Casilla 0 a 7, de izquierda a derecha y de arriba abajo: nombre y valor
-static Valor casilla(lv_obj_t *v, uint8_t numero, const char *nombre,
-                     const char *unidad = nullptr) {
+// Casilla 0 a 7, de izquierda a derecha y de arriba abajo: nombre y valor.
+// Si el nombre cambia (Fuerza G), queda en etiquetaNombre.
+static Valor casilla(lv_obj_t *v, uint8_t numero, const char *nombre, const char *unidad = nullptr,
+                     lv_obj_t **etiquetaNombre = nullptr) {
   int32_t x = (numero % 4) * ANCHO_CASILLA + RELLENO_CASILLA;
   int32_t y = (numero / 4) * ALTO_CASILLA;
-  fijo(v, nombre, NORMAL, ETIQUETA, x, y + 25);
+  lv_obj_t *e = fijo(v, nombre, NORMAL, ETIQUETA, x, y + 25);
+  if (etiquetaNombre != nullptr) {
+    *etiquetaNombre = e;
+  }
   return crearValor(v, &lv_font_montserrat_36, x, y + 63, false, unidad);
 }
 
@@ -847,6 +853,100 @@ static void alApretar(lv_event_t *e) {
   }
 }
 
+// Fuerza G: el círculo en la primera columna y seis casillas como las de
+// Viaje (la maqueta A de E12): la longitudinal y la lateral de ahora y los
+// máximos del viaje. El punto va como una bolita, hacia donde empuja el auto
+// (al revés de su aceleración): al frenar sube, y en una curva a la derecha
+// va a la izquierda.
+
+static const float FUERZA_G_MAXIMA = 1; // en el borde del círculo
+static const int32_t CENTRO_G_X = ANCHO_CASILLA / 2;
+static const int32_t CENTRO_G_Y = ALTO / 2;
+static const int32_t RADIO_G = 64;
+static const int32_t RADIO_PUNTO = 7;
+static const lv_color_t ANILLO_MEDIO = lv_color_hex(0x333333);
+
+static lv_obj_t *puntoG, *avisoG, *textoAvisoG, *nombreLongitudinalG, *nombreLateralG;
+static Valor longitudinalG, lateralG, frenadaMaxima, aceleracionMaxima, izquierdaMaxima,
+    derechaMaxima;
+
+// Un anillo con el centro en el del círculo
+static void anillo(lv_obj_t *v, int32_t radio, int32_t borde, lv_color_t color) {
+  lv_obj_t *a = caja(v, CENTRO_G_X - radio, CENTRO_G_Y - radio, 2 * radio, 2 * radio);
+  lv_obj_set_style_radius(a, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_border_width(a, borde, 0);
+  lv_obj_set_style_border_color(a, color, 0);
+}
+
+static void armarFuerzaG(lv_obj_t *v) {
+  for (int32_t i = 1; i < 4; i++) {
+    rectangulo(v, i * ANCHO_CASILLA - 1, 0, 1, ALTO, FONDO_ESCALA);
+  }
+  rectangulo(v, ANCHO_CASILLA, ALTO_CASILLA - 1, ANCHO - ANCHO_CASILLA, 1, FONDO_ESCALA);
+  // El círculo: los ejes, 0,5 g y 1 g
+  rectangulo(v, CENTRO_G_X - RADIO_G, CENTRO_G_Y, 2 * RADIO_G, 1, FONDO_ESCALA);
+  rectangulo(v, CENTRO_G_X, CENTRO_G_Y - RADIO_G, 1, 2 * RADIO_G, FONDO_ESCALA);
+  anillo(v, RADIO_G / 2, 1, ANILLO_MEDIO);
+  anillo(v, RADIO_G, 2, PUNTO_APAGADO);
+  fijo(v, "1 g", CHICA, ETIQUETA, ANCHO_CASILLA - 6, ALTO - 4, Alineacion::DERECHA);
+  // "Calibrando" o "Sin sensor", sobre el eje
+  avisoG = rectangulo(v, CENTRO_G_X - 42, CENTRO_G_Y + 16, 84, 20, lv_color_black());
+  textoAvisoG = etiqueta(avisoG, CHICA, GRIS);
+  lv_obj_center(textoAvisoG);
+  puntoG = rectangulo(v, CENTRO_G_X - RADIO_PUNTO, CENTRO_G_Y - RADIO_PUNTO, 2 * RADIO_PUNTO,
+                      2 * RADIO_PUNTO, BLANCO, LV_RADIUS_CIRCLE);
+  lv_obj_add_flag(puntoG, LV_OBJ_FLAG_HIDDEN);
+
+  longitudinalG = casilla(v, 1, "Long.", " g", &nombreLongitudinalG);
+  frenadaMaxima = casilla(v, 2, "Frenada max", " g");
+  aceleracionMaxima = casilla(v, 3, "Acel. max", " g");
+  lateralG = casilla(v, 5, "Lateral", " g", &nombreLateralG);
+  izquierdaMaxima = casilla(v, 6, "Izq. max", " g");
+  derechaMaxima = casilla(v, 7, "Der. max", " g");
+}
+
+static void ponerMaximoG(Valor &v, bool conSensor, const Extremo &e) {
+  char texto[8];
+  textoFuerzaG(e.valor, texto, sizeof(texto));
+  ponerDelViaje(v, conSensor, e.hay, texto);
+}
+
+// Sin sensor, "N/D"; hasta calibrar, "..."; sin muestras recientes, "--" y
+// sin el punto. Los máximos quedan.
+static void dibujarFuerzaG(const DatosFuerzaG &datos) {
+  const LecturaG &g = datos.lectura;
+  bool hay = datos.conSensor && g.actual;
+  const char *sinValor = !datos.conSensor ? "N/D" : (g.calibrada ? "--" : "...");
+  char texto[8];
+  ponerTexto(nombreLongitudinalG, hay ? nombreLongitudinal(g.longitudinal) : "Long.");
+  textoFuerzaG(g.longitudinal, texto, sizeof(texto));
+  ponerValor(longitudinalG, hay ? texto : sinValor, hay);
+  ponerTexto(nombreLateralG, hay ? nombreLateral(g.lateral) : "Lateral");
+  textoFuerzaG(g.lateral, texto, sizeof(texto));
+  ponerValor(lateralG, hay ? texto : sinValor, hay);
+  ponerMaximoG(frenadaMaxima, datos.conSensor, g.frenada);
+  ponerMaximoG(aceleracionMaxima, datos.conSensor, g.aceleracion);
+  ponerMaximoG(izquierdaMaxima, datos.conSensor, g.curvaIzquierda);
+  ponerMaximoG(derechaMaxima, datos.conSensor, g.curvaDerecha);
+
+  mostrar(avisoG, !datos.conSensor || !g.calibrada);
+  ponerTexto(textoAvisoG, datos.conSensor ? "Calibrando" : "Sin sensor");
+  mostrar(puntoG, hay);
+  if (hay) {
+    // Al revés de la aceleración; en la pantalla, la y crece para abajo. Lo
+    // que pasa de FUERZA_G_MAXIMA queda en el borde.
+    float x = -g.lateral / FUERZA_G_MAXIMA;
+    float y = g.longitudinal / FUERZA_G_MAXIMA;
+    float distancia = sqrtf(x * x + y * y);
+    if (distancia > 1) {
+      x /= distancia;
+      y /= distancia;
+    }
+    ponerPosicion(puntoG, CENTRO_G_X + lroundf(x * RADIO_G) - RADIO_PUNTO,
+                  CENTRO_G_Y + lroundf(y * RADIO_G) - RADIO_PUNTO);
+  }
+}
+
 // DS3: el paseo, a pantalla completa (sin la barra)
 
 static Paseo paseoDs3;
@@ -886,6 +986,7 @@ void Paginas::iniciar() {
   armarFallas(vistas[PAGINA_FALLAS]);
   armarInfo(vistas[PAGINA_INFO]);
   armarViaje(vistas[PAGINA_VIAJE]);
+  armarFuerzaG(vistas[PAGINA_FUERZA_G]);
   paseoDs3.crear(vistas[PAGINA_DS3]);
   lv_timer_create(alAnimarPaseo, paseo.ms_cuadro, nullptr);
   lv_obj_t *raiz = lv_screen_active();
@@ -929,6 +1030,10 @@ bool Paginas::muestraInfo() const {
   return actual == PAGINA_INFO;
 }
 
+bool Paginas::muestraFuerzaG() const {
+  return actual == PAGINA_FUERZA_G;
+}
+
 int8_t Paginas::tomarToque() {
   int8_t paso = toque;
   // En Viaje, soltarla después de mantenerla no cambia la página
@@ -956,7 +1061,8 @@ Accion Paginas::tomarAccion(uint32_t ahora) {
 }
 
 void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-                      uint32_t reintento, const Viaje &viaje, const AlarmaALaVista &alarma) {
+                      uint32_t reintento, const Viaje &viaje, const DatosFuerzaG &fuerzaG,
+                      const AlarmaALaVista &alarma) {
   if (!armadas) {
     return;
   }
@@ -991,6 +1097,9 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
     if (apretada > 0) {
       titulo = reinicioPedido ? "Viaje reiniciado" : "Mantener para reiniciar el viaje";
     }
+    break;
+  case PAGINA_FUERZA_G:
+    dibujarFuerzaG(fuerzaG);
     break;
   case PAGINA_DS3:
     // Se mueve sola, con alAnimarPaseo

@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include <dtc.h>
+#include <fuerza_g.h>
 #include <viaje.h>
 
 #include "datos.h"
@@ -17,6 +18,12 @@ struct DatosInfo {
   const char *direccion;       // del adaptador: "81:23:45:67:89:BA"
   int16_t rssi;                // dBm; 0: sin medir (siempre es negativo)
   uint8_t brillo;              // nivel, de 1 a CANT_NIVELES_BRILLO
+};
+
+// Lo que muestra la página Fuerza G (E12)
+struct DatosFuerzaG {
+  bool conSensor; // el IMU contestó al arrancar
+  LecturaG lectura;
 };
 
 // La alarma que se ve en la barra (E11) y las magnitudes que van en rojo
@@ -40,8 +47,8 @@ enum class Accion : uint8_t {
 constexpr uint8_t MAX_VISIBLES = 6;
 
 // Las páginas de LEYENDO, como en la maqueta de E4: Motor, Aire/Volt,
-// Carga, Mezcla, Fallas e Info, después Viaje (E10) y al final DS3 (E9), una
-// animación a pantalla completa. Se pasa a la anterior o a la siguiente
+// Carga, Mezcla, Fallas e Info, después Viaje (E10) y Fuerza G (E12), y al
+// final DS3 (E9), una animación a pantalla completa. Se pasa a la anterior o a la siguiente
 // tocando la mitad izquierda o derecha de la pantalla; después de la última
 // vuelve a la primera. Los botones de Info se quedan con su toque y no
 // cambian la página; en Viaje, soltarla después de mantenerla apretada
@@ -67,6 +74,8 @@ public:
   bool muestraFallas() const;
   // En Info, quien llama mide el RSSI
   bool muestraInfo() const;
+  // En Fuerza G el punto se mueve: quien llama la dibuja más seguido
+  bool muestraFuerzaG() const;
   // -1 o +1 si se tocó la mitad izquierda o derecha desde la última
   // llamada; 0 si no. Solo cuenta con las páginas a la vista. En Viaje, un
   // toque de AVISO_MANTENER_MS o más no cuenta: es para reiniciar.
@@ -81,7 +90,8 @@ public:
   // hasta volver a leerla, que se muestran si falló y no hay códigos. alarma:
   // va en la barra, en lugar del título, también en DS3.
   void dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-               uint32_t reintento, const Viaje &viaje, const AlarmaALaVista &alarma);
+               uint32_t reintento, const Viaje &viaje, const DatosFuerzaG &fuerzaG,
+               const AlarmaALaVista &alarma);
 
 private:
   Pantalla &pantalla;

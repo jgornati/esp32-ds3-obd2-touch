@@ -35,7 +35,7 @@ que corresponda antes de portar un módulo.
 | E9    | Pantalla de espera con el DS3          | E7         | Verificada |
 | E10   | Viaje: máximos y recorrido             | E9         | Hecha (falta verificar en hardware) |
 | E11   | Alarmas                                | E9         | Hecha (falta verificar en hardware) |
-| E12   | Fuerza G                               | E10        | Pendiente |
+| E12   | Fuerza G                               | E10        | Hecha (falta verificar en hardware) |
 | E13   | Registro del viaje en la microSD       | E10        | Pendiente |
 | E14   | Reloj                                  | —          | Pendiente (con la batería puesta) |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Hecha (falta verificar en hardware) |
@@ -77,7 +77,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Biblioteca BLE         | *Propuesta:* la `BLE` del core (viene con la plataforma, sin dependencia nueva). Si da problemas, NimBLE-Arduino con versión fijada. E0 ya la usa: en el S3 corre sobre NimBLE, no Bluedroid (ver notas de E0). |
 | Gráficos               | *Propuesta:* LVGL 9.3.0 (la versión de los ejemplos de Waveshare) y el driver `esp_lcd_axs15231b` del ejemplo `10_LVGL_V9_Test`. |
 | Orientación            | Horizontal, 640×172, con rotación por software como en el ejemplo de Waveshare. Montada como en el banco: `PANTALLA_GIRADA = false` en `config.h` (confirmado en E7). |
-| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). |
+| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). Desde E12, una tarea en el núcleo 0 lee el IMU cada 20 ms, con un mutex para la cuenta (ver notas de E12). |
 | Protocolo              | `ATSP6` (CAN 11 bit 500 kbaud), confirmado en el DS3. Heredada.                                |
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
@@ -85,7 +85,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15). Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
-| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. |
+| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. Desde E12 se inicia el IMU, solo el acelerómetro y sin sus interrupciones (EXIO2 y EXIO3 no se tocan). |
 
 ## Hardware de la placa
 
@@ -106,6 +106,7 @@ los ejemplos y el esquemático de `waveshareteam/ESP32-S3-Touch-LCD-3.49-V2`
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) y el códec de audio. Un solo bus para todos |
 | TCA9554 (expansor)                     | Según el esquemático (E6): EXIO0 `TP_INT`, EXIO1 `BL_EN` (encendido de la luz, con resistencia a `VSYS`), EXIO2 y EXIO3 interrupciones del IMU, EXIO4 `RTC_INT`, EXIO5 `LCD_TE` (**V2:** `LCD_RST`), EXIO6 `SYS_EN` (mantiene la alimentación desde la batería, ejemplo `07_BATT_PWR_Test`) y EXIO7 `NS_MODE` (el amplificador del parlante, ejemplo `08_Audio_Test`) |
 | RTC                                    | PCF85063 alimentado por dos diodos B5819WS: D3 desde `3V3` y otro desde `VBAT` (la batería), con C32 de 1 µF en su VDD (pata 10). **Con la batería puesta, sigue andando con la placa apagada**; sin batería, pierde la hora en cada apagado. (Corregido el 2026-10-26: las notas de E6 decían que solo tenía la entrada de 3,3 V) |
+| IMU                                    | QMI8658A en `0x6B` del I2C de la placa: acelerómetro y giróscopo. Sus dos salidas de interrupción van a EXIO2 y EXIO3 del TCA9554. El datasheet está en el repositorio de Waveshare de la V2 (`Arduino/libraries/SensorLib/datasheet/`). Cómo está puesto en la placa (qué eje va a lo largo de la pantalla) no lo dicen ni los ejemplos ni el esquemático: se mide con `!imu` (E12) |
 | microSD                                | SPI: CS 38, MOSI 39, MISO 40, SCLK 41 |
 | Audio                                  | Códec ES8311 (salida al parlante, `0x18`) y ES7210 (micrófonos) por I2S: MCLK 7, SCLK 15, LRCK 46; la placa manda el audio por el 45 (`DSDIN` del ES8311) y lo recibe por el 6 (corregido en E11: decía al revés); control por el I2C de la placa. Amplificador NS4150B, prendido con EXIO7 (`NS_MODE`) en alto. Igual en la V1 y la V2 |
 | Batería                                | Una celda de 3,7 V en el conector J1 (MX1.25 de 2 pines; mirar la polaridad antes de enchufar). Protección DW01 + 8205 y cargador ETA6098, que la carga desde el USB. Sin el USB, alimenta a la placa solo con PWR apretado o con `SYS_EN` (EXIO6) en alto, por Q3; al RTC, siempre. Su tensión se lee en GPIO4 (`BAT_ADC`), por un divisor de 200 kΩ y 100 kΩ que gasta ~14 µA todo el tiempo. Ningún GPIO lee `VBUS` |
@@ -135,8 +136,9 @@ src/
   sonido.h/.cpp     el parlante: I2C de la placa, ES8311, I2S y el amplificador (E11)
   placa.h/.cpp      el I2C de la placa y el TCA9554, antes que la pantalla (E15)
   brillo.h/.cpp     el nivel de brillo, guardado en Preferences (E15)
+  imu.h/.cpp        el acelerómetro del QMI8658, leído por una tarea (E12)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10) y alarmas (E11)
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11) y fuerza G (E12)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -578,7 +580,7 @@ la longitudinal, medidas con el IMU de la placa (QMI8658).
 2. Las cuentas en `lib/obd` con tests: llevar la medición a los ejes del
    auto y filtrar las vibraciones.
 3. La página, con sus casos en el render. Los máximos se suman a VIAJE
-   (E10).
+   (E10). (Quedaron en FUERZA G: VIAJE estaba llena; ver notas de E12.)
 
 **Verificación del usuario:** con el auto quieto marca 0; al frenar y en
 las curvas, el punto va para el lado que corresponde.
@@ -676,6 +678,9 @@ Fuera del plan; solo si el usuario las pide:
   No cambia las consultas por segundo: las limita el adaptador.
 - Usar el `LCD_TE` de la V2 (GPIO21) para mandar la imagen sincronizada con
   el panel: evitaría cortes en la animación.
+- Fuerza G: separar la pendiente de la aceleración con la velocidad de la ECU
+  (la longitudinal es la derivada de la velocidad), y sacar "adelante" de las
+  frenadas en línea recta, para una placa girada hacia el conductor.
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
@@ -727,6 +732,7 @@ De esta placa y el adaptador nuevo:
 | Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
 | Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); desde E15 el firmware usa los de la V2. Según los ejemplos y el esquemático de la V2, sin medir | E11, E15 |
+| IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: sin saber (`EJE_DERECHA_IMU` = x es una suposición) | E12   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
 
 ## Notas de traspaso
@@ -2643,6 +2649,188 @@ Para E12 y E14:
   los pines del TCA9554 que no son suyos.
 
 ### E12
+
+Rama `e12-fuerza-g`, desde `main` con E15. **Maqueta** (agente, 2026-10-26),
+en el lienzo de E4 (https://claude.ai/artifact/41eQde6wkKUL81ZuDnHBGX), filas
+"Fuerza G (E12)": A (el círculo a la izquierda, los valores de ahora y los
+máximos en casillas como VIAJE), B (el círculo al centro, los máximos en lista
+y marcados sobre el círculo) y C (dos barras, sin círculo); y A con el punto
+en la aceleración del auto, calibrando y sin sensor.
+
+Elegido por el usuario (2026-10-26):
+
+- **El diseño A.**
+- **El punto como una bolita:** hacia donde empuja el auto (al frenar sube, en
+  una curva a la derecha va a la izquierda), no con la aceleración.
+- **Calibrar "abajo" al arrancar y en cada parada:** con la placa quieta 2 s;
+  después de la primera, además con la ECU en 0 km/h.
+- **Los máximos en FUERZA G, con el viaje:** frenada, aceleración y curva a
+  cada lado, que se reinician con el viaje. VIAJE queda como estaba.
+- **La placa va de frente** (el lado largo paralelo al eje de las ruedas):
+  adelante sale de la gravedad y de ese lado, sin ángulo en `config.h`.
+
+Lo que se hizo:
+
+- **`lib/obd/fuerza_g`** (nuevo, sin Arduino):
+
+  ```cpp
+  struct Vector { float x, y, z; };
+  struct ReglasFuerzaG { Vector derecha; uint32_t filtroMs; float toleranciaQuieta;
+                         uint32_t quietaMs; uint32_t vigenciaMs; };
+  struct LecturaG { bool calibrada, actual; float lateral, longitudinal;
+                    Extremo frenada, aceleracion, curvaIzquierda, curvaDerecha; };
+  class FuerzaG {
+  public:
+    explicit FuerzaG(const ReglasFuerzaG &definidas);
+    void medir(const Vector &a, uint32_t momento, bool parado);
+    LecturaG lectura(uint32_t ahora) const;
+    void reiniciarMaximos();
+    uint32_t calibraciones() const;
+    bool cruda(Vector *a) const; // la última muestra, sin filtrar
+  };
+  void textoFuerzaG(float g, char *salida, size_t tam); // "0.41", sin el signo
+  const char *nombreLongitudinal(float g);              // "Frenada", "Acel." o "Long."
+  const char *nombreLateral(float g);                   // "Curva der", "Curva izq" o "Lateral"
+  ```
+
+  - **Calibración:** cada muestra a menos de `toleranciaQuieta` del promedio
+    de las anteriores durante `quietaMs`; si no, o después de un hueco, la
+    cuenta empieza de nuevo. La primera vez alcanza con eso; después, `parado`
+    tiene que estar todo el rato (una curva larga y pareja también es "quieta"
+    para el sensor). Arriba es el promedio normalizado; si no mide ~1 g
+    (±0,2), no calibra.
+  - **Ejes:** la derecha es `reglas.derecha` sin su parte vertical (no calibra
+    si queda a menos de 30° de la vertical), y adelante = arriba × derecha.
+    Así la inclinación de la pantalla, y que esté un poco torcida, no importan.
+  - **Filtro:** de primer orden sobre las tres componentes, con `filtroMs`;
+    después de un hueco arranca de la muestra.
+  - Lateral positiva: el auto acelera hacia la derecha (curva a la derecha);
+    longitudinal positiva: acelerando. Que el punto vaya al revés lo decide la
+    página.
+  - Los máximos son positivos y del valor filtrado; con la lectura vencida,
+    quedan. `actual` compara con signo: la muestra puede ser un poco más nueva
+    que el `ahora` de quien lee (otra tarea).
+- **`src/imu`** (nuevo): `iniciar()`, `iniciado()`, `lectura(ahora)`,
+  `parado(bool)`, `reiniciarMaximos()`, `cruda()`, `calibraciones()` y
+  `lecturasFallidas()`.
+  - En `busPlaca()` (`0x6B`, 300 kHz), con `i2c_master_probe()` antes. Se
+    reinicia por software y comprueba `WHO_AM_I`; después `CTRL1` `0x40`
+    (dirección automática y little-endian; las interrupciones en alta
+    impedancia), `CTRL2` `0x16` (±4 g, 125 Hz), `CTRL5` `0x03` (su filtro al
+    3,63 %: 4,5 Hz) y `CTRL7` `0x01` (solo el acelerómetro).
+  - Una tarea (`imu`, núcleo 0 como el sonido, prioridad 2, 3 KB) lee los 6
+    bytes cada `PERIODO_IMU_MS` (20 ms, con `vTaskDelayUntil`) y se los pasa a
+    `FuerzaG::medir()` con un mutex; lo demás lo llama loop() con el mismo
+    mutex. No depende del ELM: corre aunque loop() espere una consulta o
+    dibuje. El driver `i2c_master` del ESP-IDF 5.5 toma un cerrojo del bus
+    (`bus_lock_mux`) en cada transacción, así que el sonido y el expansor
+    pueden usar el bus a la vez.
+  - **Del TCA9554 no se toca nada:** las interrupciones del IMU (EXIO2 y
+    EXIO3) no se usan.
+  - Si algo no contesta: `IMU: no se pudo iniciar (...)` en el monitor y la
+    página dice `Sin sensor`.
+- **`config.h`:** `EJE_DERECHA_IMU` (`{1, 0, 0}`, **una suposición**: ver
+  abajo), `PERIODO_IMU_MS` (20), `FILTRO_FUERZA_G_MS` (300),
+  `QUIETA_FUERZA_G_MS` (2000), `TOLERANCIA_QUIETA_G` (0,05),
+  `VIGENCIA_FUERZA_G_MS` (500) y `PERIODO_FUERZA_G_MS` (50). Con
+  `PANTALLA_GIRADA`, la derecha va al revés.
+- **`paginas`:** `FUERZA G` entre `VIAJE` y `DS3`, que sigue última (9 de 9
+  puntos). `DatosFuerzaG {conSensor, lectura}`, `dibujar(..., viaje, fuerzaG,
+  alarma)` y `muestraFuerzaG()`.
+  - El círculo en la primera columna: centro en (80, 72) del área, 64 px = 1 g,
+    los anillos de 1 g y 0,5 g, los ejes y `1 g`. Lo que pasa de 1 g queda en el
+    borde. Al lado, casillas de 160×72 como las de Viaje: `casilla()` devuelve
+    también la etiqueta del nombre, para las que cambian con el lado.
+  - Sin sensor, `N/D` y `Sin sensor`; hasta calibrar, `...` y `Calibrando`;
+    vencida, `--` y sin el punto; los máximos quedan.
+  - Los toques, como en las demás: mantenerla apretada y soltarla también
+    cambia de página.
+- **`main.cpp`:** `Imu imu`, iniciado después del sonido.
+  - `avisarParado()`, en cada vuelta: parado si en `LEYENDO` la velocidad
+    actual es 0 (la velocidad ya entra en todas las consultas, por E10).
+  - `periodoDibujo()`: con FUERZA G a la vista, `PERIODO_FUERZA_G_MS` (50 ms,
+    como la animación de DS3); si no, `PERIODO_PANTALLA_MS`. En `loop()` y en
+    `alEsperar()`.
+  - Reiniciar el viaje reinicia también los máximos de G.
+  - `!imu` (nuevo): la última muestra cruda (x, y, z y el total), lateral,
+    longitudinal, los máximos, las calibraciones y las lecturas fallidas.
+    `!info` dice si el IMU anda. La tabla de cada segundo termina en
+    `G lateral +0.00 long. +0.00` (o `G --`).
+- Sin cambios en la lista blanca ni en lo que se le manda al auto: la fuerza G
+  no usa el ELM.
+
+**Qué eje va a lo largo de la pantalla no se sabe.** Ni el ejemplo
+`03_I2C_QMI8658` de Waveshare ni el esquemático dicen cómo está puesto el
+QMI8658 en la placa. `EJE_DERECHA_IMU` = `{1, 0, 0}` (x) es una suposición;
+se confirma con la prueba 2. Si está mal, la calibración puede fallar (el eje
+vertical) o el punto ir para otro lado.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 10,8 %, flash 62,5 % de 3 MB; en E15, 10,7 % y
+  62,2 %). Con `-Wall -Wextra -Wshadow`, sin warnings propios.
+- `pio test -e native` 89/89: 14 nuevos en `test/test_fuerza_g/` (sin calibrar,
+  calibrar quieta, frenada y curvas, la pantalla inclinada 25° y torcida 10°,
+  el filtro con una vibración de 25 Hz y con un escalón, recalibrar parado en
+  una subida y no en una curva larga, parado todo el rato, moverse antes de
+  calibrar, la vigencia y los huecos, una escala o un montaje imposibles,
+  reiniciar los máximos, `millis()` que da la vuelta y los textos). Se
+  comprobó que fallan si se saca la condición de parado, la proyección de la
+  derecha, el filtro o la tolerancia de quieta.
+- **Render**, 135 revisiones, todas bien. Casos nuevos: `8-fuerza-g` (el de la
+  maqueta: frenando 0.41 g en una curva a la derecha de 0.28 g),
+  `za-fuerza-g-frenando`, `zb-fuerza-g-acelerando`, `zc-fuerza-g-afuera`
+  (1,5 g: el punto en el borde), `zd-fuerza-g-calibrando`,
+  `ze-fuerza-g-vencida` y `zf-fuerza-g-sin-sensor`; DS3 pasa a `9-ds3`. Revisa
+  que FUERZA G vaya antes de DS3, dónde queda el punto (frenando en una curva a
+  la derecha, arriba a la izquierda; acelerando en una a la izquierda, abajo a
+  la derecha), que no salga del círculo, que sin valor no se vea, que nada pase
+  de su casilla, que dibujar dos veces no redibuje nada y los toques (también
+  mantener y soltar). Se comprobó que las del punto fallan con el punto al
+  revés o sin limitarlo al círculo.
+- Los objetos de la página piden ~8 KB de `malloc` en la PC (con punteros de
+  64 bits), como VIAJE.
+
+No hay **Datos descubiertos** medidos: la fila nueva (IMU) sale del datasheet
+y del ejemplo.
+
+Sin probar (falta la placa): todo el IMU (que conteste, el orden de los bytes,
+los ejes), la tarea, la calibración en el auto, si el motor en ralentí mueve la
+placa más de 0,05 g (no calibraría en las paradas), las consultas por segundo
+con FUERZA G a la vista (redibuja hasta ~20 veces por segundo, como DS3) y la
+RAM interna libre (la tarea suma 3 KB).
+
+**Pruebas del usuario** (subir el firmware de esta rama):
+
+1. Al arrancar, en el monitor: `IMU: listo` (si no, qué falló). A los 2 s con
+   la placa quieta, `!info` dice `IMU: listo; 1 calibraciones...`.
+2. **Los ejes, en el banco.** Con la placa derecha, como va en el auto, y
+   quieta: `!imu` da un total de ~1,00 g, casi todo en el eje que va para
+   arriba. Después, parada sobre su lado izquierdo (el lado derecho de la
+   pantalla para arriba): `!imu` tiene que dar ~+1 g en x. Si da en otro eje o
+   en -1, pasarme las dos líneas de `!imu`: se cambia `EJE_DERECHA_IMU`.
+3. Con los ejes bien, reiniciar con la placa derecha y quieta (calibra) e
+   inclinarla. Hacia la derecha, `!imu` da lateral negativa (la bolita rueda
+   hacia la derecha); con la pantalla hacia adelante, longitudinal negativa.
+4. En el auto, FUERZA G (después de VIAJE, el octavo de 9 puntos): quieto marca
+   0.00; al frenar el punto sube y dice `Frenada`; en una curva a la derecha
+   va a la izquierda y dice `Curva der`. Los máximos suben, y mantener apretada
+   VIAJE los reinicia.
+5. Después de una parada, `!info`: las calibraciones subieron. Si no suben
+   nunca, el motor en ralentí mueve la placa más de 0,05 g: avisar.
+6. En el monitor, las consultas por segundo con FUERZA G a la vista, contra
+   MOTOR (5–7 en E5). Si bajan, se sube `PERIODO_FUERZA_G_MS` a 100.
+7. `!info` con el motor andando: la RAM interna libre (en E5, 128 KB).
+
+Para E13:
+
+- La fuerza G está en `imu.lectura()` (lateral, longitudinal y los máximos):
+  se puede agregar al CSV. `FuerzaG` corre en otra tarea: leerla siempre por
+  `Imu`, que toma el mutex.
+
+Para E14:
+
+- El RTC va en `busPlaca()`, como el IMU. El IMU no toca el TCA9554.
 
 ### E13
 
