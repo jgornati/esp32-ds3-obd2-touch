@@ -295,9 +295,11 @@ Lo que se le resta a las consultas es `dibujo` más `espera`.
   pierda la hora: la placa se sigue apagando con la llave.
 
 El firmware usa los pines de la V2: la luz por PWM en el GPIO42 y el reset de
-la pantalla por el expansor TCA9554. Hasta E15 usaba los de la V1 (la luz en
-el GPIO8), y por eso el brillo no se podía regular (notas de E6, E11 y E15
-en `PLAN.md`). Con una V1 no anda: habría que volver a esos pines.
+la pantalla por el expansor TCA9554. Desde E17 lee también el `LCD_TE`
+(GPIO21), para mandar cada imagen con el barrido del panel. Hasta E15 usaba
+los de la V1 (la luz en el GPIO8), y por eso el brillo no se podía regular
+(notas de E6, E11 y E15 en `PLAN.md`). Con una V1 no anda: habría que volver
+a esos pines.
 
 ## Instalación en el auto
 

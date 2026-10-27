@@ -40,7 +40,7 @@ que corresponda antes de portar un módulo.
 | E14   | Reloj                                  | —          | Hecha (falta verificar en hardware) |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
 | E16   | Cambiar de página deslizando el dedo   | E4         | Hecha (falta verificar en hardware) |
-| E17   | Pantalla fluida: que dibujar no frene  | E16        | Pendiente |
+| E17   | Pantalla fluida: que dibujar no frene  | E16        | Hecha (falta verificar en hardware) |
 | E18   | CAN directo, sin el ELM                | E17        | Pendiente (hace falta el transceptor) |
 | E19   | Micrófono y parlante: grabar y hablar  | E11        | Pendiente |
 | E20   | Asistente de voz por OpenRouter        | E19        | Pendiente (después de E17; mejor después de E18) |
@@ -88,7 +88,8 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Biblioteca BLE         | *Propuesta:* la `BLE` del core (viene con la plataforma, sin dependencia nueva). Si da problemas, NimBLE-Arduino con versión fijada. E0 ya la usa: en el S3 corre sobre NimBLE, no Bluedroid (ver notas de E0). |
 | Gráficos               | *Propuesta:* LVGL 9.3.0 (la versión de los ejemplos de Waveshare) y el driver `esp_lcd_axs15231b` del ejemplo `10_LVGL_V9_Test`. |
 | Orientación            | Horizontal, 640×172, con rotación por software como en el ejemplo de Waveshare. Montada como en el banco: `PANTALLA_GIRADA = false` en `config.h` (confirmado en E7). |
-| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). Desde E12, una tarea en el núcleo 0 lee el IMU cada 20 ms, con un mutex para la cuenta (ver notas de E12). Desde E13, otra en el núcleo 0 escribe en la microSD cada 5 s lo que `loop()` deja en un búfer (ver notas de E13). |
+| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). Desde E12, una tarea en el núcleo 0 lee el IMU cada 20 ms, con un mutex para la cuenta (ver notas de E12). Desde E13, otra en el núcleo 0 escribe en la microSD cada 5 s lo que `loop()` deja en un búfer (ver notas de E13). Desde E17, otra en el núcleo 0 gira y manda cada imagen al panel, sin tocar LVGL, mientras LVGL dibuja la siguiente en otra imagen (ver notas de E17). |
+| Optimización           | Arduino-ESP32 3.3 compila el proyecto y las bibliotecas sin `-O` (GCC en `-O0`; el ESP-IDF viene ya compilado a `-Os`). Desde E17, `optimizar.py` sube a `-O2` solo LVGL y `src/giro.cpp`, que son lo que cuesta dibujar: lo eligió el usuario. Lo demás queda como se probó |
 | Protocolo              | `ATSP6` (CAN 11 bit 500 kbaud), confirmado en el DS3. Heredada.                                |
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
@@ -111,7 +112,7 @@ los ejemplos y el esquemático de `waveshareteam/ESP32-S3-Touch-LCD-3.49-V2`
 | -------------------------------------- | ---------------------------------------------------------- |
 | Chip                                   | ESP32-S3R8: 2 núcleos, 240 MHz, 8 MB de PSRAM (OPI), 16 MB de flash, Wi-Fi y BLE 5 |
 | Pantalla                               | IPS 3,49", 172×640, controlador AXS15231B por QSPI (`SPI3_HOST`) |
-| Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21. **V2:** el GPIO21 es `LCD_TE` (una salida de la pantalla) y el reset es EXIO5 del TCA9554. El firmware usa los de la V2 desde E15 |
+| Pines de la pantalla                   | CS 9, CLK 10, D0–D3 11–14, RST 21. **V2:** el GPIO21 es `LCD_TE` (una salida de la pantalla) y el reset es EXIO5 del TCA9554. El firmware usa los de la V2 desde E15, y lee el `LCD_TE` desde E17 (los ejemplos de Waveshare no lo usan) |
 | Retroiluminación                       | GPIO8 (`LCD_BL`) al regulador AP3032; activa en bajo, como en los ejemplos (`lcd_bl_pwm_bsp.h`). En esta placa no cambia la luz (E6): queda en bajo, al máximo. El encendido del regulador es EXIO1 del TCA9554 (`BL_EN`). **V2:** `LCD_BL` es el GPIO42, y el GPIO8 es `EXIO_INT` (la interrupción del TCA9554): por eso no cambiaba. Igual que en la V1, en bajo queda al máximo (el programa de fábrica pone duty = 255 − brillo). El firmware usa el GPIO42 desde E15 |
 | Touch                                  | Capacitivo, en el mismo AXS15231B. I2C en SDA 17 / SCL 18, dirección `0x3B`, sin INT ni RST |
 | I2C de la placa                        | SDA 47 / SCL 48: RTC PCF85063 (`0x51`), IMU QMI8658 (`0x6B`), expansor TCA9554 (`0x20`) y el códec de audio. Un solo bus para todos |
@@ -136,7 +137,8 @@ src/
   explorar.h/.cpp   !escanear, !explorar (E0; !usar salió en E2)
   elm327.h/.cpp     transporte BLE con la interfaz del anterior (E2)
   consola.h/.cpp    consola por el USB (E0, E2)
-  pantalla_hw.h/.cpp  QSPI, rotación, touch y puerto de LVGL (E1); la tarea que lo atiende mientras se conecta (E9)
+  pantalla_hw.h/.cpp  QSPI, rotación, touch y puerto de LVGL (E1); la tarea que lo atiende mientras se conecta (E9); la tarea que manda la imagen y el LCD_TE (E17)
+  giro.h/.cpp       pasa la imagen a vertical para el panel, sin Arduino ni LVGL, a -O2 (E17)
   pantalla.h/.cpp   pantalla de espera (E9), pantallas de estado (E3) y el marco de las páginas (E4)
   paginas.h/.cpp    páginas y navegación táctil (E4)
   dibujo.h/.cpp     colores y funciones chicas de LVGL de pantalla y paginas (E4)
@@ -722,7 +724,8 @@ Lo que se sabe hoy:
   consultas bajaron de 6–7 a 3–4 por segundo (registro de E13); por eso hoy
   va cada 100 ms.
 - Refresco completo (dibujar todo y mandarlo): 64 ms en el banco (E13), 93 ms
-  en Motor (E5). LVGL está compilado para tamaño (`-Os`).
+  en Motor (E5). LVGL está compilado para tamaño (`-Os`). (Corregido en E17:
+  todo iba a `-O0`, sin optimizar; ver notas de E17.)
 
 **Tareas** (medir antes y después de cada una):
 
@@ -885,10 +888,13 @@ entre que se termina de hablar y empieza la respuesta.
 **Riesgos que hay que medir primero** (una prueba chica antes de armar todo):
 
 - **RAM interna:** hoy quedan 74 KB libres; el Wi-Fi y TLS necesitan una parte
-  grande. Puede hacer falta E17 (búferes a la PSRAM) o E18 (sin BLE).
+  grande. Puede hacer falta E17 (búferes a la PSRAM) o E18 (sin BLE). (E17 no
+  pasó nada a la PSRAM: las dos tandas del envío, 44 KB, siguen en la RAM
+  interna, y su tarea suma 4 KB.)
 - **Wi-Fi y BLE comparten la radio:** mientras se habla con OpenRouter, el ELM
   por BLE puede ir más lento. Con E18 (CAN directo) el problema desaparece.
-- **Flash:** hoy 65 % de 3 MB; Wi-Fi y HTTPS suman bastante. Puede hacer falta
+- **Flash:** hoy 65 % de 3 MB (59 % desde E17; con todo a `-Os`, ~50 %: ver
+  notas de E17); Wi-Fi y HTTPS suman bastante. Puede hacer falta
   otra tabla de particiones (la flash es de 16 MB y la partición FAT de 9 MB
   no se usa), cuidando lo guardado en `Preferences`.
 
@@ -948,6 +954,15 @@ contesta dictando y la respuesta llega bien. Nunca se manda algo sin el "sí".
 Fuera del plan; solo si el usuario las pide:
 
 - (La pantalla más fluida y `LCD_TE` pasaron a E17.)
+- Compilar todo el proyecto optimizado (E17): con `-Os`, el programa baja de
+  65 % a 50,5 % de 3 MB; con `-O2`, a 53,5 %, y todo anda más rápido. Hoy solo
+  LVGL y el giro van a `-O2`. Hay que volver a probar todo en el auto (cambia
+  cómo se compila lo ya verificado: BLE, sondeo, tareas).
+- QSPI a 80 MHz (E17: el usuario decidió dejar 40). Con el envío en otra tarea
+  no frena las consultas; ayudaría a que el envío entre en un barrido del
+  panel. Hay que mirar que no aparezca basura.
+- Mandar solo hasta la última fila del panel que cambió, siempre desde la 0
+  (idea de E1): menos QSPI cuando lo que cambia queda a la izquierda.
 - Fuerza G: separar la pendiente de la aceleración con la velocidad de la ECU
   (la longitudinal es la derivada de la velocidad), y sacar "adelante" de las
   frenadas en línea recta, para una placa girada hacia el conductor.
@@ -1007,6 +1022,9 @@ De esta placa y el adaptador nuevo:
 | IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: sin saber (`EJE_DERECHA_IMU` = x es una suposición) | E12   |
 | RTC (PCF85063)                | Según el datasheet del PCF85063A y el ejemplo `02_I2C_PCF85063` de la V2 (SensorLib), sin probar en la placa: `0x51`. La hora en BCD, de `0x04` (segundos) a `0x0A` (año, de 2000 a 2099), con el día de la semana en `0x08`; el bit 7 de los segundos (`OS`) dice que el oscilador se detuvo y se borra al escribirlos. En `CONTROL_1` (`0x00`), el bit 5 lo detiene y el 1 lo pasa a 12 h: de fábrica, los dos en 0 | E14   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
+| Optimización del compilador   | Todo lo que compila PlatformIO (`src`, `lib/obd`, LVGL, el driver del panel, el core de Arduino y su BLE) va **sin ningún `-O`**, o sea a `-O0`: el `platformio-build.py` de Arduino-ESP32 3.3 toma los flags de `flags/c_flags` y `flags/cpp_flags`, que no lo traen (el `-Os` está en `pioarduino-build.py`, que no se usa). El ESP-IDF viene ya compilado a `-Os`. Programa: 65,2 % de 3 MB así; LVGL a `-Os`, 56,6 %; LVGL a `-O2`, 58,8 %; todo a `-Os`, 50,5 %; todo a `-O2`, 53,5 % | E17   |
+| Reloj del QSPI                | El SPI del S3 sale de los 80 MHz del APB (o de los 40 del cristal) dividido por un entero: 80, 40 o 26,7 MHz. 60 no se puede. Queda en 40 (decisión del usuario); 80 sin probar | E17   |
+| `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`) | E17   |
 
 ## Notas de traspaso
 
@@ -3598,3 +3616,189 @@ manda una imagen): uno muy rápido, de menos de ~70 ms, se puede perder.
    no.
 5. Si a veces no toma el deslizamiento: si es rápido o lento, y en qué
    página. `DESLIZAR_PX` se puede bajar.
+
+### E17
+
+Rama `e17-pantalla-fluida`, desde `main` con el plan del asistente. Sin
+maqueta: no cambia lo que se ve.
+
+Elegido por el usuario (2026-10-27), antes de programar:
+
+- **LVGL y el giro de la imagen a `-O2`**, no todo el proyecto (ver abajo).
+- **Cada paso en un commit aparte, que sube y mide el usuario**: en el banco
+  con `!info`, en el auto con el CSV. El agente no usó el USB.
+- **El QSPI queda en 40 MHz:** el paso 5 no se hizo.
+- **FUERZA G vuelve a 50 ms si las mediciones dan:** está en el último paso y
+  se confirma en el auto.
+
+**Todo iba a `-O0`, no a `-Os`.** El plan decía que LVGL estaba compilado para
+tamaño. En el `pio run -v` no hay ningún `-O` en los comandos de `src`, LVGL,
+`lib/obd`, el driver del panel ni el core de Arduino (ver **Datos
+descubiertos**), así que GCC queda en `-O0`. Por eso el giro costaba ~20 ms
+(~40 ciclos por píxel) y dibujar una pantalla entera ~30–60 ms. Optimizar
+achica el programa en vez de agrandarlo: 65,2 % → 58,9 % de 3 MB con LVGL y
+el giro a `-O2`.
+
+**Los commits, para medir cada paso:**
+
+| Commit    | Paso | Qué cambia |
+| --------- | ---- | ---------- |
+| `5c8a494` | 1 | Solo las mediciones (la base) |
+| `d5d2edc` | 2 | El giro de a 2x2 píxeles, todavía a `-O0` |
+| `58c97a3` | 3 | LVGL y el giro a `-O2` |
+| `76cda5c` | 4 | El envío en otra tarea, con dos imágenes |
+| `9e65ccb` | 6 | Cada envío empieza con el barrido del panel (`LCD_TE`) |
+| `7176bbd` | 7 | FUERZA G cada 50 ms |
+| `e21b10e` | — | Sin warnings con `-Wshadow` (no cambia lo que hace). Después, solo el PLAN |
+
+Lo que se hizo:
+
+- **Paso 1, las mediciones** (`pantalla_hw`):
+
+  ```cpp
+  struct TiemposCuadro {   // en microsegundos
+    uint32_t dibujo;       // LVGL dibujando lo que cambió, en quien la tiene
+    uint32_t espera;       // quien tiene LVGL, esperando el envío
+    uint32_t giro;         // pasar la imagen a vertical (las 10 tandas)
+    uint32_t envio;        // desde que se empieza a mandar hasta que el panel recibió todo
+  };
+  struct MedidasPantalla { uint16_t cuadros; TiemposCuadro promedio, maximo; uint16_t barridos; };
+  TiemposCuadro medirRefresco();   // dibuja y manda la pantalla entera (para !info)
+  MedidasPantalla medidas() const; // las del último segundo completo
+  ```
+
+  - `dibujo` va desde `LV_EVENT_REFR_START` (un `lv_display_add_event_cb`)
+    hasta la última zona, sin lo que esperó. El envío termina cuando el panel
+    recibió la última tanda: antes, `ultimoEnvioMs` se medía hasta encolarla
+    (~1 ms menos).
+  - Hasta el paso 4, `espera` es todo el envío (`loop()` lo esperaba). Desde
+    el 4, lo que LVGL espera al envío anterior. Lo que se le resta a las
+    consultas es `dibujo` + `espera`.
+  - El segundo se cierra en `atender()`, con LVGL tomado: los cuadros, la suma
+    y el máximo pasan a `medidas()`.
+  - **La tabla de cada segundo** suma
+    `pantalla 12 cuadros/s, dibujo 3.2/7.9, espera .../..., giro .../..., envio .../... ms`
+    (promedio/máximo).
+  - **`!info`:** `Pantalla en el ultimo segundo: ...; LCD_TE N barridos/s` y
+    `Pantalla: refresco completo X ms: dibujo, espera, giro, envio` (refresco
+    completo = dibujo + envío).
+  - **El CSV** suma 10 columnas antes de `Eventos`: `Pagina` (el título, solo
+    en `LEYENDO`; antes no se sabía qué página se veía), `Cuadros/s` y el
+    promedio y el máximo de cada tiempo. La línea pasa de `char[400]` a
+    `LARGO_LINEA_REGISTRO` (512); el búfer de 8 KB de la tarjeta queda en ~35 s
+    de líneas (antes ~50), y se escribe cada 5.
+- **Paso 2, el giro por bloques** (`src/giro.h/.cpp`, nuevo, sin Arduino ni
+  LVGL): `girarTanda(imagen, ancho, alto, fila, filas, girada, destino)`. De a
+  2x2 píxeles: lee dos palabras de 32 bits, una de cada fila de la imagen (x y
+  x + 1), y escribe dos (las filas x y x + 1 del panel, con las columnas de
+  las dos filas de la imagen juntas), con los bytes de cada píxel dados vuelta
+  de a dos. Lee la PSRAM en orden, fila por fila: cada línea de la caché (32
+  bytes) se trae una vez. No hacen falta bloques más grandes: lo que se
+  escribe va a la RAM interna, sin caché, y recorrer la imagen por columnas
+  sería peor (con 1280 bytes por fila, 172 filas caen en solo 16 conjuntos de
+  la caché de 8 vías). Usa `uint32_t` con `may_alias` para no romper las
+  reglas de alias a `-O2`. Pide `ancho`, `alto`, `fila` y `filas` pares y los
+  punteros de a 4 bytes (las imágenes y las tandas lo son).
+- **Paso 3, `-O2`** (`optimizar.py`, nuevo, `pre:` en `platformio.ini`): con
+  `env.AddBuildMiddleware()`, los archivos de `*/lvgl/src/*` y `*src/giro.cpp`
+  se compilan con `-O2` al final de los flags. Comprobado en el `pio run -v`:
+  solo esos llevan `-O2`; `pantalla_hw.cpp`, `main.cpp`, `lib/obd`, el core y
+  el driver siguen sin `-O`. El lazo del giro queda en 23 instrucciones cada 4
+  píxeles, con el `loop` del Xtensa: unos 3 ms por cuadro más los fallos de
+  caché (estimado, sin medir).
+- **Paso 4, el envío en otra tarea** (`pantalla_hw`):
+  - LVGL dibuja en **dos imágenes** de 640x172 en la PSRAM (modo `DIRECT` con
+    dos búferes, +220 KB). En cada cuadro dibuja solo lo que cambió, y antes
+    copia de la otra imagen lo que cambió en el cuadro anterior (lo hace LVGL:
+    `refr_sync_areas()`).
+  - **La tarea `envio`** (núcleo 0, prioridad 2, 4 KB de pila) espera una
+    notificación con el puntero de la imagen, la gira y la manda en las 10
+    tandas de siempre, anota giro y envío y da `envioListo`.
+  - `alDibujar()` (el `flush_cb`), en la última zona, le pasa la imagen a la
+    tarea y **no** llama a `lv_display_flush_ready()`: lo hace
+    `terminarEnvio()` cuando la tarea dio `envioListo`. LVGL ya sigue en la
+    otra imagen.
+  - `terminarEnvio(espera)` lo llama quien tiene LVGL: `atender()` sin esperar,
+    en cada vuelta (`loop()` o la tarea de E9), y el `flush_wait_cb` de LVGL
+    esperando hasta `TIMEOUT_ENVIO_MS` (2 s, más que lo que tarda la tarea con
+    todas las tandas vencidas). LVGL lo llama cuando necesita la imagen que se
+    está mandando: al empezar el cuadro siguiente, para copiar lo que cambió.
+  - Al arrancar, el primer cuadro negro se espera antes de prender la luz,
+    como antes. `medirRefresco()` espera el envío para tener sus tiempos.
+- **Paso 6, `LCD_TE`:** en los comandos del panel, `TEON` (`0x35 0x00`, solo el
+  blanking vertical), entre `0x11` y `0x29`. El GPIO21 como entrada con
+  pull-down (si el panel no lo maneja, queda en bajo y sin interrupciones) y
+  una interrupción en el flanco de subida (`gpio_install_isr_service(0)`, que
+  acepta que ya esté instalado), que cuenta y da un semáforo. La tarea de envío
+  espera el barrido siguiente (hasta `ESPERA_TE_MS`, 40) antes de mandar,
+  **solo si hubo uno en los últimos 200 ms**: si el TE no llega, manda como en
+  el paso 4. El envío medido no incluye esa espera. `PIN_PANTALLA_TE` en
+  `config.h`. No se toca nada del TCA9554.
+- **Paso 7:** `PERIODO_FUERZA_G_MS` de 100 a 50.
+- **El render** compila `giro.cpp` y compara `girarTanda()` con el giro de a un
+  píxel que tenía `pantalla_hw`, derecha y girada, con una imagen al azar en
+  tandas de 64. La tarea de envío y las dos imágenes no se pueden probar ahí
+  (el `PantallaHw` del render es de mentira).
+- README: las columnas nuevas del CSV, qué es cada tiempo, `!info` y cómo se
+  compila.
+
+**Cómo queda la concurrencia.** LVGL sigue teniendo un solo dueño por vez,
+`loop()` o la tarea `pantalla` de E9, con el mismo mutex: todas las funciones
+de LVGL (también `lv_display_flush_ready()`) las llama quien lo tiene. La tarea
+`envio` no llama a LVGL ni toca sus objetos: recibe un puntero a una imagen
+que LVGL ya terminó, y LVGL no la vuelve a usar (ni para leerla) hasta que
+alguien con el mutex tomó `envioListo`. La notificación y el semáforo de
+FreeRTOS ordenan la memoria entre las dos tareas (los tiempos que anota la
+tarea se leen después de tomar el semáforo). Las tandas, su semáforo y el panel
+pasan a ser solo de la tarea de envío (el panel se inicia antes de crearla).
+La caché de la PSRAM del S3 es una sola para los dos núcleos. La interrupción
+del `LCD_TE` solo cuenta, anota el tick y da su semáforo.
+
+Verificado por el agente:
+
+- Cada commit compila. Programa: 65,2 % (paso 1) → 58,9 % (paso 3) → 59,0 %
+  (pasos 4 a 7) de 3 MB; RAM estática 11,2 %. Con `-Wshadow`, sin warnings
+  propios (hubo dos y se arreglaron en `e21b10e`). `pio test -e native`
+  113/113 (`lib/obd` no cambió).
+- **Render**, 183 revisiones, todas bien: las 181 de antes y las dos del giro.
+  Se comprobó que las del giro fallan con un píxel cambiado de lugar y sin dar
+  vuelta los bytes.
+- Los tamaños de **Datos descubiertos**, compilando cada variante.
+
+Sin probar (falta la placa): todo en el hardware. Los tiempos reales de cada
+paso, que la pantalla se vea bien con las dos imágenes (sin restos de cuadros
+viejos), si el `LCD_TE` llega y a cuánto barre el panel, si con él
+desaparecen los cortes, la RAM interna libre (la tarea suma 4 KB) y las
+consultas por segundo en cada página, también con FUERZA G a 50 ms y DS3.
+
+**Pruebas del usuario.** Para medir un paso: `git checkout <commit>`,
+`pio run -t upload` y volver con `git checkout e17-pantalla-fluida`. En el
+banco, con cada commit, `!info` dos o tres veces (después de que entró el DS3)
+y pasarme las líneas `Pantalla...` y `RAM interna libre`:
+
+1. `5c8a494` (la base): debería dar como antes, refresco completo ~64 ms,
+   giro ~20, envío ~32 y espera igual al envío.
+2. `d5d2edc`: baja el giro (todavía a `-O0`).
+3. `58c97a3`: el giro, menos de 8 ms (el objetivo); baja el dibujo. El envío
+   queda cerca de 11–12 ms, lo que tarda el QSPI a 40 MHz.
+4. `76cda5c`: la espera, en 0 o casi. La pantalla, igual que antes: el DS3
+   entrando sin saltos ni restos, tocar para reintentar, mantener para
+   reiniciar con la barra roja creciendo pareja. En el monitor, sin
+   `Pantalla: no se pudo crear la tarea del envio` ni `el envio de una imagen
+   no termino`.
+5. `9e65ccb`: `LCD_TE N barridos/s`. Anotar N (con 0, el TE no llega y se
+   manda sin esperar). Mirar la entrada del DS3: sin una línea donde la imagen
+   se vea cortada.
+6. La rama entera (`e17-pantalla-fluida`, con FUERZA G a 50), **en el auto**
+   con la tarjeta: ~1 minuto en cada página, también FUERZA G (moviendo la
+   placa) y DS3, y pasarme el CSV. Las consultas por segundo, iguales en todas (6–7); en
+   FUERZA G, ~20 cuadros por segundo. Si en FUERZA G bajan, se vuelve a 100
+   (`git revert 7176bbd`). Cambiar de página deslizando, más suave.
+7. `!info` en el auto con el motor andando: la RAM interna libre.
+
+Para E18 y E20:
+
+- Compilar todo el proyecto a `-Os` bajaría el programa a ~50 % (ver **Ideas
+  para después**): ayuda con la flash de E20, pero hay que volver a probar todo.
+- La tarea `envio` corre en el núcleo 0 con el BLE (y con el Wi-Fi de E20): si
+  hace falta, se le puede bajar la prioridad, a costa de más `espera`.
