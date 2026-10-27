@@ -4,6 +4,7 @@
 
 #include <dtc.h>
 #include <fuerza_g.h>
+#include <registro.h>
 #include <viaje.h>
 
 #include "datos.h"
@@ -15,9 +16,10 @@ struct DatosInfo {
   const char *protocolo;       // de ATDPN: "6", o "A6" si lo eligió en automático
   uint8_t pids;                // PIDs soportados en el servicio 01
   int16_t consultasPorSegundo; // -1: todavía no se midió
-  const char *direccion;       // del adaptador: "81:23:45:67:89:BA"
   int16_t rssi;                // dBm; 0: sin medir (siempre es negativo)
   uint8_t brillo;              // nivel, de 1 a CANT_NIVELES_BRILLO
+  EstadoTarjeta tarjeta;       // la microSD (E13); también la marca de la barra
+  uint16_t viaje;              // el número del archivo; 0 sin archivo
 };
 
 // Lo que muestra la página Fuerza G (E12)
@@ -88,7 +90,8 @@ public:
   Accion tomarAccion(uint32_t ahora);
   // fallas: la última lectura de la página Fallas. reintento: segundos
   // hasta volver a leerla, que se muestran si falló y no hay códigos. alarma:
-  // va en la barra, en lugar del título, también en DS3.
+  // va en la barra, en lugar del título, también en DS3. info.tarjeta da
+  // también la marca "SD" de la barra.
   void dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
                uint32_t reintento, const Viaje &viaje, const DatosFuerzaG &fuerzaG,
                const AlarmaALaVista &alarma);

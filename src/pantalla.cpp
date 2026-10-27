@@ -18,6 +18,10 @@ static const int MARGEN = 8;
 // Puntos de página: a la derecha de la barra, centrados en su alto
 static const int PUNTO = 8;
 static const int ENTRE_PUNTOS = 8;
+// La marca "SD", a la izquierda de los puntos
+static const int ANCHO_MARCA = 26;
+static const int ALTO_MARCA = 16;
+static const int ANTES_DE_PUNTOS = 12;
 // Espera: el auto un poco más arriba que en los cuadros originales, para
 // que entre el renglón de abajo, y debajo la barra de mantener apretado
 static const int Y_AUTO = 5;
@@ -30,6 +34,7 @@ static lv_obj_t *rellenoBarra = nullptr; // mantener apretado
 static lv_obj_t *titulo = nullptr;
 static char textoAlarma[48]; // el triángulo y la alarma
 static lv_obj_t *puntos[MAX_PAGINAS];
+static lv_obj_t *marcaSd = nullptr;
 // Pantallas de estado: RENGLONES líneas de texto
 static lv_obj_t *vistaEstado = nullptr;
 static lv_obj_t *textos[RENGLONES];
@@ -59,10 +64,12 @@ static void ver(lv_obj_t *vista, bool conBarra = false) {
 }
 
 // Con total > 0, un punto por página pegado al margen derecho, numero en
-// blanco. Con mantenida > 0, el relleno rojo hasta esa fracción del ancho.
-// Si no, con una alarma, la barra en rojo con la alarma en lugar del texto.
+// blanco, y antes la marca de la microSD. Con mantenida > 0, el relleno rojo
+// hasta esa fracción del ancho. Si no, con una alarma, la barra en rojo con
+// la alarma en lugar del texto.
 static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8_t total = 0,
-                  float mantenida = 0, const char *alarma = nullptr) {
+                  float mantenida = 0, const char *alarma = nullptr,
+                  MarcaSd sd = MarcaSd::NINGUNA) {
   bool conAlarma = alarma != nullptr && mantenida <= 0;
   if (conAlarma) {
     snprintf(textoAlarma, sizeof(textoAlarma), LV_SYMBOL_WARNING " %s", alarma);
@@ -85,6 +92,12 @@ static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8
       ponerPosicion(puntos[i], x + i * (PUNTO + ENTRE_PUNTOS), (ALTO_BARRA - PUNTO) / 2);
       ponerFondo(puntos[i], i == numero ? BLANCO : PUNTO_APAGADO);
     }
+  }
+  bool conMarca = total > 0 && sd != MarcaSd::NINGUNA;
+  mostrar(marcaSd, conMarca);
+  if (conMarca) {
+    ponerPosicion(marcaSd, x - ANTES_DE_PUNTOS - ANCHO_MARCA, (ALTO_BARRA - ALTO_MARCA) / 2);
+    ponerFondo(marcaSd, sd == MarcaSd::GRABANDO ? ETIQUETA : AMBAR);
   }
 }
 
@@ -185,6 +198,11 @@ void Pantalla::iniciar() {
         rectangulo(fondoBarra, 0, (ALTO_BARRA - PUNTO) / 2, PUNTO, PUNTO, PUNTO_APAGADO, PUNTO / 2);
     lv_obj_add_flag(punto, LV_OBJ_FLAG_HIDDEN);
   }
+  marcaSd = rectangulo(fondoBarra, 0, 0, ANCHO_MARCA, ALTO_MARCA, ETIQUETA, 3);
+  lv_obj_t *sd = etiqueta(marcaSd, &lv_font_montserrat_14, lv_color_black());
+  lv_label_set_text(sd, "SD");
+  lv_obj_center(sd);
+  lv_obj_add_flag(marcaSd, LV_OBJ_FLAG_HIDDEN);
 
   vistaEstado = caja(raiz, 0, ALTO_BARRA, ANCHO, ALTO - ALTO_BARRA);
   for (int i = 0; i < RENGLONES; i++) {
@@ -241,12 +259,12 @@ void Pantalla::descubriendo(uint16_t hechos, uint16_t total) {
 }
 
 void Pantalla::pagina(const char *texto, uint8_t numero, uint8_t total, float mantenida,
-                      const char *alarma) {
+                      const char *alarma, MarcaSd sd) {
   if (!lista) {
     return;
   }
   barra(texto, mantenida > 0 ? ROJO_CLARO : BLANCO, numero,
-        total < MAX_PAGINAS ? total : MAX_PAGINAS, mantenida, alarma);
+        total < MAX_PAGINAS ? total : MAX_PAGINAS, mantenida, alarma, sd);
   ver(vistaPaginas);
 }
 
@@ -254,12 +272,12 @@ lv_obj_t *Pantalla::areaPaginas() const {
   return vistaPaginas;
 }
 
-void Pantalla::paginaCompleta(uint8_t numero, uint8_t total, const char *alarma) {
+void Pantalla::paginaCompleta(uint8_t numero, uint8_t total, const char *alarma, MarcaSd sd) {
   if (!lista) {
     return;
   }
   if (alarma != nullptr) {
-    barra("", BLANCO, numero, total < MAX_PAGINAS ? total : MAX_PAGINAS, 0, alarma);
+    barra("", BLANCO, numero, total < MAX_PAGINAS ? total : MAX_PAGINAS, 0, alarma, sd);
   }
   ver(vistaCompleta, alarma != nullptr);
 }

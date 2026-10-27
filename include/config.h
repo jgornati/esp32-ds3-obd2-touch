@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 // Waveshare ESP32-S3-Touch-LCD-3.49B V2 (la plaqueta dice Rev1.1), según los
@@ -73,8 +74,22 @@ constexpr float TOLERANCIA_QUIETA_G = 0.05f;
 // Sin muestras por más que esto, "--"
 constexpr uint32_t VIGENCIA_FUERZA_G_MS = 500;
 // Con FUERZA G a la vista, la página se redibuja cada esto (las demás, cada
-// PERIODO_PANTALLA_MS)
-constexpr uint32_t PERIODO_FUERZA_G_MS = 50;
+// PERIODO_PANTALLA_MS). Con 50, moviendo el punto, las consultas bajaban a 3
+// o 4 por segundo (registro de E13)
+constexpr uint32_t PERIODO_FUERZA_G_MS = 100;
+
+// microSD (E13), en modo SD de 1 bit, como el ejemplo 04_SD_Card de la V2.
+// D3 (GPIO38, el CS del modo SPI) tiene su resistencia a 3,3 V y no se toca;
+// la tarjeta no tiene detección (CD va a masa): se busca al prender.
+constexpr uint8_t PIN_SD_CLK = 41;
+constexpr uint8_t PIN_SD_CMD = 39;
+constexpr uint8_t PIN_SD_D0 = 40;
+// Registro del viaje: una línea cada PERIODO_LINEA_MS, que espera en un búfer
+// de TAM_BUFER_REGISTRO bytes (~50 s de líneas). La tarea de la tarjeta la
+// escribe cada PERIODO_REGISTRO_MS: si se corta la luz, se pierde eso.
+constexpr uint32_t PERIODO_LINEA_MS = 1000;
+constexpr uint32_t PERIODO_REGISTRO_MS = 5000;
+constexpr size_t TAM_BUFER_REGISTRO = 8192;
 
 // GPIO16 no se usa: el ejemplo 07 lo lee para saber si está prendida por batería.
 

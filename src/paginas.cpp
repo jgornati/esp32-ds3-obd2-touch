@@ -580,12 +580,13 @@ static const char *dibujarFallas(uint32_t ahora, const LecturaFallas &lectura, u
   return tituloFallas;
 }
 
-// Info: a la izquierda lo que se sabe del adaptador y la ECU y, abajo, el
-// brillo con - y +; a la derecha Reconectar y Olvidar adaptador, como en la
-// maqueta. Los botones se quedan con su toque: no llega a la raíz y no
-// cambia la página.
+// Info: a la izquierda lo que se sabe del adaptador, la tarjeta y la ECU y,
+// abajo, el brillo con - y +; a la derecha Reconectar y Olvidar adaptador,
+// como en la maqueta. Los botones se quedan con su toque: no llega a la raíz
+// y no cambia la página. La tarjeta (E13) va donde estaba la dirección del
+// adaptador, que queda en !info.
 
-static const char *const NOMBRES_INFO[] = {"Adaptador", "Direccion", "ELM", "Lectura"};
+static const char *const NOMBRES_INFO[] = {"Adaptador", "Tarjeta", "ELM", "Lectura"};
 static const uint8_t RENGLONES_INFO = sizeof(NOMBRES_INFO) / sizeof(NOMBRES_INFO[0]);
 // Renglones de 24 px (en la maqueta, 36): abajo va el brillo
 static const int32_t ALTO_RENGLON_INFO = 24;
@@ -715,7 +716,12 @@ static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
     strlcpy(texto, BLE_NOMBRE_REMOTO, sizeof(texto));
   }
   ponerTexto(datosInfo[0], texto);
-  ponerTexto(datosInfo[1], info.direccion);
+  // Gris sin tarjeta, como un dato que no hay; ámbar si está pero no graba
+  textoTarjeta(info.tarjeta, info.viaje, texto, sizeof(texto));
+  ponerTexto(datosInfo[1], texto);
+  bool sinTarjeta =
+      info.tarjeta == EstadoTarjeta::BUSCANDO || info.tarjeta == EstadoTarjeta::SIN_TARJETA;
+  ponerColor(datosInfo[1], sinTarjeta ? GRIS : problemaTarjeta(info.tarjeta) ? AMBAR : BLANCO);
   snprintf(texto, sizeof(texto), "%s, protocolo %s", info.version, info.protocolo);
   ponerTexto(datosInfo[2], texto);
   if (info.consultasPorSegundo >= 0) {
@@ -1072,6 +1078,10 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
   }
   const char *titulo = PAGINAS[actual].titulo;
   float apretada = 0;
+  // Mientras graba y si falla; sin tarjeta, nada
+  MarcaSd sd = info.tarjeta == EstadoTarjeta::GRABANDO ? MarcaSd::GRABANDO
+               : problemaTarjeta(info.tarjeta)         ? MarcaSd::PROBLEMA
+                                                       : MarcaSd::NINGUNA;
   switch (actual) {
   case PAGINA_MOTOR:
     dibujarMotor(ahora);
@@ -1103,8 +1113,8 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
     break;
   case PAGINA_DS3:
     // Se mueve sola, con alAnimarPaseo
-    pantalla.paginaCompleta(actual, CANT_PAGINAS, alarma.texto);
+    pantalla.paginaCompleta(actual, CANT_PAGINAS, alarma.texto, sd);
     return;
   }
-  pantalla.pagina(titulo, actual, CANT_PAGINAS, apretada, alarma.texto);
+  pantalla.pagina(titulo, actual, CANT_PAGINAS, apretada, alarma.texto, sd);
 }

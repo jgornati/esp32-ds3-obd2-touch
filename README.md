@@ -10,6 +10,8 @@ Bluetooth clásico y pantalla Nokia 5110), con la misma lógica OBD.
 Solo lee: no borra fallas ni manda nada que cambie la configuración o el
 funcionamiento del auto. Nunca muestra datos simulados ni vencidos.
 
+Con una microSD puesta, graba cada viaje en un CSV para verlo en la PC.
+
 ## Qué muestra
 
 Seis páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
@@ -23,7 +25,7 @@ otra con la fuerza G y al final una animación:
 | CARGA     | Carga del motor, avance del encendido y acelerador, cada uno con su barra |
 | MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador |
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
-| INFO      | Adaptador y señal (RSSI), dirección, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
+| INFO      | Adaptador y señal (RSSI), la microSD, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
 | VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
 | FUERZA G  | Un punto en un círculo de 1 g con la aceleración del auto; la frenada o aceleración y la lateral de ahora, y los máximos del viaje para cada lado |
 | DS3       | El DS3 andando, con nubes y el camino corriéndose. Ocupa toda la pantalla, sin la barra ni datos |
@@ -150,6 +152,41 @@ aparte de las consultas a la ECU.
 - Si el sensor deja de contestar: `--` y sin el punto. Si no contestó al
   arrancar: `N/D` y `Sin sensor`.
 
+### Registro en la microSD
+
+Cada viaje queda en un archivo de la microSD, para verlo después en la PC.
+La tarjeta tiene que estar en FAT32 (las de hasta 32 GB vienen así; las más
+grandes vienen en exFAT y hay que formatearlas) y puesta antes de prender:
+no se detecta después.
+
+- **Un archivo por encendido:** `VIAJE0001.CSV`, `VIAJE0002.CSV`..., en la
+  raíz. Se abre con la primera lectura de la ECU, así que prender la placa
+  sin el auto no deja archivos. El número es el siguiente al más alto de la
+  tarjeta: nunca pisa uno. No tiene la hora: el reloj es de E14.
+- **Una línea por segundo,** con lo mismo que la tabla del monitor. Es un CSV
+  estándar: coma entre columnas y punto decimal. Google Sheets lo abre
+  directo; en Excel en español, con Datos > Desde texto/CSV.
+- **Se graba cada 5 s.** Al sacar la llave la placa se apaga y se pierden
+  esos últimos segundos, ya con el motor parado. El archivo queda hasta el
+  último bloque grabado.
+- En la barra de todas las páginas, a la izquierda de los puntos, una marca
+  `SD`: gris mientras graba y ámbar si hay tarjeta pero no puede grabar. Sin
+  tarjeta no aparece.
+- En INFO, el renglón `Tarjeta`: `Grabando VIAJE0012`; `Sin tarjeta`, en
+  gris; en ámbar, `No se puede leer` (no es FAT32 o está dañada), `Error al
+  escribir` (reintenta cada 5 s) o `Tarjeta llena`. `!sd` da el detalle.
+
+| Columna | Qué tiene |
+| ------- | --------- |
+| `Seg` | Segundos desde la primera lectura de la ECU. Salta si la placa estuvo trabada conectando con el adaptador (hasta 30 s) |
+| `RPM` a `Acelerador %` | Los 14 datos, con la unidad en el nombre (`Refrig C`, `Vel km/h`); `Lazo`, en texto. Vacío sin un valor actual: la ECU no lo da, no contestó en los últimos 3 s o no hay conexión |
+| `Consultas/s` | Las consultas a la ECU del último segundo |
+| `Distancia km`, `En marcha s` | Las del viaje, como en VIAJE: la última línea tiene el total |
+| `G lateral`, `G long.` | La fuerza G en ese momento: la lateral, positiva en una curva a la derecha; la longitudinal, positiva acelerando y negativa frenando. Vacías sin calibrar o sin sensor |
+| `Eventos` | Lo que pasó en ese segundo, separado por ` \| `: el inicio de la placa y por qué (`encendido`, `brownout`...), los cambios de la conexión (`LEYENDO`, `SIN_ECU (No responde)`...), las alarmas, las fallas leídas en FALLAS cuando cambian, `Viaje reiniciado` y los errores de la tarjeta |
+
+Los máximos del viaje salen en la planilla (`MAX()` de la columna).
+
 ### Alarmas
 
 En cualquier página, la barra de arriba se pone roja con un triángulo, la
@@ -179,6 +216,8 @@ cambiando de página: no hay nada que aceptar, y la alarma se va sola.
   dirección guardada y busca el adaptador de cero.
 - **Brillo:** `-` y `+` lo cambian en 5 niveles (los segmentos del medio).
   Queda guardado para el próximo arranque; sin nada guardado, al máximo.
+- **Tarjeta:** la microSD (ver **Registro en la microSD**). Hasta E13 ese
+  renglón era la dirección del adaptador, que ahora sale en `!info`.
 
 Ninguno le manda nada al auto.
 
@@ -190,28 +229,29 @@ borra las fallas, da `RECHAZADO`).
 
 | Comando       | Qué hace |
 | ------------- | -------- |
-| `!info`       | Chip, memoria, último reinicio, pantalla, adaptador y ECU |
+| `!info`       | Chip, memoria, último reinicio, pantalla, adaptador, ECU y tarjeta |
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
 | `!pitar`      | Los tres pitidos de una alarma, para probar el parlante |
 | `!brillo N`   | El brillo, de 1 a 5, como en Info (anda también sin la ECU) |
 | `!imu`        | La última medición del IMU en sus ejes (para ver cómo está montado), la fuerza G que sale de ella, los máximos y cuántas veces calibró |
+| `!sd`         | La microSD: tamaño y espacio libre, el archivo del viaje, cuánto lleva grabado, líneas perdidas y errores |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
 
 Cada segundo, con la ECU conectada, imprime una línea con todos los datos,
 las consultas por segundo (~6), la distancia y el tiempo en marcha del viaje
-y la fuerza G.
+y la fuerza G. Cada cambio de la tarjeta también sale ahí.
 
 ## Hardware
 
 - Waveshare ESP32-S3-Touch-LCD-3.49B, V2 (la plaqueta dice `Rev1.1`):
   ESP32-S3R8 (8 MB de PSRAM, 16 MB de flash), pantalla IPS de 172×640 con
   touch capacitivo (AXS15231B), parlante, con el códec ES8311 y el
-  amplificador NS4150B, e IMU QMI8658 (se usa solo el acelerómetro). Se usa
-  en horizontal, a 640×172.
+  amplificador NS4150B, IMU QMI8658 (se usa solo el acelerómetro) y ranura
+  microSD (en modo SD de 1 bit). Se usa en horizontal, a 640×172.
 - Adaptador OBD BLE: anuncia `OBDBLE` con el
   servicio `FFF0` y responde como `ELM327 v2.1`. Detalle en **Datos
   descubiertos** de `PLAN.md`.
@@ -260,8 +300,9 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 ## Tests
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
-del ELM, PIDs, fallas, el viaje, las alarmas y la fuerza G) tiene tests que corren en la
-PC, con respuestas reales del DS3 y del adaptador:
+del ELM, PIDs, fallas, el viaje, las alarmas, la fuerza G y el registro)
+tiene tests que corren en la PC, con respuestas reales del DS3 y del
+adaptador:
 
 ```text
 ~/.platformio/penv/bin/pio test -e native
