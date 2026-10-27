@@ -174,6 +174,11 @@ constexpr int32_t QUIETO_PX = 20;
 constexpr float RPM_EN_MARCHA = 500;
 constexpr uint32_t ESPERA_VOLTAJE_VIAJE_MS = 5000;
 constexpr uint32_t MANTENER_VIAJE_MS = 3000;
+// Viajes anteriores (E22): un viaje se guarda en la flash cuando lleva
+// MINIMO_VIAJE_GUARDADO_MS en marcha, y después cada PERIODO_GUARDAR_VIAJE_MS
+// si cambió. Al sacar la llave se pierde como mucho ese rato.
+constexpr uint32_t MINIMO_VIAJE_GUARDADO_MS = 60000;
+constexpr uint32_t PERIODO_GUARDAR_VIAJE_MS = 60000;
 
 // Alarmas (E11). Cada una se prende con el valor en el umbral o más allá
 // durante el tiempo indicado, contado entre lecturas, y se apaga con el

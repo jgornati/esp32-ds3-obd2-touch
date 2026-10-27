@@ -21,6 +21,7 @@
 #include "descubrimiento.h"
 #include "elm327.h"
 #include "explorar.h"
+#include "guardados.h"
 #include "imu.h"
 #include "paginas.h"
 #include "pantalla.h"
@@ -75,6 +76,7 @@ Brillo brillo;
 Imu imu;
 Tarjeta tarjeta;
 Rtc rtc;
+ViajesGuardados guardados;
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -99,6 +101,8 @@ static uint32_t ultimoRssi = 0;
 static bool avisarConexion = true; // la fase de la conexión; si no, "Esperando el adaptador"
 static bool ecuPerdida = false;    // SIN_ECU con el motor andando: no es lo normal
 static bool descubriendo = false;
+// Lo que dice la espera en CONECTANDO_BT: la fase, de alCambiarFase()
+static const char *textoConexion = "Iniciando...";
 static LecturaFallas fallas;              // la de la página Fallas
 static uint32_t proximaLecturaFallas = 0; // mientras se ve la página
 // El registro en la microSD (E13): una línea cada PERIODO_LINEA_MS desde la
@@ -327,8 +331,17 @@ static uint32_t segundosHasta(uint32_t momento) {
   return (momento - millis() + 999) / 1000;
 }
 
-// Sin datos, la pantalla de espera dice solo en qué anda la conexión. La
-// de CONECTANDO_BT la pone alCambiarFase(), y la de !descubrir, ese paso.
+// Sin datos se ve la espera, que dice solo en qué anda la conexión, salvo
+// que se haya pasado deslizando a Anteriores o a DS3 (E22)
+static void sinDatos(const char *texto, bool problema = false) {
+  if (paginas.muestraEspera()) {
+    pantalla.espera(texto, problema);
+  } else {
+    paginas.dibujarSinDatos(guardados.anteriores(), tarjeta.estado());
+  }
+}
+
+// La pantalla de !descubrir la pone ese paso
 static void dibujar() {
   uint32_t ahora = millis();
   ultimoDibujo = ahora;
@@ -338,33 +351,34 @@ static void dibujar() {
 
   switch (estado) {
   case Estado::CONECTANDO_BT:
+    sinDatos(textoConexion);
     break;
   case Estado::INICIANDO_ELM:
     if (yaEs(proximoIntento)) {
-      pantalla.espera("Iniciando el adaptador...");
+      sinDatos("Iniciando el adaptador...");
     } else {
-      pantalla.espera("El adaptador no responde", true);
+      sinDatos("El adaptador no responde", true);
     }
     break;
   case Estado::BUSCANDO_ECU:
-    pantalla.espera("Buscando la ECU...");
+    sinDatos("Buscando la ECU...");
     break;
   case Estado::LEYENDO:
     paginas.dibujar(ahora,
                     {version, protocolo, soportados.cantidad(), consultasPorSegundo, rssi,
                      brillo.nivel(), tarjeta.estado(), tarjeta.viaje()},
-                    fallas, segundosHasta(proximaLecturaFallas), viaje,
+                    fallas, segundosHasta(proximaLecturaFallas), viaje, guardados.anteriores(),
                     {imu.iniciado(), imu.lectura(ahora)}, alarmaALaVista(ahora));
     break;
   case Estado::SIN_ECU:
     if (ecuPerdida) {
-      pantalla.espera("Sin respuesta de la ECU", true);
+      sinDatos("Sin respuesta de la ECU", true);
     } else {
-      pantalla.espera("Esperando la ECU");
+      sinDatos("Esperando la ECU");
     }
     break;
   case Estado::BT_PERDIDO:
-    pantalla.espera("Esperando el adaptador");
+    sinDatos("Esperando el adaptador");
     break;
   }
 }
@@ -519,28 +533,10 @@ static void revisarTarjeta() {
   }
 }
 
-static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
-  estado = nuevo;
-  proximoIntento = millis() + esperaMs;
-  // SIN_ECU lee ATRV apenas entra
-  ultimaLectura = millis() - PERIODO_ATRV_MS;
-  if (nuevo == Estado::LEYENDO) {
-    abrirRegistro();
-  }
-  if (nuevo == Estado::SIN_ECU || nuevo == Estado::BT_PERDIDO) {
-    Serial.printf("== %s (%s)\n", textoEstado(nuevo), motivo);
-    anotar("%s (%s)", textoEstado(nuevo), motivo);
-  } else {
-    Serial.printf("== %s\n", textoEstado(nuevo));
-    anotar("%s", textoEstado(nuevo));
-  }
-  dibujar();
-}
-
 // El sondeo consulta en cada vuelta lo que se ve en la página actual. En
-// Fallas, Info, Viaje, Fuerza G y DS3 no hay datos a la vista: se siguen
-// pidiendo los de Motor, juntos. Si no, la ECU se consulta de a un PID y
-// espaciado, y en el auto hubo 4 NO DATA seguidos con el motor andando, a
+// Fallas, Info, Viaje, Anteriores, Fuerza G y DS3 no hay datos a la vista: se
+// siguen pidiendo los de Motor, juntos. Si no, la ECU se consulta de a un PID
+// y espaciado, y en el auto hubo 4 NO DATA seguidos con el motor andando, a
 // uno de un SIN_ECU falso (E5). Para el viaje, además, la velocidad va en
 // todas (la distancia sale de integrarla) y la RPM en las que entra, para no
 // perder el máximo. En Mezcla no entra: con sus 5 y la velocidad ya son
@@ -564,6 +560,28 @@ static void actualizarVisibles() {
   sondeo.visibles(lista, cantidad);
 }
 
+// Las páginas saben si hay datos (E22): sin datos se recorren la espera,
+// Anteriores y DS3, y al volver puede quedar otra página que la de antes
+static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
+  estado = nuevo;
+  proximoIntento = millis() + esperaMs;
+  // SIN_ECU lee ATRV apenas entra
+  ultimaLectura = millis() - PERIODO_ATRV_MS;
+  paginas.conDatos(nuevo == Estado::LEYENDO);
+  if (nuevo == Estado::LEYENDO) {
+    abrirRegistro();
+    actualizarVisibles();
+  }
+  if (nuevo == Estado::SIN_ECU || nuevo == Estado::BT_PERDIDO) {
+    Serial.printf("== %s (%s)\n", textoEstado(nuevo), motivo);
+    anotar("%s (%s)", textoEstado(nuevo), motivo);
+  } else {
+    Serial.printf("== %s\n", textoEstado(nuevo));
+    anotar("%s", textoEstado(nuevo));
+  }
+  dibujar();
+}
+
 // La página Fallas se lee al entrar: mientras tanto muestra "Leyendo...",
 // no la lectura anterior.
 static void reiniciarFallas() {
@@ -571,29 +589,36 @@ static void reiniciarFallas() {
   proximaLecturaFallas = millis();
 }
 
-// El botón y los toques cambian de página solo con las páginas a la vista.
-// No usa el ELM: se llama también mientras se lo espera, así la página
-// cambia sin esperar a que termine la consulta.
+// El botón y los toques cambian de página con las páginas o la espera a la
+// vista, no descubriendo. Tocar Anteriores pasa a otro viaje. No usa el ELM:
+// se llama también mientras se lo espera, así la página cambia sin esperar a
+// que termine la consulta. Sin datos, también desde el evento de LVGL del
+// toque, que puede ser de la otra tarea si loop() está conectando el BLE.
 static void atenderPaginas() {
   boton.actualizar();
   int8_t paso = paginas.tomarToque();
   if (boton.pulsado()) {
     paso = 1;
   }
-  if (paso == 0 || estado != Estado::LEYENDO || descubriendo) {
+  bool otroViaje = paginas.tomarOtroViaje();
+  if ((paso == 0 && !otroViaje) || descubriendo) {
     return;
   }
-  paginas.cambiar(paso);
-  if (paginas.muestraFallas()) {
-    reiniciarFallas();
+  if (paso != 0) {
+    paginas.cambiar(paso);
+    Serial.printf("Pagina: %s\n", paginas.titulo());
   }
-  if (paginas.muestraInfo()) {
-    // El de la última vez ya no vale: se mide en la vuelta siguiente
-    rssi = 0;
-    ultimoRssi = millis() - PERIODO_RSSI_MS;
+  if (paso != 0 && estado == Estado::LEYENDO) {
+    if (paginas.muestraFallas()) {
+      reiniciarFallas();
+    }
+    if (paginas.muestraInfo()) {
+      // El de la última vez ya no vale: se mide en la vuelta siguiente
+      rssi = 0;
+      ultimoRssi = millis() - PERIODO_RSSI_MS;
+    }
+    actualizarVisibles();
   }
-  actualizarVisibles();
-  Serial.printf("Pagina: %s\n", paginas.titulo());
   dibujar();
 }
 
@@ -674,16 +699,19 @@ static void atenderDescubrimiento() {
 // Al arrancar, con Reconectar u Olvidar y al tocar la espera, se ve cada
 // fase. En los reintentos queda "Esperando el adaptador": con la llave
 // sacada el adaptador está apagado, y cambiar el texto cada pocos segundos
-// molesta. Se llama con LVGL suelto (ver conectarBt()).
+// molesta. Se llama con LVGL suelto (ver conectarBt()), y con Reconectar u
+// Olvidar todavía en LEYENDO: ya no hay datos.
 static void alCambiarFase(FaseConexion fase) {
-  pantallaHw.tomar();
   if (!avisarConexion) {
-    pantalla.espera("Esperando el adaptador");
+    textoConexion = "Esperando el adaptador";
   } else if (fase == FaseConexion::BUSCANDO) {
-    pantalla.espera("Buscando el adaptador...");
+    textoConexion = "Buscando el adaptador...";
   } else {
-    pantalla.espera("Conectando con el adaptador...");
+    textoConexion = "Conectando con el adaptador...";
   }
+  pantallaHw.tomar();
+  paginas.conDatos(false);
+  sinDatos(textoConexion);
   pantallaHw.soltar();
 }
 
@@ -1277,6 +1305,8 @@ static void esperarEcu() {
 
 static void esperarReconexion() {
   if (yaEs(proximoIntento)) {
+    // Hasta la primera fase, lo de BT_PERDIDO
+    textoConexion = "Esperando el adaptador";
     cambiarA(Estado::CONECTANDO_BT);
   }
 }
@@ -1352,6 +1382,13 @@ static void avisarParado() {
   imu.parado(leyendo && valorActual(VELOCIDAD, millis(), &kmh) && kmh == 0);
 }
 
+// El viaje de ahora empieza: al arrancar (la placa arranca con la llave) y
+// al reiniciarlo. Guarda la hora para Anteriores (E22).
+static void empezarViaje() {
+  FechaHora f;
+  guardados.empezar(rtc.ahora(&f) ? &f : nullptr);
+}
+
 // Mantener apretada la espera, por si la placa quedó trabada. Corre en un
 // evento de LVGL, que puede ser de la otra tarea si loop() está bloqueado.
 static void reiniciarPlaca() {
@@ -1393,7 +1430,10 @@ static void atenderAcciones() {
   } else if (accion == Accion::REINICIAR_VIAJE) {
     Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
                   (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
+    // Si llegó a guardarse, pasa a Anteriores
+    guardados.terminar(viaje);
     viaje.reiniciar();
+    empezarViaje();
     imu.reiniciarMaximos();
     anotar("Viaje reiniciado");
     dibujar();
@@ -1427,10 +1467,13 @@ void setup() {
   iniciarPlaca();
   // Antes que la pantalla, para que la hora ya esté al prenderla
   rtc.iniciar();
+  guardados.iniciar();
+  empezarViaje();
   brillo.iniciar();
   bool conPantalla = pantallaHw.iniciar(brillo.valor());
   pantalla.iniciar();
   paginas.iniciar();
+  paginas.alPedirSinDatos(atenderPaginas);
   pantalla.espera("Iniciando...");
   pantalla.alMantenerApretada(reiniciarPlaca);
   pantalla.alPedirHora(horaParaPantalla);
@@ -1465,7 +1508,7 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !brillo N, !luz V, !imu, !sd, !hora AAAA-MM-DD HH:MM, "
+                 "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora AAAA-MM-DD HH:MM, "
                  "!escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
@@ -1487,6 +1530,9 @@ void loop() {
   }
   if (consola.sdPedido()) {
     tarjeta.imprimir();
+  }
+  if (consola.viajesPedido()) {
+    guardados.imprimir();
   }
   const char *hora = consola.horaPedida();
   if (hora != nullptr) {
@@ -1527,6 +1573,7 @@ void loop() {
   avisarParado();
   revisarTarjeta();
   registrarSegundo();
+  guardados.actualizar(viaje, millis());
 
   if (millis() - ultimoDibujo >= periodoDibujo()) {
     dibujar();

@@ -6,7 +6,7 @@
 
 static const char *const AYUDA =
     "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
-    "!info, !pitar, !brillo N, !luz V, !imu, !sd, !hora, !escanear, !explorar N";
+    "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora, !escanear, !explorar N";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -67,6 +67,12 @@ bool Consola::imuPedido() {
 bool Consola::sdPedido() {
   bool pedido = sd;
   sd = false;
+  return pedido;
+}
+
+bool Consola::viajesPedido() {
+  bool pedido = viajes;
+  viajes = false;
   return pedido;
 }
 
@@ -136,6 +142,8 @@ void Consola::ejecutar(const char *texto) {
     imu = true;
   } else if (strcasecmp(comando, "!sd") == 0) {
     sd = true;
+  } else if (strcasecmp(comando, "!viajes") == 0) {
+    viajes = true;
   } else if (strcasecmp(comando, "!hora") == 0) {
     // El resto de la línea, sin los espacios del principio
     const char *resto = texto + strlen("!hora");
