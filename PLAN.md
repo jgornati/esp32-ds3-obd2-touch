@@ -27,23 +27,23 @@ que corresponda antes de portar un módulo.
 | E1    | Pantalla y touch                       | E0         | Verificada |
 | E2    | Transporte BLE con el ELM              | E0         | Verificada |
 | E3    | El monitor completo en el auto         | E1, E2     | Verificada |
-| E4    | Diseño de páginas y navegación táctil  | E3         | Verificada (salvo de noche) |
+| E4    | Diseño de páginas y navegación táctil  | E3         | Verificada |
 | E5    | Códigos de falla                       | E4         | Verificada |
 | E6    | Brillo y ajustes                       | E4         | Verificada (sin brillo: la placa no lo regula) |
 | E7    | Cierre e instalación                   | E5, E6     | Verificada (salvo el cuelgue ocasional, sin investigar) |
 | E8    | Conexión al prender y apagar el auto   | E7         | Descartada |
 | E9    | Pantalla de espera con el DS3          | E7         | Verificada |
 | E10   | Viaje: máximos y recorrido             | E9         | Hecha (falta verificar en hardware) |
-| E11   | Alarmas                                | E9         | Hecha (falta verificar en hardware) |
+| E11   | Alarmas                                | E9         | Hecha (el parlante pita; faltan las alarmas en el auto) |
 | E12   | Fuerza G                               | E10        | Hecha (falta verificar en hardware) |
-| E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo la marca SD de la barra) |
-| E14   | Reloj                                  | —          | Hecha (falta verificar en hardware) |
+| E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo un viaje andando) |
+| E14   | Reloj                                  | —          | Verificada |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
-| E16   | Cambiar de página deslizando el dedo   | E4         | Hecha (falta verificar en hardware) |
+| E16   | Cambiar de página deslizando el dedo   | E4         | Verificada |
 | E17   | Pantalla fluida: que dibujar no frene  | E16        | Verificada (salvo FUERZA G con el punto moviéndose y el `LCD_TE`; en DS3, ~1 consulta menos por segundo) |
-| E19   | Micrófono y parlante: grabar y hablar  | E11        | Pendiente |
-| E20   | Asistente de voz por OpenRouter        | E19        | Pendiente |
-| E21   | WhatsApp por el celular                | E20        | Pendiente |
+| E19   | Micrófono y parlante: grabar y hablar  | E11        | Descartada (se hizo y anduvo, pero el parlante se oye bajo; se sacó) |
+| E20   | Asistente de voz por OpenRouter        | E19        | Descartada |
+| E21   | WhatsApp por el celular                | E20        | Descartada |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -59,6 +59,52 @@ el mismo día. No hay E18: era leer la ECU por CAN directo, sin el ELM, y el
 usuario la sacó del plan el 2026-10-27 (la va a hacer en otro proyecto). E19
 a E21 son el asistente de voz que pidió también ese día: preguntarle cosas
 en voz alta y, más adelante, que lea y mande mensajes de WhatsApp.
+
+**El plan está terminado** (decisión del usuario, 2026-10-27). E19 se hizo y
+anduvo en la placa, pero el parlante se oye bajo: el usuario la descartó y se
+sacó el código (no quedó en ningún commit; ver notas de E19). Con eso se
+descartan E20 y E21. No hay más etapas. Las que dicen *Hecha* o *Verificada
+(salvo ...)* quedan así: lo que les falta probar está en **Pendiente de
+probar**, abajo. Lo que sigue, según el usuario: probarlo y optimizarlo (las
+ideas están en **Ideas para después**) y, después, mejorar la interfaz para que
+se vea más lindo.
+
+## Pendiente de probar
+
+Lo que las etapas dejaron sin probar en el hardware, según sus notas (las
+pruebas detalladas están en las **Pruebas del usuario** de cada una). Al
+probar algo, anotarlo en la etapa y sacarlo de acá.
+
+En el auto, con el motor andando y la microSD:
+
+- **Alarmas (E11):** con `ALARMAS_DE_PRUEBA = true`, que cada una salte y se
+  vaya cuando corresponde, con sus tres pitidos y la barra roja; con `false`,
+  que no salte ninguna en un viaje normal, y que los pitidos se oigan con el
+  motor andando. `!pitar` ya suena bien (con `VOLUMEN_PITIDO` en 1).
+- **Viaje (E10):** la distancia contra el parcial del tablero en un viaje
+  andando, y los máximos contra lo que se vio. Mantener apretada VIAJE 3 s la
+  reinicia; menos, no. Sacar la llave y volver a ponerla: empieza de cero. (En
+  los registros de E13 el tiempo en marcha ya contaba; la distancia daba 0,
+  con el auto quieto.)
+- **Fuerza G (E12):** los ejes (`EJE_DERECHA_IMU` = x es una suposición: con
+  la placa parada sobre su lado izquierdo, `!imu` tiene que dar ~+1 g en x),
+  el punto hacia el lado que corresponde al frenar y en las curvas, que
+  recalibre en las paradas (`!info`, las calibraciones suben). Que el IMU
+  contesta y calibra quieto ya se vio en E13.
+- **FUERZA G a 50 ms (E17):** con el punto moviéndose (andando, o moviendo la
+  placa con la mano), ~20 cuadros/s y las consultas en 6–7. Si bajan, volver
+  a 100 (`git revert 7176bbd`).
+- **Registro (E13):** un viaje andando.
+- **Reloj (E14):** la columna `Hora` del CSV y la fecha de los archivos en la
+  PC; después de unas semanas, cuánto se corrió.
+- **Brillo (E15):** que el nivel se mantenga al apagar y prender, y verlo de
+  día en el auto (el nivel 1, 100, queda cerca del corte de 90–97).
+- **`!info` con el motor andando:** la RAM interna libre (la última medida fue
+  74 KB en el banco, sin el adaptador; en E5, 128 KB en el auto) y `LCD_TE N
+  barridos/s` (E17: si el TE llega).
+
+Sin resolver: el cuelgue ocasional al prender y apagar el auto (E7; E8, que
+lo iba a investigar, se descartó).
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -750,6 +796,10 @@ y las animaciones, más suaves y sin cortes.
 
 ### E19 — Micrófono y parlante: grabar y hablar
 
+**Descartada** por el usuario (2026-10-27), después de probarla: anduvo, pero
+el parlante se oye bajo. Se sacó el código. Lo que se hizo y lo que se supo,
+en las notas de E19.
+
 **Objetivo:** la base del asistente, sin internet: grabar la voz con los
 micrófonos de la placa y reproducir audio por el parlante.
 
@@ -785,6 +835,9 @@ sin teclado):
 grabación se entiende al escucharla en la PC.
 
 ### E20 — Asistente de voz por OpenRouter
+
+**Descartada** (2026-10-27): el usuario dio el plan por terminado al
+descartar E19. Queda como estaba planeada, por si se retoma.
 
 **Objetivo:** preguntarle cosas en voz alta y que conteste por el parlante.
 Por ejemplo, "¿cómo está el motor?", "¿qué significa la falla P0420?" o
@@ -861,6 +914,8 @@ generales; las consultas por segundo no bajan mientras no se le habla.
 
 ### E21 — WhatsApp por el celular
 
+**Descartada** (2026-10-27), como E20.
+
 **Objetivo:** que lea en voz alta los mensajes de WhatsApp que llegan y que se
 puedan contestar dictando.
 
@@ -915,6 +970,13 @@ Fuera del plan; solo si el usuario las pide:
 - Fuerza G: separar la pendiente de la aceleración con la velocidad de la ECU
   (la longitudinal es la derivada de la velocidad), y sacar "adelante" de las
   frenadas en línea recta, para una placa girada hacia el conductor.
+- Los pitidos más fuertes, si con el motor andando se oyen poco.
+  `VOLUMEN_PITIDO` ya está en 1 (2026-10-27), lo más que entra sin recortar, y
+  así `!pitar` se oye bien. Lo que queda es recortar la onda a propósito (un
+  `VOLUMEN_PITIDO` de más de 1 con un límite en `pitido()`, o subir el DAC del
+  ES8311 de 0 dB, registro `0x32` en `0xBF`, que según el driver de Espressif
+  llega a +32 dB en `0xFF`): más fuerte pero más áspero. O probar otra
+  `FRECUENCIA_PITIDO_HZ`, por si el parlante rinde más en otra.
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
@@ -970,9 +1032,11 @@ De esta placa y el adaptador nuevo:
 | microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01 | E13   |
 | IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: sin saber (`EJE_DERECHA_IMU` = x es una suposición) | E12   |
 | RTC (PCF85063)                | Según el datasheet del PCF85063A y el ejemplo `02_I2C_PCF85063` de la V2 (SensorLib), sin probar en la placa: `0x51`. La hora en BCD, de `0x04` (segundos) a `0x0A` (año, de 2000 a 2099), con el día de la semana en `0x08`; el bit 7 de los segundos (`OS`) dice que el oscilador se detuvo y se borra al escribirlos. En `CONTROL_1` (`0x00`), el bit 5 lo detiene y el 1 lo pasa a 12 h: de fábrica, los dos en 0 | E14   |
-| RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
+| RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). **Confirmado el 2026-10-27:** la hora se mantuvo una noche con el auto apagado (C32 no se midió) | E14   |
 | Optimización del compilador   | Todo lo que compila PlatformIO (`src`, `lib/obd`, LVGL, el driver del panel, el core de Arduino y su BLE) va **sin ningún `-O`**, o sea a `-O0`: el `platformio-build.py` de Arduino-ESP32 3.3 toma los flags de `flags/c_flags` y `flags/cpp_flags`, que no lo traen (el `-Os` está en `pioarduino-build.py`, que no se usa). El ESP-IDF viene ya compilado a `-Os`. Programa: 65,2 % de 3 MB así; LVGL a `-Os`, 56,6 %; LVGL a `-O2`, 58,8 %; todo a `-Os`, 50,5 %; todo a `-O2`, 53,5 % | E17   |
 | Reloj del QSPI                | El SPI del S3 sale de los 80 MHz del APB (o de los 40 del cristal) dividido por un entero: 80, 40 o 26,7 MHz. 60 no se puede. Queda en 40 (decisión del usuario); 80 sin probar | E17   |
+| Volumen del parlante          | Probado por el usuario con E19 (2026-10-27): grabó y reprodujo, pero se oye bajo. La grabación se reproducía tal cual (micrófonos a 30 dB, el DAC del ES8311 a 0 dB y sin subirle el nivel), así que no se sabe cuánto es el parlante y cuánto la grabación. Los pitidos de E11 pasaron de 0,5 a 1 (el DAC sigue a 0 dB), y con eso `!pitar` "pita perfecto" (2026-10-27); con el motor andando, sin probar | E11, E19 |
+| Micrófonos (esquemático)      | Según el esquemático y el ejemplo `08_Audio_Test` de la V2: ES7210 en `0x40`; los dos micrófonos de la placa (MEMS analógicos) en MIC1 y MIC2, y su `SDOUT1` al GPIO6 por 51 Ω; `SDOUT2` y el `ASDOUT` del ES8311 no van a ningún pin. Con el I2S en full duplex (16 kHz, 16 bits, MCLK de 256 veces) y el ES7210 como esclavo sin TDM, grabó (E19, descartada) | E19   |
 | `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`; en la prueba en el auto no se pasó) | E17   |
 | Pantalla en el auto (E17)     | Con la rama de E17, estacionado en ralentí (`VIAJE0003.CSV`, 2026-10-27). Por cuadro: giro ~7,2 ms (máximo 11; a `-O0`, ~20), envío ~13,8 (máximo 17,4), espera 0. Dibujo: DS3 ~14 ms, 20 cuadros/s; Motor ~9 ms, 4–6 cuadros/s; Info ~3 ms; al cambiar de página, 11–29 ms | E17   |
 | Consultas por segundo y pantalla (E17) | Mismo registro: Motor 6,4 (6–7 en 30 s, como en E3), Info 6,6, Aire/Volt, Carga, Mezcla y Viaje 6–7. DS3 5,6 (4–7 en 38 s): 20 cuadros/s de ~14 ms, ~280 ms de cada segundo dibujando. FUERZA G 6–7, pero sin redibujar (auto y placa quietos: 0 cuadros/s). Fallas, 3 los dos segundos de la entrada (la lectura de las fallas, E5) | E17   |
@@ -1888,7 +1952,8 @@ segundo en Mezcla, que pide 5 PIDs (3 frames).
 **Verificado por el usuario en el auto** (2026-10-26, de día, con el
 firmware de E5 y el monitor abierto): páginas, toques, BOOT, valores y
 consultas por segundo ("funcionó todo bien"; detalle en las notas de E5).
-Falta verlo de noche. En Fallas e Info el sondeo quedaba espaciado; lo
+Faltaba verlo de noche: el usuario lo dio por resuelto el 2026-10-27, con el
+brillo de E15. En Fallas e Info el sondeo quedaba espaciado; lo
 arregló E5.
 
 Para E5:
@@ -2876,6 +2941,11 @@ pantalla real y las alarmas en el auto.
 4. Con `ALARMAS_DE_PRUEBA = false`, en un viaje normal no salta ninguna. Si
    salta la de voltaje, mirar en VIAJE el mínimo y el máximo y ajustar.
 
+**Cambio posterior** (2026-10-27, en la rama `plan-cierre`, a pedido del
+usuario y antes de probar los pitidos): `VOLUMEN_PITIDO` de 0,5 a 1 (+6 dB), lo
+más que entra sin recortar la onda. **Probado por el usuario** el mismo día:
+`!pitar` "pita perfecto" (la prueba 2). Faltan las 3 y 4, en el auto.
+
 Para el arreglo de la V2 (o la etapa que toque la pantalla):
 
 - La luz va por el GPIO42 y el reset por EXIO5 del TCA9554. El firmware hoy
@@ -3135,7 +3205,10 @@ refrigerante de 23 a 43 °C), con fecha 1980-01-01 en la FAT.
   se veía.
 
 No probado: la marca de la barra (se hizo después), `!sd`, sin tarjeta y con
-una exFAT, y un viaje andando.
+una exFAT, y un viaje andando. **La marca de la barra la verificó el usuario**
+el 2026-10-27, y también lo del banco ("en el banco funciona perfecto": las
+pruebas 1 a 3, `!sd`, sin tarjeta y con una exFAT); un viaje andando, todavía
+no.
 
 Lo decidió el agente, sin objeción del usuario: un archivo por encendido,
 abierto con la primera lectura de la ECU (prender la placa en el banco no
@@ -3404,6 +3477,12 @@ si sigue con la placa apagada (la batería y C32) y cuánto se corre.
 6. Después de unas semanas, cuánto se corrió (para saber si hace falta
    corregirlo con el registro `Offset` del PCF85063).
 
+**Verificado por el usuario** (2026-10-27): "funciona perfecto, se mantuvo
+desde anoche" (la prueba 4, una noche con el auto apagado). Así que la batería
+alimenta al RTC con la placa apagada, como dice el esquemático; C32 no se
+midió. Falta ver la columna `Hora` del CSV, la fecha de los archivos y cuánto
+se corre en unas semanas.
+
 ### E15
 
 Rama `placa-v2`, desde `main` con E11 (que el usuario pidió mergear antes).
@@ -3567,6 +3646,11 @@ manda una imagen): uno muy rápido, de menos de ~70 ms, se puede perder.
    no.
 5. Si a veces no toma el deslizamiento: si es rápido o lento, y en qué
    página. `DESLIZAR_PX` se puede bajar.
+
+**Verificado por el usuario** (2026-10-27): deslizar sobre los botones de Info
+no los aprieta, "aprobado y funcionando bien". En la prueba de E17 ya había
+recorrido las páginas deslizando en el auto. No mencionó mantener Viaje con el
+dedo corrido.
 
 ### E17
 
@@ -3794,3 +3878,45 @@ Para E20:
   para después**): ayuda con la flash de E20, pero hay que volver a probar todo.
 - La tarea `envio` corre en el núcleo 0 con el BLE (y con el Wi-Fi de E20): si
   hace falta, se le puede bajar la prioridad, a costa de más `espera`.
+
+### E19
+
+Rama `e19-microfono`, desde `main` con el plan sin E18. **Descartada** por el
+usuario (2026-10-27) después de probarla: "funciona", pero el parlante se oye
+bajo. **El código se sacó y no quedó en ningún commit;** la rama se borró. Lo
+que sigue es para quien la retome.
+
+Elegido por el usuario antes de programar: grabar con **dos dedos** apoyados
+0,5 s en cualquier pantalla (no estaba entre las opciones del plan; sin BOOT
+de respaldo), mientras quede alguno apoyado y hasta 30 s; `!grabar N`; una
+marca roja `MIC` y un pitido corto antes de grabar; guardar en la microSD como
+`VOZ0001.WAV` (mono, 16 kHz, el promedio de los dos micrófonos) y reproducir
+enseguida.
+
+Cómo estaba hecho:
+
+- **El I2S en full duplex:** la entrada (GPIO6) creada junto con la salida
+  (`i2s_new_channel(&config, &salida, &entrada)`), con la misma configuración;
+  la salida siempre prendida, como en E11, y la entrada solo mientras se
+  grababa. En el S3 (I2S versión 2) prender y apagar la entrada no corta la
+  salida.
+- **El ES7210** en el I2C de la placa, sin crear otro bus, con la secuencia
+  del driver de Espressif del ejemplo (`es7210.c`): como esclavo, MIC1 y MIC2
+  sin TDM, 16 bits en formato I2S, apagado salvo al grabar. Una tarea en el
+  núcleo 0 (prioridad 3) avisaba con el pitido, lo prendía, tiraba 150 ms y
+  pasaba a mono en un búfer de 30 s en la PSRAM.
+- **El sonido** reproducía PCM desde la PSRAM, de a 10 ms, y los pitidos
+  cortaban la reproducción. **El WAV** lo escribía la tarea de la tarjeta, de a
+  2 KB por un búfer en la RAM interna (la microSD no lee de la PSRAM con DMA),
+  siempre después del bloque del registro.
+- **Los dos dedos:** la respuesta del touch trae la cantidad en `[1]`. Al
+  aparecer el segundo dedo, `lv_indev_reset()` desde la lectura del touch le
+  manda `LV_EVENT_INDEV_RESET` al objeto apretado (sin `RELEASED` ni
+  `CLICKED`), y hasta levantar todos LVGL ve el dedo levantado; la espera, la
+  raíz de las páginas y Olvidar tienen que tomar `INDEV_RESET` como
+  `PRESS_LOST`.
+- Costaba ~12 KB de RAM interna (estimado) y 0,4 % de programa.
+
+Lo que no se llegó a saber: si el touch informa dos dedos (el usuario no lo
+detalló), cuánto bajaban las consultas grabando, la RAM interna libre y cómo
+se oía una grabación en el auto con el motor andando.
