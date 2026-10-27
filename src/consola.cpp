@@ -6,7 +6,7 @@
 
 static const char *const AYUDA =
     "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
-    "!info, !pitar, !brillo N, !imu, !sd, !hora, !escanear, !explorar N";
+    "!info, !pitar, !brillo N, !luz V, !imu, !sd, !hora, !escanear, !explorar N";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -78,6 +78,15 @@ const char *Consola::horaPedida() {
   return textoHora;
 }
 
+bool Consola::luzPedida(uint8_t *valor) {
+  if (!luz) {
+    return false;
+  }
+  luz = false;
+  *valor = valorLuz;
+  return true;
+}
+
 uint8_t Consola::brilloPedido() {
   uint8_t pedido = brillo;
   brillo = 0;
@@ -137,6 +146,9 @@ void Consola::ejecutar(const char *texto) {
     hora = true;
   } else if (strcasecmp(comando, "!brillo") == 0 && leidos >= 2 && numero > 0) {
     brillo = numero > UINT8_MAX ? UINT8_MAX : numero;
+  } else if (strcasecmp(comando, "!luz") == 0 && leidos >= 2 && numero >= 0 && numero <= 255) {
+    valorLuz = numero;
+    luz = true;
   } else if (strcasecmp(comando, "!escanear") == 0) {
     soltarElm();
     explorador.escanear();

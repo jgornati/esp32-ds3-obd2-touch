@@ -33,6 +33,9 @@ public:
   const char *horaPedida();
   // El nivel de un !brillo N, una sola vez; 0 si no hubo
   uint8_t brilloPedido();
+  // El valor de un !luz V (la luz de 0 a 255, sin guardar), una sola vez.
+  // Para medir los niveles en el banco.
+  bool luzPedida(uint8_t *valor);
   // !log lo cambia: con true se ve cada consulta periódica, no solo las fallas
   bool detalle() const {
     return conDetalle;
@@ -62,6 +65,8 @@ private:
   bool hora = false;
   char textoHora[32] = "";
   uint8_t brillo = 0;
+  bool luz = false;
+  uint8_t valorLuz = 0;
   bool conDetalle = false;
   void (*alSoltar)() = nullptr;
 };

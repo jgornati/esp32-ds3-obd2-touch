@@ -31,7 +31,10 @@ constexpr bool PANTALLA_GIRADA = false;
 constexpr uint8_t PIN_RETROILUMINACION = 42;
 constexpr uint8_t PIN_EXPANSOR_LUZ = 1;
 constexpr uint32_t FRECUENCIA_RETROILUMINACION_HZ = 50000; // la del ejemplo
-constexpr uint8_t BRILLOS[] = {12, 40, 90, 160, 255};      // de 0 a 255, por nivel
+// De 0 a 255, por nivel. Medido en el banco (2026-10-27): con 90 o menos la
+// luz se apaga (con 97 se ve), igual a 5 que a 50 kHz. Los eligió el
+// usuario: 255 el máximo, 200 el anterior y parejos hasta 100.
+constexpr uint8_t BRILLOS[] = {100, 133, 167, 200, 255};
 constexpr uint8_t CANT_NIVELES_BRILLO = sizeof(BRILLOS) / sizeof(BRILLOS[0]);
 
 // Touch, en el mismo AXS15231B. I2C sin INT ni RST.

@@ -38,7 +38,7 @@ que corresponda antes de portar un módulo.
 | E12   | Fuerza G                               | E10        | Hecha (falta verificar en hardware) |
 | E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo la marca SD de la barra) |
 | E14   | Reloj                                  | —          | Hecha (falta verificar en hardware) |
-| E15   | La placa V2: pines de la pantalla y brillo | E11    | Hecha (falta verificar en hardware) |
+| E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -718,6 +718,7 @@ De esta placa y el adaptador nuevo:
 | Respuestas del ELM            | `ELM327 v2.1` (clon). Tras `ATZ` el eco queda activo. Las líneas terminan en `\r\n` (el anterior, `\r\r`); el parser ya lo acepta. `ATZ` sin el `\r\r` inicial. `ATRV` 11,9 V en el banco. `0100` sin ECU: `SEARCHING...` y `UNABLE TO CONNECT` en 4,4 s, y en la misma notificación vino `UNABLE TO CONNECT\r\n>` repetido: **puede llegar texto después del `>`** | E0    |
 | Tiempos BLE (E0)              | Conexión 456–753 ms y servicios 799 ms. Con intervalo de 50 ms, escribiendo en `FFF1`: `ATZ` 99, `ATI` 110, `ATRV` 70–238 ms; en `FFF2`: `ATZ` 261, `ATE0` 311, `ATI` 386, `ATRV` 119–173 ms (pocas muestras) | E0    |
 | Brillo cómodo de día / noche  | No se pudo medir: con esta placa la luz no se regula (fila siguiente). Queda siempre al máximo | E1, E6 |
+| La luz según el valor (V2)    | Medido en el banco el 2026-10-27, el agente con `!luz` por el USB y el usuario mirando, de noche: con 90 o menos la luz se apaga del todo; con 97 ya se ve, muy oscura; 160 se lee oscura. Igual a 5 kHz que a 50 kHz. No es proporcional: hay un corte entre 90 y 97. Por eso los niveles de E15 (12, 40, 90, 160, 255) dejaban 3 de 5 apagados | E15 |
 | ¿El brillo 0 apaga la pantalla? | Según el esquemático, sí (IO8 en alto apaga el AP3032). Pero en esta placa, hoy, ningún valor cambia la luz. Probado el 2026-10-26 (el agente por el USB, el usuario mirando la pantalla): PWM en GPIO8 de 0 a 255 (con el LEDC del core y con el del ESP-IDF, señal 74 en el pin), GPIO8 fijo en alto y en bajo sin PWM (la pata los lee bien), `0x53`/`0x51` al AXS15231B y un firmware mínimo con el código de la luz de Waveshare. La luz queda igual. La demo de fábrica sí regulaba: parece hardware (ver notas de E6) | E0, E6 |
 | Refresco de pantalla          | Completo (dibujar todo y mandarlo): 96–131 ms. Solo el envío al panel: 32–33 ms, se cambie lo que se cambie | E1    |
 | Memoria con pantalla y BLE    | RAM interna libre 164 KB (bloque mayor 123 KB); PSRAM libre 7972 KB | E1    |
@@ -3241,6 +3242,34 @@ GPIO42, `BL_EN` y el reset por el expansor.
    cambiar de página.
 4. Apagar y prender: arranca con el último brillo.
 5. Que siga sonando `!pitar` (el sonido ahora usa el bus de `placa`).
+
+**Probado por el usuario** (2026-10-27): la pantalla arranca bien y el brillo
+cambia, pero **bajar un nivel desde el máximo dejaba la pantalla casi
+apagada**, y era difícil volver a subirlo sin ver. Se midió en el banco (rama
+`brillo-curva`): el agente subió el firmware y mandó `!luz V` (nuevo: la luz
+de 0 a 255, sin guardar) por el USB, con el usuario mirando.
+
+- Con 90 o menos la luz se apaga del todo; con 97 se ve. 160 a 5 kHz se ve
+  igual que a 50 kHz: no es la frecuencia del PWM (la hoja de datos del
+  AP3032 pide más de 25 kHz para el modo standby, y 50 kHz lo cumple). Con los
+  niveles de E15 (12, 40, 90, 160, 255), los tres de abajo quedaban apagados y
+  el 4 muy oscuro.
+- Los niveles nuevos los eligió el usuario: **100, 133, 167, 200 y 255** (255
+  el máximo, 200 el anterior y parejos hasta 100). Los vio uno por uno con
+  `!brillo 1` a `!brillo 5`: el 1 se lee y los pasos se ven bien. El 100 deja
+  poco margen sobre el corte (90-97): si en el auto el 1 se ve demasiado
+  oscuro, subirlo.
+- `!brillo N` ahora pone la luz aunque sea el mismo nivel (para volver después
+  de un `!luz`).
+- Falta: que el nivel se mantenga al apagar y prender (prueba 4), y verlo de
+  día en el auto.
+
+En el mismo banco, `!info` dio **74 KB de RAM interna libre** (bloque mayor
+34 KB), sin el adaptador conectado; en E5 eran 128 KB. Se la llevan la
+microSD (E13), las tareas del IMU, el sonido y la tarjeta y el RTC. Conviene
+mirar `!info` en el auto, con el BLE conectado. Y el reloj marcaba 13:13 con
+la Mac en 01:14: tenía hora (sin `OS`), pero 12 horas corrida; se pone con
+`!hora`.
 
 Para E12 y E14:
 
