@@ -28,6 +28,12 @@ struct MedidasPantalla {
 // LVGL: las animaciones siguen y el touch se lee (mantener apretado para
 // reiniciar anda aunque loop() esté trabado). Lo que use LVGL desde adentro
 // de eso (los avisos de la conexión) va entre tomar() y soltar().
+//
+// LVGL dibuja en dos imágenes, de a una (E17). Cada imagen terminada la gira
+// y la manda al panel una tarea aparte, en el núcleo 0, que no toca LVGL:
+// mientras tanto loop() sigue, y LVGL dibuja la siguiente en la otra. Si la
+// necesita antes de que se termine de mandar, quien tiene LVGL espera (la
+// "espera" de las medidas).
 class PantallaHw {
 public:
   // Panel, touch y LVGL. Deja la pantalla en negro, con la luz en brillo

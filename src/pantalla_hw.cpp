@@ -40,6 +40,14 @@ static const ledc_timer_t TIMER_LUZ = LEDC_TIMER_3;
 static const ledc_channel_t CANAL_LUZ = LEDC_CHANNEL_1;
 // Si una tanda no se terminó de mandar en esto, se sigue igual
 static const uint32_t TIMEOUT_TANDA_MS = 100;
+// Lo más que LVGL espera a la tarea de envío, que termina aunque las tandas
+// no se manden (TIMEOUT_TANDA_MS cada una); después dibuja igual
+static const uint32_t TIMEOUT_ENVIO_MS = 2000;
+// La tarea que gira y manda la imagen: en el núcleo 0, con el BLE, el IMU y
+// la tarjeta, así no le quita tiempo a loop()
+static const uint32_t PILA_ENVIO = 4096;
+static const UBaseType_t PRIORIDAD_ENVIO = 2;
+static const BaseType_t NUCLEO_ENVIO = 0;
 // La tarea que atiende LVGL mientras loop() bloquea: entre una atención y
 // la siguiente deja correr a las demás
 static const uint32_t PILA_APARTE = 8192;
@@ -64,17 +72,29 @@ static esp_lcd_panel_handle_t panel = nullptr;
 static i2c_master_dev_handle_t touch = nullptr;
 static lv_display_t *display = nullptr;
 
-static uint16_t *imagen = nullptr; // la de LVGL, en la PSRAM
+// Las dos imágenes de LVGL, en la PSRAM: LVGL dibuja en una mientras la tarea
+// de envío manda la otra
+static uint16_t *imagenes[2] = {nullptr, nullptr};
+static TaskHandle_t tareaEnvio = nullptr;
+// La da la tarea de envío al terminar una imagen
+static SemaphoreHandle_t envioListo = nullptr;
+static TiemposCuadro tiemposEnvio = {}; // los escribe la tarea antes de darlo
+// De quien tiene LVGL: hay una imagen en la tarea de envío
+static bool enviando = false;
+static bool avisoEnvio = false;
 // Dos búferes con DMA en la RAM interna: se prepara uno mientras se manda
 // el otro. El semáforo cuenta los libres; lo da la interrupción de fin de envío.
+// Solo los usa la tarea de envío.
 static uint16_t *tandas[2] = {nullptr, nullptr};
 static int proximaTanda = 0;
 static SemaphoreHandle_t tandasLibres = nullptr;
 static bool avisoTanda = false;
 
 // Lo que tarda cada cuadro (E17). Al empezar a dibujar, LVGL avisa con
-// LV_EVENT_REFR_START.
+// LV_EVENT_REFR_START; lo que espera al envío anterior no es dibujo.
 static int64_t inicioCuadro = 0;
+static uint32_t esperaCuadro = 0;
+static TiemposCuadro cuadroEnviando = {}; // el que tiene la tarea de envío
 static TiemposCuadro ultimoCuadro = {};
 // Los cuadros del segundo en curso: cuántos, la suma y el máximo de cada tiempo
 static uint32_t cuadros = 0;
@@ -140,7 +160,7 @@ static void cerrarSegundo() {
   inicioSegundo = ahora;
 }
 
-static void enviarImagen(TiemposCuadro &t) {
+static void enviarImagen(const uint16_t *imagen, TiemposCuadro &t) {
   int64_t inicio = esp_timer_get_time();
   for (int fila = 0; fila < ALTO_PANEL; fila += FILAS_TANDA) {
     if (xSemaphoreTake(tandasLibres, pdMS_TO_TICKS(TIMEOUT_TANDA_MS)) != pdTRUE && !avisoTanda) {
@@ -169,22 +189,66 @@ static void enviarImagen(TiemposCuadro &t) {
   t.envio = microsDesde(inicio);
 }
 
-static void alEmpezarCuadro(lv_event_t *) {
-  inicioCuadro = esp_timer_get_time();
+// La tarea de envío: gira y manda cada imagen que le pasa alDibujar(). No
+// toca LVGL: la imagen es suya hasta que da envioListo.
+static void enviarAparte(void *) {
+  for (;;) {
+    uint32_t pixeles = 0;
+    xTaskNotifyWait(0, 0, &pixeles, portMAX_DELAY);
+    TiemposCuadro t = {};
+    enviarImagen((const uint16_t *)(uintptr_t)pixeles, t);
+    tiemposEnvio = t;
+    xSemaphoreGive(envioListo);
+  }
 }
 
-static void alDibujar(lv_display_t *disp, const lv_area_t *, uint8_t *) {
-  // Modo directo: LVGL dibuja en la imagen entera solo lo que cambió. Se
-  // manda una vez, al terminar la última zona.
-  if (lv_display_flush_is_last(disp)) {
-    TiemposCuadro t = {};
-    t.dibujo = microsDesde(inicioCuadro);
-    enviarImagen(t);
-    // Mientras se manda, quien tiene LVGL espera
-    t.espera = t.envio;
-    contarCuadro(t);
+// Con LVGL tomado: si la tarea terminó de mandar la imagen (esperándola hasta
+// esperaMs), LVGL puede volver a usarla
+static void terminarEnvio(uint32_t esperaMs) {
+  if (!enviando) {
+    return;
   }
-  lv_display_flush_ready(disp);
+  if (xSemaphoreTake(envioListo, pdMS_TO_TICKS(esperaMs)) != pdTRUE) {
+    if (esperaMs > 0 && !avisoEnvio) {
+      Serial.println("Pantalla: el envio de una imagen no termino; se sigue dibujando");
+      avisoEnvio = true;
+    }
+    return;
+  }
+  enviando = false;
+  cuadroEnviando.giro = tiemposEnvio.giro;
+  cuadroEnviando.envio = tiemposEnvio.envio;
+  contarCuadro(cuadroEnviando);
+  lv_display_flush_ready(display);
+}
+
+static void alEmpezarCuadro(lv_event_t *) {
+  inicioCuadro = esp_timer_get_time();
+  esperaCuadro = 0;
+}
+
+// LVGL va a usar la imagen que se está mandando (para copiar lo que cambió en
+// el cuadro anterior, o para pasarle la otra a la tarea): la espera
+static void alEsperarEnvio(lv_display_t *) {
+  int64_t inicio = esp_timer_get_time();
+  terminarEnvio(TIMEOUT_ENVIO_MS);
+  esperaCuadro += microsDesde(inicio);
+}
+
+static void alDibujar(lv_display_t *disp, const lv_area_t *, uint8_t *pixeles) {
+  // Modo directo con dos imágenes: LVGL dibuja solo lo que cambió (y antes
+  // copia de la otra lo que cambió en el cuadro anterior). Al terminar la
+  // última zona, la imagen pasa a la tarea de envío y LVGL sigue en la otra;
+  // flush_ready lo da terminarEnvio().
+  if (!lv_display_flush_is_last(disp)) {
+    lv_display_flush_ready(disp);
+    return;
+  }
+  cuadroEnviando = {};
+  cuadroEnviando.dibujo = microsDesde(inicioCuadro) - esperaCuadro;
+  cuadroEnviando.espera = esperaCuadro;
+  enviando = true;
+  xTaskNotify(tareaEnvio, (uint32_t)(uintptr_t)pixeles, eSetValueWithOverwrite);
 }
 
 // Como el ejemplo: se piden 14 bytes. En [1] viene la cantidad de dedos y
@@ -254,6 +318,7 @@ static void atenderLvgl() {
     hueco = ahora - ultimaAtencion;
   }
   ultimaAtencion = ahora;
+  terminarEnvio(0);
   cerrarSegundo();
   lv_timer_handler();
 }
@@ -365,7 +430,9 @@ static void iniciarLvgl() {
 
   display = lv_display_create(ANCHO, ALTO);
   lv_display_set_flush_cb(display, alDibujar);
-  lv_display_set_buffers(display, imagen, nullptr, BYTES_IMAGEN, LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_buffers(display, imagenes[0], imagenes[1], BYTES_IMAGEN,
+                         LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_flush_wait_cb(display, alEsperarEnvio);
   lv_display_add_event_cb(display, alEmpezarCuadro, LV_EVENT_REFR_START, nullptr);
 
   lv_indev_t *indev = lv_indev_create();
@@ -400,17 +467,26 @@ bool PantallaHw::iniciar(uint8_t brillo) {
   }
 
   tandasLibres = xSemaphoreCreateCounting(2, 2);
-  imagen = (uint16_t *)heap_caps_calloc(1, BYTES_IMAGEN, MALLOC_CAP_SPIRAM);
+  envioListo = xSemaphoreCreateBinary();
+  // En negro las dos
+  for (uint16_t *&imagen : imagenes) {
+    imagen = (uint16_t *)heap_caps_calloc(1, BYTES_IMAGEN, MALLOC_CAP_SPIRAM);
+  }
   for (uint16_t *&tanda : tandas) {
     tanda = (uint16_t *)heap_caps_malloc(BYTES_TANDA, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
   }
-  if (tandasLibres == nullptr || imagen == nullptr || tandas[0] == nullptr ||
-      tandas[1] == nullptr) {
+  if (tandasLibres == nullptr || envioListo == nullptr || imagenes[0] == nullptr ||
+      imagenes[1] == nullptr || tandas[0] == nullptr || tandas[1] == nullptr) {
     Serial.println("Pantalla: falta memoria");
     return false;
   }
 
   if (!iniciarPanel() || !iniciarTouch()) {
+    return false;
+  }
+  if (xTaskCreatePinnedToCore(enviarAparte, "envio", PILA_ENVIO, nullptr, PRIORIDAD_ENVIO,
+                              &tareaEnvio, NUCLEO_ENVIO) != pdPASS) {
+    Serial.println("Pantalla: no se pudo crear la tarea del envio");
     return false;
   }
   iniciarLvgl();
@@ -428,6 +504,7 @@ bool PantallaHw::iniciar(uint8_t brillo) {
 
   // Primero el negro y después la luz
   lv_refr_now(display);
+  terminarEnvio(TIMEOUT_ENVIO_MS);
   ponerBrillo(brillo);
   salidaExpansor(PIN_EXPANSOR_LUZ, true);
   return true;
@@ -490,6 +567,8 @@ TiemposCuadro PantallaHw::medirRefresco() {
   tomar();
   lv_obj_invalidate(lv_screen_active());
   lv_refr_now(display);
+  // Hasta que se terminó de mandar, para tener el giro y el envío
+  terminarEnvio(TIMEOUT_ENVIO_MS);
   TiemposCuadro t = ultimoCuadro;
   soltar();
   return t;
