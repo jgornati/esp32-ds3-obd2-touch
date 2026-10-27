@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "animaciones.h"
 #include "config.h"
@@ -22,6 +23,8 @@ static const int ENTRE_PUNTOS = 8;
 static const int ANCHO_MARCA = 26;
 static const int ALTO_MARCA = 16;
 static const int ANTES_DE_PUNTOS = 12;
+// La hora: se pide cada esto
+static const uint32_t PERIODO_RELOJ_MS = 500;
 // Espera: el auto un poco más arriba que en los cuadros originales, para
 // que entre el renglón de abajo, y debajo la barra de mantener apretado
 static const int Y_AUTO = 5;
@@ -35,6 +38,10 @@ static lv_obj_t *titulo = nullptr;
 static char textoAlarma[48]; // el triángulo y la alarma
 static lv_obj_t *puntos[MAX_PAGINAS];
 static lv_obj_t *marcaSd = nullptr;
+static lv_obj_t *relojBarra = nullptr;
+static int limiteReloj = -1; // su borde derecho
+static lv_obj_t *relojEspera = nullptr;
+static bool (*pedirHora)(char *texto, size_t tam) = nullptr;
 // Pantallas de estado: RENGLONES líneas de texto
 static lv_obj_t *vistaEstado = nullptr;
 static lv_obj_t *textos[RENGLONES];
@@ -64,9 +71,9 @@ static void ver(lv_obj_t *vista, bool conBarra = false) {
 }
 
 // Con total > 0, un punto por página pegado al margen derecho, numero en
-// blanco, y antes la marca de la microSD. Con mantenida > 0, el relleno rojo
-// hasta esa fracción del ancho. Si no, con una alarma, la barra en rojo con
-// la alarma en lugar del texto.
+// blanco, antes la marca de la microSD y antes la hora. Con mantenida > 0, el
+// relleno rojo hasta esa fracción del ancho. Si no, con una alarma, la barra
+// en rojo con la alarma en lugar del texto.
 static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8_t total = 0,
                   float mantenida = 0, const char *alarma = nullptr,
                   MarcaSd sd = MarcaSd::NINGUNA) {
@@ -94,11 +101,33 @@ static void barra(const char *texto, lv_color_t color, uint8_t numero = 0, uint8
     }
   }
   bool conMarca = total > 0 && sd != MarcaSd::NINGUNA;
+  int xMarca = x - ANTES_DE_PUNTOS - ANCHO_MARCA;
   mostrar(marcaSd, conMarca);
   if (conMarca) {
-    ponerPosicion(marcaSd, x - ANTES_DE_PUNTOS - ANCHO_MARCA, (ALTO_BARRA - ALTO_MARCA) / 2);
+    ponerPosicion(marcaSd, xMarca, (ALTO_BARRA - ALTO_MARCA) / 2);
     ponerFondo(marcaSd, sd == MarcaSd::GRABANDO ? ETIQUETA : AMBAR);
   }
+  // La hora, pegada a lo que tenga a la derecha. Alineada a la derecha: si
+  // cambia el ancho del texto, el borde queda.
+  int limite = conMarca    ? xMarca - ANTES_DE_PUNTOS
+               : total > 0 ? x - ANTES_DE_PUNTOS
+                           : ANCHO - MARGEN;
+  if (limite != limiteReloj) {
+    limiteReloj = limite;
+    lv_obj_align(relojBarra, LV_ALIGN_RIGHT_MID, limite - ANCHO, 0);
+  }
+}
+
+static void alActualizarHora(lv_timer_t *) {
+  char texto[8];
+  bool valida = pedirHora != nullptr && pedirHora(texto, sizeof(texto));
+  if (!valida) {
+    strcpy(texto, "--:--");
+  }
+  ponerTexto(relojBarra, texto);
+  ponerColor(relojBarra, valida ? BLANCO : GRIS);
+  ponerTexto(relojEspera, texto);
+  ponerColor(relojEspera, valida ? ETIQUETA : GRIS);
 }
 
 static void armarEstado(const char *texto, lv_color_t color,
@@ -173,6 +202,8 @@ static void armarEspera(lv_obj_t *raiz) {
   entrada.crear(vistaEspera, lv_tick_get() + ESPERA_ENTRADA_MS, Y_AUTO);
   estadoEspera = textoEspera(ETIQUETA, LV_ALIGN_TOP_LEFT, MARGEN);
   pistaEspera = textoEspera(ETIQUETA, LV_ALIGN_TOP_RIGHT, -MARGEN);
+  relojEspera = etiqueta(vistaEspera, &lv_font_montserrat_14, ETIQUETA);
+  lv_obj_align(relojEspera, LV_ALIGN_TOP_RIGHT, -MARGEN, 4);
   rellenoReinicio = rectangulo(vistaEspera, 0, Y_REINICIO, 0, ALTO_REINICIO, ROJO);
   lv_obj_add_flag(rellenoReinicio, LV_OBJ_FLAG_HIDDEN);
   lv_obj_add_flag(vistaEspera, LV_OBJ_FLAG_HIDDEN);
@@ -203,6 +234,7 @@ void Pantalla::iniciar() {
   lv_label_set_text(sd, "SD");
   lv_obj_center(sd);
   lv_obj_add_flag(marcaSd, LV_OBJ_FLAG_HIDDEN);
+  relojBarra = etiqueta(fondoBarra, &lv_font_montserrat_20, BLANCO);
 
   vistaEstado = caja(raiz, 0, ALTO_BARRA, ANCHO, ALTO - ALTO_BARRA);
   for (int i = 0; i < RENGLONES; i++) {
@@ -216,8 +248,17 @@ void Pantalla::iniciar() {
   armarEspera(raiz);
   // Arriba de todo: con una alarma, también sobre la página completa
   lv_obj_move_to_index(fondoBarra, -1);
+  lv_timer_create(alActualizarHora, PERIODO_RELOJ_MS, nullptr);
+  alActualizarHora(nullptr);
   lista = true;
   ver(vistaEspera);
+}
+
+void Pantalla::alPedirHora(bool (*funcion)(char *texto, size_t tam)) {
+  pedirHora = funcion;
+  if (lista) {
+    alActualizarHora(nullptr);
+  }
 }
 
 void Pantalla::espera(const char *estado, bool problema) {

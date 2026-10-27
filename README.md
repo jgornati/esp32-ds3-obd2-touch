@@ -162,7 +162,8 @@ no se detecta después.
 - **Un archivo por encendido:** `VIAJE0001.CSV`, `VIAJE0002.CSV`..., en la
   raíz. Se abre con la primera lectura de la ECU, así que prender la placa
   sin el auto no deja archivos. El número es el siguiente al más alto de la
-  tarjeta: nunca pisa uno. No tiene la hora: el reloj es de E14.
+  tarjeta: nunca pisa uno. Con el reloj en hora, el archivo tiene la fecha
+  de su creación (si no, 1980-01-01).
 - **Una línea por segundo,** con lo mismo que la tabla del monitor. Es un CSV
   estándar: coma entre columnas y punto decimal. Google Sheets lo abre
   directo; en Excel en español, con Datos > Desde texto/CSV.
@@ -179,13 +180,28 @@ no se detecta después.
 | Columna | Qué tiene |
 | ------- | --------- |
 | `Seg` | Segundos desde la primera lectura de la ECU. Salta si la placa estuvo trabada conectando con el adaptador (hasta 30 s) |
+| `Hora` | La del reloj: `2026-10-27 14:35:12`. Vacía si el reloj no tiene la hora |
 | `RPM` a `Acelerador %` | Los 14 datos, con la unidad en el nombre (`Refrig C`, `Vel km/h`); `Lazo`, en texto. Vacío sin un valor actual: la ECU no lo da, no contestó en los últimos 3 s o no hay conexión |
 | `Consultas/s` | Las consultas a la ECU del último segundo |
 | `Distancia km`, `En marcha s` | Las del viaje, como en VIAJE: la última línea tiene el total |
 | `G lateral`, `G long.` | La fuerza G en ese momento: la lateral, positiva en una curva a la derecha; la longitudinal, positiva acelerando y negativa frenando. Vacías sin calibrar o sin sensor |
-| `Eventos` | Lo que pasó en ese segundo, separado por ` \| `: el inicio de la placa y por qué (`encendido`, `brownout`...), los cambios de la conexión (`LEYENDO`, `SIN_ECU (No responde)`...), las alarmas, las fallas leídas en FALLAS cuando cambian, `Viaje reiniciado` y los errores de la tarjeta |
+| `Eventos` | Lo que pasó en ese segundo, separado por ` \| `: el inicio de la placa y por qué (`encendido`, `brownout`...), los cambios de la conexión (`LEYENDO`, `SIN_ECU (No responde)`...), las alarmas, las fallas leídas en FALLAS cuando cambian, `Viaje reiniciado`, los errores de la tarjeta y `Reloj puesto en hora` (la columna `Hora` salta) |
 
 Los máximos del viaje salen en la planilla (`MAX()` de la columna).
+
+### Reloj
+
+La hora va en la barra de todas las páginas, antes de la marca `SD`, y arriba
+a la derecha de la pantalla de espera. La da el reloj de la placa (el RTC
+PCF85063), que sigue andando con la placa apagada gracias a la batería.
+
+- Es la hora local, en 24 h. Se pone una vez desde la consola, con
+  `!hora 2026-10-27 14:35` (o con los segundos, `14:35:12`), y queda: no hay
+  que volver a ponerla al prender.
+- Atrasa o adelanta del orden de un minuto por mes: se corrige con `!hora`.
+  Con horario de verano, también se cambia con `!hora`.
+- Si el reloj perdió la hora (se quedó sin batería) o no contesta, dice
+  `--:--`, en gris: nunca una hora inventada.
 
 ### Alarmas
 
@@ -229,7 +245,7 @@ borra las fallas, da `RECHAZADO`).
 
 | Comando       | Qué hace |
 | ------------- | -------- |
-| `!info`       | Chip, memoria, último reinicio, pantalla, adaptador, ECU y tarjeta |
+| `!info`       | Chip, memoria, último reinicio, pantalla, adaptador, ECU, tarjeta y reloj |
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
@@ -237,6 +253,7 @@ borra las fallas, da `RECHAZADO`).
 | `!brillo N`   | El brillo, de 1 a 5, como en Info (anda también sin la ECU) |
 | `!imu`        | La última medición del IMU en sus ejes (para ver cómo está montado), la fuerza G que sale de ella, los máximos y cuántas veces calibró |
 | `!sd`         | La microSD: tamaño y espacio libre, el archivo del viaje, cuánto lleva grabado, líneas perdidas y errores |
+| `!hora AAAA-MM-DD HH:MM` | Pone el reloj en hora (también con `:SS`). Sin nada, muestra la hora |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
@@ -250,12 +267,14 @@ y la fuerza G. Cada cambio de la tarjeta también sale ahí.
 - Waveshare ESP32-S3-Touch-LCD-3.49B, V2 (la plaqueta dice `Rev1.1`):
   ESP32-S3R8 (8 MB de PSRAM, 16 MB de flash), pantalla IPS de 172×640 con
   touch capacitivo (AXS15231B), parlante, con el códec ES8311 y el
-  amplificador NS4150B, IMU QMI8658 (se usa solo el acelerómetro) y ranura
-  microSD (en modo SD de 1 bit). Se usa en horizontal, a 640×172.
+  amplificador NS4150B, IMU QMI8658 (se usa solo el acelerómetro), reloj
+  PCF85063 y ranura microSD (en modo SD de 1 bit). Se usa en horizontal, a
+  640×172.
 - Adaptador OBD BLE: anuncia `OBDBLE` con el
   servicio `FFF0` y responde como `ELM327 v2.1`. Detalle en **Datos
   descubiertos** de `PLAN.md`.
-- Sin batería.
+- Una batería de 3,7 V en el conector de la placa, solo para que el reloj no
+  pierda la hora: la placa se sigue apagando con la llave.
 
 El firmware usa los pines de la V2: la luz por PWM en el GPIO42 y el reset de
 la pantalla por el expansor TCA9554. Hasta E15 usaba los de la V1 (la luz en
@@ -300,7 +319,8 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 ## Tests
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
-del ELM, PIDs, fallas, el viaje, las alarmas, la fuerza G y el registro)
+del ELM, PIDs, fallas, el viaje, las alarmas, la fuerza G, el registro y el
+reloj)
 tiene tests que corren en la PC, con respuestas reales del DS3 y del
 adaptador:
 

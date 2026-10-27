@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <lvgl.h>
@@ -38,6 +39,11 @@ public:
   void alMantenerApretada(void (*funcion)());
   void alimentacionBaja();
   void descubriendo(uint16_t hechos, uint16_t total);
+  // La hora (E14), en la barra antes de la marca SD y arriba a la derecha de
+  // la espera. funcion la da ("14:35"); false si no hay una hora válida, y
+  // entonces va "--:--" en gris. Se pide cada medio segundo desde LVGL, que
+  // puede ser la otra tarea.
+  void alPedirHora(bool (*funcion)(char *texto, size_t tam));
 
   // Para Paginas: la barra con el título y un punto por página (numero, de
   // 0 a total - 1, en blanco), y debajo el área de las páginas. mantenida,

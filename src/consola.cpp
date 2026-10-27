@@ -4,8 +4,9 @@
 
 #include "config.h"
 
-static const char *const AYUDA = "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
-                                 "!info, !pitar, !brillo N, !imu, !sd, !escanear, !explorar N";
+static const char *const AYUDA =
+    "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
+    "!info, !pitar, !brillo N, !imu, !sd, !hora, !escanear, !explorar N";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -69,6 +70,14 @@ bool Consola::sdPedido() {
   return pedido;
 }
 
+const char *Consola::horaPedida() {
+  if (!hora) {
+    return nullptr;
+  }
+  hora = false;
+  return textoHora;
+}
+
 uint8_t Consola::brilloPedido() {
   uint8_t pedido = brillo;
   brillo = 0;
@@ -118,6 +127,14 @@ void Consola::ejecutar(const char *texto) {
     imu = true;
   } else if (strcasecmp(comando, "!sd") == 0) {
     sd = true;
+  } else if (strcasecmp(comando, "!hora") == 0) {
+    // El resto de la línea, sin los espacios del principio
+    const char *resto = texto + strlen("!hora");
+    while (*resto == ' ') {
+      resto++;
+    }
+    strlcpy(textoHora, resto, sizeof(textoHora));
+    hora = true;
   } else if (strcasecmp(comando, "!brillo") == 0 && leidos >= 2 && numero > 0) {
     brillo = numero > UINT8_MAX ? UINT8_MAX : numero;
   } else if (strcasecmp(comando, "!escanear") == 0) {

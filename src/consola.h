@@ -29,6 +29,8 @@ public:
   bool imuPedido();
   // true una sola vez después de un !sd (la tarjeta y el registro)
   bool sdPedido();
+  // Lo que siguió a un !hora ("" si nada), una sola vez; nullptr si no hubo
+  const char *horaPedida();
   // El nivel de un !brillo N, una sola vez; 0 si no hubo
   uint8_t brilloPedido();
   // !log lo cambia: con true se ve cada consulta periódica, no solo las fallas
@@ -57,6 +59,8 @@ private:
   bool pitido = false;
   bool imu = false;
   bool sd = false;
+  bool hora = false;
+  char textoHora[32] = "";
   uint8_t brillo = 0;
   bool conDetalle = false;
   void (*alSoltar)() = nullptr;
