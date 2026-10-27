@@ -40,7 +40,7 @@ que corresponda antes de portar un módulo.
 | E14   | Reloj                                  | —          | Hecha (falta verificar en hardware) |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
 | E16   | Cambiar de página deslizando el dedo   | E4         | Hecha (falta verificar en hardware) |
-| E17   | Pantalla fluida: que dibujar no frene  | E16        | Hecha (falta verificar en hardware) |
+| E17   | Pantalla fluida: que dibujar no frene  | E16        | Verificada (salvo FUERZA G con el punto moviéndose y el `LCD_TE`; en DS3, ~1 consulta menos por segundo) |
 | E18   | CAN directo, sin el ELM                | E17        | Pendiente (hace falta el transceptor) |
 | E19   | Micrófono y parlante: grabar y hablar  | E11        | Pendiente |
 | E20   | Asistente de voz por OpenRouter        | E19        | Pendiente (después de E17; mejor después de E18) |
@@ -963,6 +963,10 @@ Fuera del plan; solo si el usuario las pide:
   panel. Hay que mirar que no aparezca basura.
 - Mandar solo hasta la última fila del panel que cambió, siempre desde la 0
   (idea de E1): menos QSPI cuando lo que cambia queda a la izquierda.
+- La animación de DS3 (E17): 20 cuadros/s de ~14 ms le sacan ~1 consulta por
+  segundo (5,6 contra 6,4). Se puede bajar a ~10 cuadros/s o abaratar cada
+  cuadro: hoy cada uno redibuja las nubes de todo el ancho, las rayas y las
+  dos llantas giradas.
 - Fuerza G: separar la pendiente de la aceleración con la velocidad de la ECU
   (la longitudinal es la derivada de la velocidad), y sacar "adelante" de las
   frenadas en línea recta, para una placa girada hacia el conductor.
@@ -1024,7 +1028,9 @@ De esta placa y el adaptador nuevo:
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
 | Optimización del compilador   | Todo lo que compila PlatformIO (`src`, `lib/obd`, LVGL, el driver del panel, el core de Arduino y su BLE) va **sin ningún `-O`**, o sea a `-O0`: el `platformio-build.py` de Arduino-ESP32 3.3 toma los flags de `flags/c_flags` y `flags/cpp_flags`, que no lo traen (el `-Os` está en `pioarduino-build.py`, que no se usa). El ESP-IDF viene ya compilado a `-Os`. Programa: 65,2 % de 3 MB así; LVGL a `-Os`, 56,6 %; LVGL a `-O2`, 58,8 %; todo a `-Os`, 50,5 %; todo a `-O2`, 53,5 % | E17   |
 | Reloj del QSPI                | El SPI del S3 sale de los 80 MHz del APB (o de los 40 del cristal) dividido por un entero: 80, 40 o 26,7 MHz. 60 no se puede. Queda en 40 (decisión del usuario); 80 sin probar | E17   |
-| `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`) | E17   |
+| `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`; en la prueba en el auto no se pasó) | E17   |
+| Pantalla en el auto (E17)     | Con la rama de E17, estacionado en ralentí (`VIAJE0003.CSV`, 2026-10-27). Por cuadro: giro ~7,2 ms (máximo 11; a `-O0`, ~20), envío ~13,8 (máximo 17,4), espera 0. Dibujo: DS3 ~14 ms, 20 cuadros/s; Motor ~9 ms, 4–6 cuadros/s; Info ~3 ms; al cambiar de página, 11–29 ms | E17   |
+| Consultas por segundo y pantalla (E17) | Mismo registro: Motor 6,4 (6–7 en 30 s, como en E3), Info 6,6, Aire/Volt, Carga, Mezcla y Viaje 6–7. DS3 5,6 (4–7 en 38 s): 20 cuadros/s de ~14 ms, ~280 ms de cada segundo dibujando. FUERZA G 6–7, pero sin redibujar (auto y placa quietos: 0 cuadros/s). Fallas, 3 los dos segundos de la entrada (la lectura de las fallas, E5) | E17   |
 
 ## Notas de traspaso
 
@@ -3789,12 +3795,53 @@ y pasarme las líneas `Pantalla...` y `RAM interna libre`:
 5. `9e65ccb`: `LCD_TE N barridos/s`. Anotar N (con 0, el TE no llega y se
    manda sin esperar). Mirar la entrada del DS3: sin una línea donde la imagen
    se vea cortada.
-6. La rama entera (`e17-pantalla-fluida`, con FUERZA G a 50), **en el auto**
-   con la tarjeta: ~1 minuto en cada página, también FUERZA G (moviendo la
-   placa) y DS3, y pasarme el CSV. Las consultas por segundo, iguales en todas (6–7); en
-   FUERZA G, ~20 cuadros por segundo. Si en FUERZA G bajan, se vuelve a 100
-   (`git revert 7176bbd`). Cambiar de página deslizando, más suave.
+6. La rama entera (`e17-pantalla-fluida`, con FUERZA G a 50), **en el
+   auto** con la tarjeta: ~1 minuto en cada página, también FUERZA G
+   (moviendo la placa) y DS3, y pasarme el CSV. Las consultas por segundo,
+   iguales en todas (6–7); en FUERZA G, ~20 cuadros por segundo. Si en
+   FUERZA G bajan, se vuelve a 100 (`git revert 7176bbd`). Cambiar de página
+   deslizando, más suave.
 7. `!info` en el auto con el motor andando: la RAM interna libre.
+
+**Verificado por el usuario** (2026-10-27: "funciona bien la verdad"), con la
+rama entera en el auto: `VIAJE0003.CSV`, 2 min 10 s estacionado en ralentí,
+con el motor frío (18–24 °C). Fue directo a la prueba 6: no midió cada paso
+en el banco. Del CSV (ver también **Datos descubiertos**):
+
+- **Por cuadro:** giro ~7,2 ms (máximo 11; el objetivo era menos de 8),
+  envío ~13,8 (máximo 17,4). El dibujo depende de la página: DS3 ~14 ms a 20
+  cuadros/s, Motor ~9 a 4–6 cuadros/s, Info ~3, y al cambiar de página
+  11–29. Antes, un refresco completo eran 64 ms en el banco y 93 en Motor.
+- **Espera:** 0,0 en todos los segundos (0,1 de máximo en algunos de DS3),
+  salvo al volver de reconectar (4,3 de promedio y 12,8 de máximo).
+- **Consultas por segundo:** 6–7 en Motor (6,4 de promedio, como en E3),
+  Info (6,6), Aire/Volt, Carga, Mezcla y Viaje. Fallas, 3 los dos segundos de
+  la entrada (la lectura de las fallas, como en E5).
+- **DS3: 5,6** (4–7, en 38 s), ~1 menos que las demás. Son 20 cuadros/s de
+  ~14 ms: ~280 ms de cada segundo dibujando en `loop()`. Antes de E17 no se
+  midió (en E9 quedó sin anotar), pero con el envío de 33 ms en `loop()` y
+  LVGL a `-O0` no podía dar mejor. En DS3 no hay datos a la vista: lo que se
+  pierde es para el registro, el viaje y las alarmas. Cómo bajarlo, en
+  **Ideas para después**.
+- **FUERZA G a 50 ms, sin probar de verdad:** con el auto y la placa quietos
+  la G queda en ±0.00, el punto no se mueve y LVGL no redibuja (0
+  cuadros/s). Las consultas dieron 6–7, pero sin la carga que importa. Queda
+  en 50.
+- **Reconectar:** a los 35 s, `CONECTANDO_BT` sin `BT_PERDIDO` (estaba en
+  Info: es Reconectar) y `LEYENDO` ~3 s después. Falta la línea del segundo
+  35 porque conectar bloquea `loop()`, como antes de E17. Mientras tanto LVGL
+  lo tuvo la tarea de E9 y el envío aparte siguió andando.
+- Las medidas de cada línea son las del último segundo completo: al cambiar de
+  página, la línea puede llevar la página nueva con las medidas de la
+  anterior (el segundo 72 dice `FUERZA G` con los 20 cuadros/s de DS3).
+
+Falta verificar:
+
+- FUERZA G con el punto moviéndose (andando, o moviendo la placa con la mano
+  como en E13): ~20 cuadros/s y las consultas en 6–7. Si bajan,
+  `git revert 7176bbd`.
+- `!info` una vez, con el motor andando: `LCD_TE N barridos/s` (si el TE
+  llega) y la RAM interna libre.
 
 Para E18 y E20:
 
