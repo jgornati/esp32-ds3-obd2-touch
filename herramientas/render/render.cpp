@@ -6,8 +6,10 @@
 // corresponde, que los botones de Info pidan lo suyo sin cambiar de página,
 // que la espera reintente y reinicie, que las animaciones se muevan, que
 // mantener apretada Viaje la reinicie, que las alarmas se vean y no
-// redibujen de más, que el punto de Fuerza G vaya para donde corresponde, y
-// que los textos de Fallas, Info, Viaje y Fuerza G no se pasen de su columna.
+// redibujen de más, que el punto de Fuerza G vaya para donde corresponde,
+// que la tarjeta de Info y la marca SD de la barra tengan el color de su
+// estado, y que los textos de Fallas, Info, Viaje y Fuerza G no se pasen de su
+// columna.
 //
 // El reloj de LVGL es de mentira y no se refresca solo: las animaciones
 // avanzan con irA() y la imagen se dibuja al capturarla.
@@ -30,6 +32,7 @@
 #include <alarmas.h>
 #include <dtc.h>
 #include <fuerza_g.h>
+#include <registro.h>
 #include <respuesta.h>
 #include <viaje.h>
 
@@ -45,7 +48,12 @@
 static const int ANCHO = 640;
 static const int ALTO = 172;
 static const int ESCALA = 2;
-static const int SEPARACION = 6; // entre pantallas en todas.png
+static const int SEPARACION = 6;            // entre pantallas en todas.png
+static const int X_VALOR_INFO_RENDER = 132; // X_VALOR_INFO de paginas.cpp
+// La marca SD de pantalla.cpp, con los 9 puntos: termina 12 px antes del
+// primero (x 496) y es de 26x16, centrada en la barra
+static const int X_MARCA_SD = 458;
+static const int Y_MARCA_SD = 6;
 
 static uint32_t reloj = 100000;
 static uint16_t marco[ANCHO * ALTO];
@@ -300,6 +308,43 @@ static bool sinBlanco(int x1, int x2, int y1, int y2) {
   return true;
 }
 
+// En el cuadrado, algún píxel de ese color (el interior de las letras)
+static bool hayColor(int x1, int x2, int y1, int y2, lv_color_t color) {
+  for (int y = y1; y <= y2; y++) {
+    for (int x = x1; x <= x2; x++) {
+      if (marco[y * ANCHO + x] == lv_color_to_u16(color)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// En el cuadrado, todo de ese color
+static bool todoDeColor(int x1, int x2, int y1, int y2, lv_color_t color) {
+  for (int y = y1; y <= y2; y++) {
+    for (int x = x1; x <= x2; x++) {
+      if (marco[y * ANCHO + x] != lv_color_to_u16(color)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// La marca SD, de ese color (sin color: no está)
+static bool marcaSd(const lv_color_t *color) {
+  int x2 = X_MARCA_SD + 25;
+  int y2 = Y_MARCA_SD + 15;
+  if (color == nullptr) {
+    return todoDeColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, FONDO_BARRA);
+  }
+  // El fondo de la marca, y nada suyo antes ni después
+  return hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, *color) &&
+         todoDeColor(X_MARCA_SD - 3, X_MARCA_SD - 1, Y_MARCA_SD, y2, FONDO_BARRA) &&
+         todoDeColor(x2 + 1, x2 + 3, Y_MARCA_SD, y2, FONDO_BARRA);
+}
+
 // Entre x1 y x2, debajo de la barra, no se dibujó nada
 static bool franjaVacia(int x1, int x2) {
   return zonaVacia(x1, x2, 28, ALTO - 1);
@@ -394,7 +439,7 @@ int main(int argc, char **argv) {
   Paginas paginas(pantalla);
   // Lo que piden las páginas armadas y dibujadas una vez
   datosDeLaMaqueta();
-  DatosInfo info = {"v2.1", "6", 17, 6, "81:23:45:67:89:BA", -58, 3};
+  DatosInfo info = {"v2.1", "6", 17, 6, -58, 3, EstadoTarjeta::GRABANDO, 12};
   // La de la maqueta, con la luz encendida y 2 códigos según 0101
   LecturaFallas fallas =
       lecturaFallas("410182076100", "43 02 04 20 01 71", "47 01 03 00", "NO DATA");
@@ -633,6 +678,45 @@ int main(int argc, char **argv) {
   revisar(display->inv_p == 0, "Info con el brillo al maximo: dibujar de nuevo no redibuja nada");
   info.brillo = 3;
 
+  // La tarjeta (E13), en el segundo renglón: blanca grabando, gris sin
+  // tarjeta y ámbar si está pero no graba. El renglón va de y 55 a 79. La
+  // marca SD de la barra: gris grabando, ámbar si no graba y sin tarjeta no
+  // está.
+  struct CasoTarjeta {
+    EstadoTarjeta estado;
+    const char *nombre; // nullptr: no se guarda
+    lv_color_t color;
+    const lv_color_t *marca; // nullptr: sin marca
+  };
+  const CasoTarjeta TARJETAS[] = {
+      {EstadoTarjeta::SIN_TARJETA, "pa-info-sin-tarjeta", GRIS, nullptr},
+      {EstadoTarjeta::ERROR, "pb-info-tarjeta-con-error", AMBAR, &AMBAR},
+      {EstadoTarjeta::LLENA, nullptr, AMBAR, &AMBAR},
+      {EstadoTarjeta::ILEGIBLE, nullptr, AMBAR, &AMBAR},
+      {EstadoTarjeta::BUSCANDO, nullptr, GRIS, nullptr},
+      {EstadoTarjeta::LISTA, nullptr, BLANCO, nullptr},
+      {EstadoTarjeta::GRABANDO, nullptr, BLANCO, &ETIQUETA},
+  };
+  for (const CasoTarjeta &caso : TARJETAS) {
+    info.tarjeta = caso.estado;
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    if (caso.nombre != nullptr) {
+      guardar(directorio, caso.nombre);
+    } else {
+      capturar();
+    }
+    char texto[32];
+    char que[96];
+    textoTarjeta(caso.estado, info.viaje, texto, sizeof(texto));
+    snprintf(que, sizeof(que), "Info: \"%s\" en su color, sin llegar a los botones", texto);
+    revisar(hayColor(X_VALOR_INFO_RENDER, 416, 55, 79, caso.color) && franjaVacia(417, 423), que);
+    snprintf(que, sizeof(que), "Barra con \"%s\": la marca SD como corresponde", texto);
+    revisar(marcaSd(caso.marca), que);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    snprintf(que, sizeof(que), "Info con \"%s\": dibujar de nuevo no redibuja nada", texto);
+    revisar(display->inv_p == 0, que);
+  }
+
   // Fuera de los botones, Info cambia de página como las demás
   revisar(tocar(indev, paginas, 100, 100) == -1, "en Info, tocar los datos: anterior");
   revisar(tocar(indev, paginas, 380, 60) == 1,
@@ -795,6 +879,10 @@ int main(int argc, char **argv) {
     revisar(display->inv_p == 0, que);
     snprintf(que, sizeof(que), "%s: la barra es roja", caso.nombre);
     revisar(marco[5 * ANCHO + 630] == lv_color_to_u16(ROJO), que);
+    snprintf(que, sizeof(que), "%s: la alarma no llega a la marca SD", caso.nombre);
+    revisar(todoDeColor(X_MARCA_SD - 20, X_MARCA_SD - 1, 0, 27, ROJO) &&
+                hayColor(X_MARCA_SD, X_MARCA_SD + 25, Y_MARCA_SD, Y_MARCA_SD + 15, ETIQUETA),
+            que);
     snprintf(que, sizeof(que), "%s: tocar la barra roja sigue cambiando de pagina", caso.nombre);
     revisar(tocar(indev, paginas, 600, 10) == 1 && tocar(indev, paginas, 20, 10) == -1, que);
   }

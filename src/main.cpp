@@ -7,7 +7,9 @@
 #include <esp_psram.h>
 #include <esp_system.h>
 #include <pids.h>
+#include <registro.h>
 #include <respuesta.h>
+#include <stdarg.h>
 #include <viaje.h>
 
 #include "boton.h"
@@ -25,6 +27,7 @@
 #include "placa.h"
 #include "sondeo.h"
 #include "sonido.h"
+#include "tarjeta.h"
 
 // Máquina de estados de la conexión, portada del anterior. INICIO es setup().
 //
@@ -68,6 +71,7 @@ Alarmas alarmas(REGLAS_ALARMAS);
 Sonido sonido;
 Brillo brillo;
 Imu imu;
+Tarjeta tarjeta;
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -94,6 +98,14 @@ static bool ecuPerdida = false;    // SIN_ECU con el motor andando: no es lo nor
 static bool descubriendo = false;
 static LecturaFallas fallas;              // la de la página Fallas
 static uint32_t proximaLecturaFallas = 0; // mientras se ve la página
+// El registro en la microSD (E13): una línea cada PERIODO_LINEA_MS desde la
+// primera lectura de la ECU
+static bool registrando = false;
+static uint32_t inicioRegistro = 0; // el millis() de la línea 0
+static uint32_t proximaLinea = 0;
+static Eventos eventos; // los de la línea que viene
+static char fallasAnotadas[LARGO_EVENTOS] = "";
+static EstadoTarjeta tarjetaAntes = EstadoTarjeta::BUSCANDO;
 
 static const char *textoEstado(Estado e) {
   switch (e) {
@@ -214,6 +226,7 @@ static void imprimirInfo() {
   } else {
     Serial.println("IMU: no anda");
   }
+  tarjeta.imprimir();
 }
 
 // !imu: la última muestra sin filtrar, para ver los ejes del sensor, y lo
@@ -312,8 +325,8 @@ static void dibujar() {
     break;
   case Estado::LEYENDO:
     paginas.dibujar(ahora,
-                    {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion,
-                     rssi, brillo.nivel()},
+                    {version, protocolo, soportados.cantidad(), consultasPorSegundo, rssi,
+                     brillo.nivel(), tarjeta.estado(), tarjeta.viaje()},
                     fallas, segundosHasta(proximaLecturaFallas), viaje,
                     {imu.iniciado(), imu.lectura(ahora)}, alarmaALaVista(ahora));
     break;
@@ -330,15 +343,116 @@ static void dibujar() {
   }
 }
 
+// Un evento para la última columna del registro. Antes de la primera
+// lectura de la ECU no hay archivo: no se anota.
+static void anotar(const char *formato, ...) {
+  if (!registrando) {
+    return;
+  }
+  char texto[LARGO_EVENTOS];
+  va_list argumentos;
+  va_start(argumentos, formato);
+  vsnprintf(texto, sizeof(texto), formato, argumentos);
+  va_end(argumentos);
+  eventos.agregar(texto);
+}
+
+// La primera línea del CSV: las columnas, con las etiquetas y unidades de la
+// tabla del monitor
+static size_t encabezadoRegistro(char *texto, size_t tam) {
+  static const char *const DESPUES[] = {"Consultas/s", "Distancia km", "En marcha s",
+                                        "G lateral",   "G long.",      "Eventos"};
+  LineaCsv linea(texto, tam);
+  linea.texto("Seg");
+  for (uint8_t i = 0; i < CANT_MAGNITUDES; i++) {
+    char nombre[24];
+    const char *unidad = unidadDe((Magnitud)i);
+    snprintf(nombre, sizeof(nombre), "%s%s%s", etiquetaDe((Magnitud)i),
+             unidad[0] != '\0' ? " " : "", unidad);
+    linea.texto(nombre);
+  }
+  for (const char *nombre : DESPUES) {
+    linea.texto(nombre);
+  }
+  return linea.terminar();
+}
+
+// Con la primera lectura de la ECU: un archivo por encendido, como el viaje
+static void abrirRegistro() {
+  if (registrando) {
+    return;
+  }
+  registrando = true;
+  inicioRegistro = millis();
+  proximaLinea = inicioRegistro;
+  char texto[400];
+  tarjeta.abrir(texto, encabezadoRegistro(texto, sizeof(texto)));
+  anotar("Inicio de la placa: %s", motivoReinicio(esp_reset_reason()));
+}
+
+// Una línea por segundo, con lo de la tabla del monitor; sin un valor
+// actual, el campo va vacío. Si loop() estuvo bloqueado (conectando el BLE),
+// los segundos que faltan no se escriben: la columna Seg salta.
+static void registrarSegundo() {
+  uint32_t ahora = millis();
+  if (!registrando || (int32_t)(ahora - proximaLinea) < 0) {
+    return;
+  }
+  uint32_t segundo = (ahora - inicioRegistro) / PERIODO_LINEA_MS;
+  proximaLinea = inicioRegistro + (segundo + 1) * PERIODO_LINEA_MS;
+
+  char texto[400];
+  char valor[24];
+  LineaCsv linea(texto, sizeof(texto));
+  snprintf(valor, sizeof(valor), "%lu", (unsigned long)segundo);
+  linea.texto(valor);
+  for (uint8_t i = 0; i < CANT_MAGNITUDES; i++) {
+    linea.texto(textoValor((Magnitud)i, ahora, valor, sizeof(valor)) ? valor : nullptr);
+  }
+  snprintf(valor, sizeof(valor), "%d", consultasPorSegundo);
+  linea.texto(estado == Estado::LEYENDO && consultasPorSegundo >= 0 ? valor : nullptr);
+  snprintf(valor, sizeof(valor), "%.2f", viaje.distanciaKm());
+  linea.texto(valor);
+  snprintf(valor, sizeof(valor), "%lu", (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
+  linea.texto(valor);
+  LecturaG g = imu.lectura(ahora);
+  snprintf(valor, sizeof(valor), "%+.2f", g.lateral);
+  linea.texto(g.actual ? valor : nullptr);
+  snprintf(valor, sizeof(valor), "%+.2f", g.longitudinal);
+  linea.texto(g.actual ? valor : nullptr);
+  linea.texto(eventos.texto());
+  eventos.vaciar();
+  tarjeta.agregar(texto, linea.terminar());
+}
+
+// Cada cambio de la tarjeta sale en el monitor serie; un error, también en
+// el registro (se ve si después vuelve a grabar)
+static void revisarTarjeta() {
+  EstadoTarjeta ahora = tarjeta.estado();
+  if (ahora == tarjetaAntes) {
+    return;
+  }
+  tarjetaAntes = ahora;
+  tarjeta.imprimir();
+  if (ahora == EstadoTarjeta::ERROR) {
+    anotar("Tarjeta: error al escribir");
+  }
+}
+
 static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
   estado = nuevo;
   proximoIntento = millis() + esperaMs;
   // SIN_ECU lee ATRV apenas entra
   ultimaLectura = millis() - PERIODO_ATRV_MS;
+  if (nuevo == Estado::LEYENDO) {
+    abrirRegistro();
+  }
   if (nuevo == Estado::SIN_ECU || nuevo == Estado::BT_PERDIDO) {
     Serial.printf("== %s (%s)\n", textoEstado(nuevo), motivo);
+    anotar("%s (%s)", textoEstado(nuevo), motivo);
   } else {
     Serial.printf("== %s\n", textoEstado(nuevo));
+    anotar("%s", textoEstado(nuevo));
   }
   dibujar();
 }
@@ -965,6 +1079,39 @@ static void imprimirFallas(TipoRespuesta tipoLuz) {
   }
 }
 
+// Para el registro: "Fallas: luz encendida; guardadas P0300 P0171". La
+// página las lee cada PERIODO_FALLAS_MS: se anotan solo si cambiaron.
+static void anotarFallas() {
+  static const char *const NOMBRES[] = {"guardadas", "pendientes", "permanentes"};
+  const Codigos *grupos[] = {&fallas.guardados, &fallas.pendientes, &fallas.permanentes};
+  char texto[LARGO_EVENTOS];
+  size_t largo = snprintf(texto, sizeof(texto), "Fallas: luz %s",
+                          !fallas.luzLeida ? "sin leer" : (fallas.luz ? "encendida" : "apagada"));
+  bool hay = false;
+  for (uint8_t i = 0; i < 3 && largo < sizeof(texto); i++) {
+    const Codigos &codigos = *grupos[i];
+    if (codigos.estado == EstadoCodigos::ERROR) {
+      largo += snprintf(texto + largo, sizeof(texto) - largo, "; %s: error", NOMBRES[i]);
+      hay = true;
+    } else if (codigos.estado == EstadoCodigos::LEIDOS && codigos.lista.cantidad > 0) {
+      largo += snprintf(texto + largo, sizeof(texto) - largo, "; %s", NOMBRES[i]);
+      for (uint8_t j = 0; j < codigos.lista.cantidad && largo < sizeof(texto); j++) {
+        char dtc[6];
+        textoDtc(codigos.lista.codigos[j], dtc);
+        largo += snprintf(texto + largo, sizeof(texto) - largo, " %s", dtc);
+      }
+      hay = true;
+    }
+  }
+  if (!hay && largo < sizeof(texto)) {
+    snprintf(texto + largo, sizeof(texto) - largo, "; sin codigos");
+  }
+  if (strcmp(texto, fallasAnotadas) != 0) {
+    strlcpy(fallasAnotadas, texto, sizeof(fallasAnotadas));
+    anotar("%s", texto);
+  }
+}
+
 // Luz de falla (0101) y códigos guardados (03), pendientes (07) y
 // permanentes (0A). Todo es lectura: no hay nada que borre fallas.
 // false si cambió el estado.
@@ -1002,6 +1149,7 @@ static bool leerFallas() {
   fallas = lectura;
   proximaLecturaFallas = millis() + (errorAlLeer(fallas) ? REINTENTO_FALLAS_MS : PERIODO_FALLAS_MS);
   imprimirFallas(luz.tipo);
+  anotarFallas();
   dibujar();
   return true;
 }
@@ -1088,9 +1236,11 @@ static void revisarAlarma(TipoAlarma tipo, bool hay, float valor, uint32_t momen
   textoAlarma(tipo, alarmas.alarma(tipo).valor(), texto, sizeof(texto));
   if (cambio == CambioAlarma::SE_PRENDIO) {
     Serial.printf("Alarma: %s\n", texto);
+    anotar("Alarma: %s", texto);
     sonido.pitar(PITIDOS_ALARMA);
   } else {
     Serial.printf("Alarma: termino (%s)\n", texto);
+    anotar("Alarma: termino (%s)", texto);
   }
 }
 
@@ -1153,6 +1303,7 @@ static void atenderAcciones() {
                   (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
     viaje.reiniciar();
     imu.reiniciarMaximos();
+    anotar("Viaje reiniciado");
     dibujar();
   } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
     cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
@@ -1207,6 +1358,7 @@ void setup() {
   boton.iniciar();
   sonido.iniciar();
   imu.iniciar();
+  tarjeta.iniciar();
   elm.iniciar();
   elm.mientrasEspera(alEsperar);
   consola.antesDeExplorar(alExplorar);
@@ -1214,7 +1366,7 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !brillo N, !imu, !escanear o !explorar N.");
+                 "!info, !pitar, !brillo N, !imu, !sd, !escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
@@ -1232,6 +1384,9 @@ void loop() {
   }
   if (consola.imuPedido()) {
     imprimirImu();
+  }
+  if (consola.sdPedido()) {
+    tarjeta.imprimir();
   }
   if (consola.pitidoPedido()) {
     Serial.println(sonido.iniciado() ? "Consola: pitando" : "Consola: el sonido no anda");
@@ -1266,6 +1421,8 @@ void loop() {
   }
   revisarAlarmas();
   avisarParado();
+  revisarTarjeta();
+  registrarSegundo();
 
   if (millis() - ultimoDibujo >= periodoDibujo()) {
     dibujar();

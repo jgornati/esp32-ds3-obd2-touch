@@ -27,6 +27,8 @@ public:
   bool pitidoPedido();
   // true una sola vez después de un !imu (la última muestra del IMU)
   bool imuPedido();
+  // true una sola vez después de un !sd (la tarjeta y el registro)
+  bool sdPedido();
   // El nivel de un !brillo N, una sola vez; 0 si no hubo
   uint8_t brilloPedido();
   // !log lo cambia: con true se ve cada consulta periódica, no solo las fallas
@@ -54,6 +56,7 @@ private:
   bool info = false;
   bool pitido = false;
   bool imu = false;
+  bool sd = false;
   uint8_t brillo = 0;
   bool conDetalle = false;
   void (*alSoltar)() = nullptr;

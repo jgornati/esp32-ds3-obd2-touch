@@ -36,6 +36,10 @@ const char *etiquetaDe(Magnitud m) {
   return DEFINICIONES[m].etiqueta;
 }
 
+const char *unidadDe(Magnitud m) {
+  return DEFINICIONES[m].unidad;
+}
+
 const Dato &dato(Magnitud m) {
   return datos[m];
 }

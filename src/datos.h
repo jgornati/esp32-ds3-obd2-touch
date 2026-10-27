@@ -35,6 +35,8 @@ enum Magnitud : uint8_t {
 // PID de la magnitud; 0 para VOLT_ELM.
 uint8_t pidDe(Magnitud m);
 const char *etiquetaDe(Magnitud m);
+// "C", "km/h", "%"; "" sin unidad (RPM, lazo, lambda)
+const char *unidadDe(Magnitud m);
 
 const Dato &dato(Magnitud m);
 

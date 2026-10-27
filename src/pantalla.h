@@ -9,6 +9,10 @@
 // Puntos de página que caben en la barra: las 8 de hoy y FUERZA G (E12)
 constexpr uint8_t MAX_PAGINAS = 9;
 
+// La marca "SD" de la barra, a la izquierda de los puntos (E13): en gris
+// mientras graba el registro, en ámbar si hay tarjeta pero no puede grabar
+enum class MarcaSd : uint8_t { NINGUNA, GRABANDO, PROBLEMA };
+
 // La pantalla de espera (E9), las de estado que quedan (E3) y el marco de
 // las páginas (E4), con LVGL. Cada función arma una pantalla completa; LVGL
 // la dibuja en el próximo PantallaHw::atender(), y solo si algo cambió. Los
@@ -40,16 +44,18 @@ public:
   // de 0 a 1, es lo que lleva la página apretada para borrar algo: con más
   // de 0, la barra se llena de rojo hasta ahí y el título va en rojo claro.
   // alarma (E11), si no es nullptr: la barra en rojo con un triángulo y ese
-  // texto en lugar del título, salvo mientras se mantiene apretada.
+  // texto en lugar del título, salvo mientras se mantiene apretada. sd: la
+  // marca de la microSD (E13).
   void pagina(const char *titulo, uint8_t numero, uint8_t total, float mantenida = 0,
-              const char *alarma = nullptr);
+              const char *alarma = nullptr, MarcaSd sd = MarcaSd::NINGUNA);
   // Donde Paginas arma las suyas: 640x144, debajo de la barra. Se ve solo
   // después de pagina(). nullptr sin pantalla.
   lv_obj_t *areaPaginas() const;
   // Una página de 640x172, sin la barra (DS3). Se ve solo después de
   // paginaCompleta(). nullptr sin pantalla. Con una alarma, la barra va
   // arriba de la página, como en las demás.
-  void paginaCompleta(uint8_t numero, uint8_t total, const char *alarma = nullptr);
+  void paginaCompleta(uint8_t numero, uint8_t total, const char *alarma = nullptr,
+                      MarcaSd sd = MarcaSd::NINGUNA);
   lv_obj_t *areaCompleta() const;
 
 private:
