@@ -39,6 +39,9 @@ que corresponda antes de portar un módulo.
 | E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo la marca SD de la barra) |
 | E14   | Reloj                                  | —          | Hecha (falta verificar en hardware) |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
+| E16   | Cambiar de página deslizando el dedo   | E4         | Hecha (falta verificar en hardware) |
+| E17   | Pantalla fluida: que dibujar no frene  | E16        | Pendiente |
+| E18   | CAN directo, sin el ELM                | E17        | Pendiente (hace falta el transceptor) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -48,7 +51,10 @@ también. De E8 en adelante son pedidos del usuario del 2026-10-26, después
 de usarlo en el auto. E8 se descartó (ver la etapa): se sigue por E9. E10
 y E11 se pueden hacer en cualquier orden. E14 necesita la batería puesta
 (ver la etapa). E15 la pidió el usuario el 2026-10-26, al saberse en E11 que
-la placa es la V2; se hizo antes que E12.
+la placa es la V2; se hizo antes que E12. E16 la pidió el usuario el
+2026-10-27, después de usarlo en el auto. E17 y E18 son el plan de
+optimización que pidió el mismo día: E17 no necesita nada nuevo; E18, un
+transceptor CAN.
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -671,17 +677,129 @@ mergearla, y con el brillo en 5 niveles en Info, como se había hecho en E6.
 **Verificación del usuario:** la pantalla arranca bien, sin basura; el
 brillo cambia con cada nivel y se mantiene al apagar y prender.
 
+### E16 — Cambiar de página deslizando el dedo
+
+**Objetivo:** que las páginas se cambien deslizando el dedo (swipe), no
+tocando las mitades de la pantalla. Lo pidió el usuario (2026-10-27): en el
+auto, sin un teclado, tocar los botones o la pantalla para cambiar de página
+es incómodo.
+
+Lo decidió el usuario: **solo deslizar** (tocar no cambia de página, así un
+bache o un roce no la cambian) y **de golpe**, sin animación (cada cuadro
+cuesta ~33 ms de envío: se vería a saltos y frenaría las consultas).
+
+**Tareas:**
+
+1. Deslizar hacia la izquierda: la siguiente; hacia la derecha: la anterior.
+   En toda la pantalla, también la barra, DS3 y los botones de Info, que no
+   se tienen que apretar al deslizar.
+2. Tocar no cambia de página. Mantener apretada Viaje sigue reiniciando el
+   viaje, con el dedo quieto. El botón BOOT, igual.
+3. El render, con deslizamientos.
+
+**Verificación del usuario:** en el auto, cambiar de página deslizando, en
+todas, sin que se aprieten los botones de Info ni se cambie la página sin
+querer.
+
+### E17 — Pantalla fluida: que dibujar no frene
+
+**Objetivo:** que las animaciones y los cambios de página se vean fluidos, y
+que dibujar no le saque tiempo a las consultas a la ECU.
+
+Lo que se sabe hoy:
+
+- Cada cambio en pantalla manda **la imagen entera** (en QSPI el panel no
+  acepta una fila de inicio, ver notas de E1): ~32 ms de envío, se cambie lo
+  que se cambie. De esos, **~20 ms son girar la imagen** (LVGL dibuja en
+  horizontal y el panel es vertical), leyendo de la PSRAM columna por
+  columna.
+- Mientras se manda, `loop()` espera. Con FUERZA G redibujando cada 50 ms las
+  consultas bajaron de 6–7 a 3–4 por segundo (registro de E13); por eso hoy
+  va cada 100 ms.
+- Refresco completo (dibujar todo y mandarlo): 64 ms en el banco (E13), 93 ms
+  en Motor (E5). LVGL está compilado para tamaño (`-Os`).
+
+**Tareas** (medir antes y después de cada una):
+
+1. **Medir:** el tiempo de dibujar, de girar y de mandar cada cuadro, con su
+   promedio y su máximo por segundo, en la tabla del monitor y en `!info`.
+2. **Girar por bloques** (por ejemplo de 8×8 píxeles, con palabras de 32
+   bits), para leer la PSRAM en orden y aprovechar su caché. Objetivo: menos
+   de 8 ms.
+3. **LVGL con `-O2`**, solo esa biblioteca; mirar cuánto crece el programa
+   (hoy 65 % de 3 MB).
+4. **Mandar desde otra tarea, con dos imágenes en la PSRAM** (sobran 7,9 MB):
+   LVGL dibuja la siguiente mientras se manda la anterior, y `loop()` deja de
+   esperar el envío. Es el cambio que más ayuda a las consultas.
+5. **Probar el QSPI más rápido** (hoy 40 MHz; 60 u 80 si el panel aguanta, sin
+   basura en la imagen).
+6. **`LCD_TE`** (GPIO21 en la V2): empezar cada envío con el barrido del
+   panel, para que la animación no se vea cortada.
+7. Con todo eso, volver FUERZA G a 50 ms y revisar la animación de DS3.
+
+**Verificación del usuario:** en el auto, las consultas por segundo iguales
+en todas las páginas (6–7), también en FUERZA G y DS3; los cambios de página
+y las animaciones, más suaves y sin cortes.
+
+### E18 — CAN directo, sin el ELM
+
+**Objetivo:** leer la ECU directo del bus CAN del conector OBD, con el
+controlador CAN que trae el ESP32-S3 (TWAI), sin el adaptador BLE. El ELM
+por BLE no da más: **~148 ms por consulta** pidiendo uno o seis PIDs, con el
+intervalo BLE ya en 7,5–15 ms y sin hacerle caso a `ATST`/`ATAT` (E3). Por
+el bus, una ECU contesta en decenas de ms: se esperan **20 a 50 consultas
+por segundo** (hoy 6–7), y los datos ~1 s después de poner el contacto, sin
+buscar ni conectar el BLE.
+
+**Hardware:**
+
+- Un transceptor CAN de **3,3 V**: el módulo **SN65HVD230** (o "VP230").
+  No el MCP2515 + TJA1050, que es de 5 V y va por SPI.
+- Del conector OBD: CAN-H en el pin 6, CAN-L en el 14 y masa en el 4 o el 5
+  (el DS3 usa CAN de 11 bits a 500 kbit/s, `ATSP6`). Un cable en Y si se
+  quiere seguir usando el adaptador BLE.
+- A la placa, por el conector J6 de expansión: 3V3, GND, **GPIO1 (TX) y
+  GPIO2 (RX)**, según el esquemático de la V1 (J6: IO0–IO5, IO19, IO20, GND,
+  3V3, VBUS). Confirmar en la V2. El GPIO0 es BOOT, el 3 es de arranque y el
+  4 lee la batería: no usarlos.
+- **Sacarle al módulo su resistencia de 120 Ω** (en la mayoría, R2): el bus
+  del auto ya está terminado.
+
+**Antes de programar, decidir con el usuario:**
+
+- Si el ELM queda como alternativa (elegible en `config.h`) o se reemplaza.
+- Qué se ve mientras no hay ECU, ya que no hay BLE que conectar.
+- **La lista blanca a nivel de trama**, que sigue la regla del proyecto: el
+  único camino al auto, revisado y con tests.
+
+**Tareas:**
+
+1. TWAI a 500 kbit/s, primero **en modo solo escucha**: confirmar la
+   velocidad, sin errores en el bus, y que el bus de diagnóstico está
+   tranquilo con el motor andando. Recién después, transmitir.
+2. **ISO-TP** (ISO 15765-2) en `lib/obd`, con tests: trama única, primera y
+   consecutivas, y control de flujo. Los pedidos de varios PIDs y los
+   códigos de falla vienen en varias tramas.
+3. **Lista blanca:** solo pedidos a `0x7DF`/`0x7E0` de los servicios 01, 03,
+   07, 0A y 09, y el control de flujo de ISO-TP. El 04 (borrar fallas), nunca.
+4. Un transporte con la misma interfaz que `Elm327`, para que el sondeo, las
+   páginas y el registro no cambien.
+5. Medir las consultas por segundo y lo que tarda la ECU; ajustar el sondeo y
+   el redibujo para aprovecharlo.
+
+**Riesgos:** se transmite en el bus del auto, como hace el ELM. Una velocidad
+mal puesta llena el bus de errores: por eso primero solo escuchar. Hace falta
+un cable del conector OBD hasta la pantalla.
+
+**Verificación del usuario:** en el auto, los mismos datos que con el ELM, con
+más consultas por segundo; las fallas se leen igual; el auto no marca nada
+raro (ninguna luz nueva en el tablero).
+
 ## Ideas para después
 
 Fuera del plan; solo si el usuario las pide:
 
-- Que la pantalla sea más fluida (la animación de DS3, los cambios de
-  página): compilar LVGL optimizado para velocidad en vez de para tamaño
-  (`-Os`, lo normal en Arduino) y girar la imagen de a dos píxeles (hoy se
-  lleva ~20 de los ~33 ms de cada envío). Medir antes y después con `!info`.
-  No cambia las consultas por segundo: las limita el adaptador.
-- Usar el `LCD_TE` de la V2 (GPIO21) para mandar la imagen sincronizada con
-  el panel: evitaría cortes en la animación.
+- (La pantalla más fluida y `LCD_TE` pasaron a E17.)
 - Fuerza G: separar la pendiente de la aceleración con la velocidad de la ECU
   (la longitudinal es la derivada de la velocidad), y sacar "adelante" de las
   frenadas en línea recta, para una placa girada hacia el conductor.
@@ -3276,3 +3394,59 @@ Para E12 y E14:
 - El IMU y el RTC van en `busPlaca()`; el TCA9554, con `salidaExpansor()`
   (sus interrupciones son entradas: EXIO2 y EXIO3 del IMU, EXIO4 del RTC,
   que se leerían con un registro de lectura que hoy no hay).
+
+### E16
+
+Rama `e16-swipe`, desde `main` con el arreglo del brillo. Sin maqueta: no
+cambia lo que se ve.
+
+Lo que se hizo:
+
+- **`paginas`:** `alDeslizar()`, en el indev del touch
+  (`lv_indev_add_event_cb()`, con `PRESSED` y `RELEASED`). LVGL 9.3 le manda
+  al indev el `PRESSED` del objeto donde se apoyó el dedo y el `RELEASED`
+  del objeto donde se levantó, antes que a ellos y antes del `CLICKED`; si
+  el dedo pasa de un botón a otro objeto, el botón recibe `PRESS_LOST` y el
+  otro no recibe `PRESSED` ni `CLICKED` (`indev_proc_press()`). Así:
+  - Al apoyar, guarda dónde. Al soltar, si el dedo se corrió `DESLIZAR_PX`
+    (80) o más de costado, y más de costado que en vertical, es un
+    deslizamiento: con las páginas a la vista, `tomarToque()` da +1 (hacia
+    la izquierda, la siguiente) o -1.
+  - Los botones de Info no cuentan su `CLICKED` si fue un deslizamiento
+    (`alSoltarBoton()`): un deslizamiento dentro de Reconectar no reconecta.
+  - Sale `alTocar()`: tocar no cambia de página. Sale el "toque largo" de
+    Viaje, que ya no hace falta.
+  - Mantener apretada Viaje se cancela si el dedo se corre más de
+    `QUIETO_PX` (20) (`LV_EVENT_PRESSING` en la raíz): deslizar despacio no
+    la reinicia.
+- **`config.h`:** `DESLIZAR_PX` y `QUIETO_PX`.
+- La espera sigue igual: tocarla reintenta y mantenerla reinicia la placa.
+
+Verificado por el agente:
+
+- `pio run` compila. `pio test -e native` 113/113 (no hay lógica nueva en
+  `lib/obd`).
+- **Render**, 181 revisiones, todas bien. `deslizar()` mueve el dedo en 5
+  pasos de 30 ms. Todas las de toques pasaron a deslizamientos; nuevas:
+  tocar no cambia de página (Info, DS3, Viaje, Motor), deslizar desde
+  Reconectar, dentro de Reconectar, de `-` a `+` y desde Olvidar cambia de
+  página sin apretarlos, justo `DESLIZAR_PX` cuenta y menos no, más vertical
+  no cuenta, y en Viaje el dedo corrido no reinicia. Se comprobó que fallan
+  sin la protección de los botones y sin cancelar Viaje.
+
+Sin probar (falta la placa): cómo responde el touch real. Un deslizamiento
+necesita por lo menos dos lecturas del touch (cada ~33 ms, salvo mientras se
+manda una imagen): uno muy rápido, de menos de ~70 ms, se puede perder.
+
+**Pruebas del usuario:**
+
+1. En todas las páginas, deslizar hacia la izquierda pasa a la siguiente y
+   hacia la derecha, a la anterior; también en DS3 y sobre la barra.
+2. Tocar no cambia de página.
+3. En Info, deslizar empezando sobre Reconectar, Olvidar, `-` o `+`: cambia
+   de página y no reconecta, no olvida ni cambia el brillo. Tocar los botones
+   sigue andando.
+4. En Viaje, mantener apretada 3 s, quieta, la reinicia; moviendo el dedo,
+   no.
+5. Si a veces no toma el deslizamiento: si es rápido o lento, y en qué
+   página. `DESLIZAR_PX` se puede bajar.

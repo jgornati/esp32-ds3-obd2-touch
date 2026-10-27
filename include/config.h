@@ -157,6 +157,11 @@ constexpr uint32_t MANTENER_REINICIO_MS = 3000;
 // Apretada menos que esto, la espera o la página Viaje es un toque: no
 // aparece la barra de mantener apretado
 constexpr uint32_t AVISO_MANTENER_MS = 500;
+// Cambiar de página (E16): deslizar el dedo de costado DESLIZAR_PX o más.
+// Tocar no cambia de página. Mantener apretada Viaje se cancela si el dedo se
+// corre más de QUIETO_PX.
+constexpr int32_t DESLIZAR_PX = 80;
+constexpr int32_t QUIETO_PX = 20;
 // Página Viaje: el motor está en marcha desde RPM_EN_MARCHA (ralentí
 // 890-1190), y el voltaje mínimo y máximo cuentan después de
 // ESPERA_VOLTAJE_VIAJE_MS en marcha, sin la caída del arranque. Mantener
