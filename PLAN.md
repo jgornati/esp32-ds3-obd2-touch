@@ -42,6 +42,9 @@ que corresponda antes de portar un módulo.
 | E16   | Cambiar de página deslizando el dedo   | E4         | Hecha (falta verificar en hardware) |
 | E17   | Pantalla fluida: que dibujar no frene  | E16        | Pendiente |
 | E18   | CAN directo, sin el ELM                | E17        | Pendiente (hace falta el transceptor) |
+| E19   | Micrófono y parlante: grabar y hablar  | E11        | Pendiente |
+| E20   | Asistente de voz por OpenRouter        | E19        | Pendiente (después de E17; mejor después de E18) |
+| E21   | WhatsApp por el celular                | E20        | Pendiente |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -54,7 +57,9 @@ y E11 se pueden hacer en cualquier orden. E14 necesita la batería puesta
 la placa es la V2; se hizo antes que E12. E16 la pidió el usuario el
 2026-10-27, después de usarlo en el auto. E17 y E18 son el plan de
 optimización que pidió el mismo día: E17 no necesita nada nuevo; E18, un
-transceptor CAN.
+transceptor CAN. E19 a E21 son el asistente de voz que pidió también ese día:
+preguntarle cosas en voz alta y, más adelante, que lea y mande mensajes de
+WhatsApp.
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -794,6 +799,149 @@ un cable del conector OBD hasta la pantalla.
 **Verificación del usuario:** en el auto, los mismos datos que con el ELM, con
 más consultas por segundo; las fallas se leen igual; el auto no marca nada
 raro (ninguna luz nueva en el tablero).
+
+### E19 — Micrófono y parlante: grabar y hablar
+
+**Objetivo:** la base del asistente, sin internet: grabar la voz con los
+micrófonos de la placa y reproducir audio por el parlante.
+
+La placa tiene el códec **ES7210** (micrófonos) y el **ES8311** (parlante)
+por I2S, con el amplificador NS4150B (ver **Hardware de la placa**). El
+parlante ya anda desde E11 (los pitidos); los micrófonos todavía no se usan.
+El ejemplo `08_Audio_Test` de la V2 graba y reproduce: partir de ahí.
+
+**Antes de programar, decidir con el usuario cómo se activa** (en el auto,
+sin teclado):
+
+- Un gesto en cualquier página (por ejemplo, mantener apretado 1 s; ojo con
+  Viaje, donde mantener reinicia el viaje).
+- Una página ASISTENTE con un botón grande (hoy hay 9 puntos y la barra está
+  justa con la hora y la marca SD).
+- El botón BOOT, atrás de la placa.
+- Una palabra para despertarlo: ESP-SR (viene con el core) trae WakeNet, pero
+  con palabras fijas y en inglés o chino. En español haría falta entrenar una
+  propia. *Propuesta:* empezar apretando, sin palabra.
+
+**Tareas:**
+
+1. El ES7210 en el I2C de la placa (`busPlaca()`) y la entrada I2S (GPIO6),
+   a 16 kHz, mono, 16 bits, en un búfer de la PSRAM (unos 32 KB por segundo).
+2. Reproducir PCM por el ES8311 desde la PSRAM, sin cortar los pitidos de las
+   alarmas (que tienen prioridad).
+3. `!grabar N` en la consola: graba N segundos, los guarda en la microSD como
+   WAV y los reproduce. Sirve para oír cómo suena en el auto con el motor
+   andando.
+4. Que grabar no frene las consultas: en una tarea aparte, como el IMU.
+
+**Verificación del usuario:** en el auto, con el motor andando, una
+grabación se entiende al escucharla en la PC.
+
+### E20 — Asistente de voz por OpenRouter
+
+**Objetivo:** preguntarle cosas en voz alta y que conteste por el parlante.
+Por ejemplo, "¿cómo está el motor?", "¿qué significa la falla P0420?" o
+"¿cuánto llevo de viaje?", además de preguntas generales.
+
+Lo decidió el usuario (2026-10-27): **por OpenRouter**, no atado a un
+proveedor, para poder cambiar de modelo. OpenRouter tiene, con la misma
+clave (según su documentación, mayo de 2026):
+
+- `/api/v1/audio/transcriptions`: voz a texto (Whisper).
+- `/api/v1/chat/completions`: el modelo que se elija. Algunos aceptan el
+  audio directo (`input_audio`, en base64), y se saltea el paso anterior.
+- `/api/v1/audio/speech`: texto a voz, en MP3 o **PCM** (PCM se reproduce sin
+  decodificar).
+
+Camino de una pregunta: apretar → grabar hasta que se suelte (o hasta un
+silencio) → voz a texto → modelo → texto a voz → parlante. Unos 2 a 5 s
+entre que se termina de hablar y empieza la respuesta.
+
+**Antes de programar, decidir con el usuario:**
+
+- **Dónde corre:**
+  - *Propuesta:* directo desde la placa, por el hotspot del celular, con una
+    clave de OpenRouter **con límite de gasto**.
+  - La alternativa es un puente propio en la nube, que guarde la clave y
+    permita cambiar el modelo o las instrucciones sin volver a subir el
+    firmware.
+- **Qué modelo,** y cuánto puede gastar la clave por mes (OpenRouter muestra
+  el precio de cada modelo).
+- **Qué datos del auto ve el modelo.** *Propuesta:* un resumen en texto con
+  cada pregunta: los datos actuales, las fallas leídas, el viaje y la fuerza
+  G.
+
+**Reglas que no se negocian:**
+
+- **Solo lectura con el auto, también para el asistente.** El modelo recibe un
+  resumen de los datos; no hay ningún camino desde la respuesta hacia el ELM
+  o el CAN. Si se usan herramientas, son solo de lectura.
+- **La clave y la contraseña del Wi-Fi no van en el código ni en el
+  repositorio:** se cargan por la consola y quedan en `Preferences`.
+- **Para manejar:** respuestas cortas y habladas, sin textos largos en la
+  pantalla.
+- El audio y las preguntas salen a OpenRouter y al proveedor del modelo:
+  avisarlo en el README.
+
+**Riesgos que hay que medir primero** (una prueba chica antes de armar todo):
+
+- **RAM interna:** hoy quedan 74 KB libres; el Wi-Fi y TLS necesitan una parte
+  grande. Puede hacer falta E17 (búferes a la PSRAM) o E18 (sin BLE).
+- **Wi-Fi y BLE comparten la radio:** mientras se habla con OpenRouter, el ELM
+  por BLE puede ir más lento. Con E18 (CAN directo) el problema desaparece.
+- **Flash:** hoy 65 % de 3 MB; Wi-Fi y HTTPS suman bastante. Puede hacer falta
+  otra tabla de particiones (la flash es de 16 MB y la partición FAT de 9 MB
+  no se usa), cuidando lo guardado en `Preferences`.
+
+**Tareas:**
+
+1. Wi-Fi al hotspot del celular, con `!wifi RED CLAVE` y `!openrouter CLAVE`
+   en la consola, guardados en `Preferences`. Reconexión sola; sin Wi-Fi, el
+   asistente dice que no hay conexión y lo demás sigue igual.
+2. La prueba chica: un pedido HTTPS a OpenRouter, midiendo la RAM interna y
+   las consultas por segundo mientras tanto.
+3. Voz a texto, modelo y texto a voz, cada paso con un tiempo máximo. Si algo
+   falla, un aviso corto hablado y nada más.
+4. El resumen de los datos del auto, armado en `lib/obd` con tests (sin
+   Arduino).
+5. En pantalla, solo el estado: escuchando, pensando, hablando.
+
+**Verificación del usuario:** en el auto, preguntas sobre el auto y
+generales; las consultas por segundo no bajan mientras no se le habla.
+
+### E21 — WhatsApp por el celular
+
+**Objetivo:** que lea en voz alta los mensajes de WhatsApp que llegan y que se
+puedan contestar dictando.
+
+WhatsApp no tiene una API para cuentas personales. Las bibliotecas que
+automatizan WhatsApp Web van contra sus condiciones y pueden hacer que
+bloqueen el número: **no usarlas**. El camino que usan Android Auto y los
+relojes son **las notificaciones de Android**: una app con permiso de
+notificaciones lee los mensajes que llegan y contesta con la acción
+"Responder" de la notificación. El celular del usuario es un Samsung con
+Android (se vio por el USB en E15).
+
+**Antes de programar, decidir con el usuario:**
+
+- La app del celular: Tasker con AutoNotification, o una app propia chica
+  (Kotlin).
+- Cómo se hablan el celular y la placa: por el mismo hotspot (la placa le
+  habla a la IP del celular) o por BLE.
+- **Siempre confirmar antes de mandar:** "¿Le mando a Juan: llego en 10
+  minutos?", y se manda solo con un "sí".
+
+**Tareas:**
+
+1. Del celular a la placa: los mensajes nuevos (quién y qué).
+2. Leerlos por el parlante, con el texto a voz de E20, cuando el auto está
+   parado o en un momento tranquilo (a decidir).
+3. Contestar dictando: voz a texto, confirmación hablada y respuesta por la
+   notificación.
+4. Mensajes nuevos a cualquier contacto: más difícil sin automatizar la
+   pantalla del celular. Dejarlo para después de ver cómo anda lo anterior.
+
+**Verificación del usuario:** en el auto, un mensaje que llega se lee, se
+contesta dictando y la respuesta llega bien. Nunca se manda algo sin el "sí".
 
 ## Ideas para después
 
