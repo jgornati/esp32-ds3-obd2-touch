@@ -8,6 +8,7 @@
 #include <esp_heap_caps.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
+#include <esp_timer.h>
 #include <freertos/semphr.h>
 #include <lvgl.h>
 
@@ -69,7 +70,17 @@ static uint16_t *tandas[2] = {nullptr, nullptr};
 static int proximaTanda = 0;
 static SemaphoreHandle_t tandasLibres = nullptr;
 static bool avisoTanda = false;
-static uint32_t ultimoEnvioMs = 0;
+
+// Lo que tarda cada cuadro (E17). Al empezar a dibujar, LVGL avisa con
+// LV_EVENT_REFR_START.
+static int64_t inicioCuadro = 0;
+static TiemposCuadro ultimoCuadro = {};
+// Los cuadros del segundo en curso: cuántos, la suma y el máximo de cada tiempo
+static uint32_t cuadros = 0;
+static TiemposCuadro suma = {};
+static TiemposCuadro maximo = {};
+static uint32_t inicioSegundo = 0;
+static MedidasPantalla medidasSegundo = {};
 
 static bool tocando = false;
 static uint16_t crudoX = 0;
@@ -102,7 +113,49 @@ static void prepararTanda(int fila, uint16_t *destino) {
   }
 }
 
-static void enviarImagen() {
+static uint32_t microsDesde(int64_t inicio) {
+  return (uint32_t)(esp_timer_get_time() - inicio);
+}
+
+static void sumar(uint32_t &total, uint32_t &mayor, uint32_t valor) {
+  total += valor;
+  if (valor > mayor) {
+    mayor = valor;
+  }
+}
+
+static void contarCuadro(const TiemposCuadro &t) {
+  ultimoCuadro = t;
+  cuadros++;
+  sumar(suma.dibujo, maximo.dibujo, t.dibujo);
+  sumar(suma.espera, maximo.espera, t.espera);
+  sumar(suma.giro, maximo.giro, t.giro);
+  sumar(suma.envio, maximo.envio, t.envio);
+}
+
+// Con LVGL tomado: cada segundo, lo juntado pasa a medidasSegundo
+static void cerrarSegundo() {
+  uint32_t ahora = millis();
+  uint32_t lapso = ahora - inicioSegundo;
+  if (lapso < 1000) {
+    return;
+  }
+  MedidasPantalla m = {};
+  m.cuadros = (cuadros * 1000 + lapso / 2) / lapso;
+  if (cuadros > 0) {
+    m.promedio = {suma.dibujo / cuadros, suma.espera / cuadros, suma.giro / cuadros,
+                  suma.envio / cuadros};
+    m.maximo = maximo;
+  }
+  medidasSegundo = m;
+  cuadros = 0;
+  suma = {};
+  maximo = {};
+  inicioSegundo = ahora;
+}
+
+static void enviarImagen(TiemposCuadro &t) {
+  int64_t inicio = esp_timer_get_time();
   for (int fila = 0; fila < ALTO_PANEL; fila += FILAS_TANDA) {
     if (xSemaphoreTake(tandasLibres, pdMS_TO_TICKS(TIMEOUT_TANDA_MS)) != pdTRUE && !avisoTanda) {
       Serial.println("Pantalla: una tanda no termino de mandarse");
@@ -110,22 +163,40 @@ static void enviarImagen() {
     }
     uint16_t *tanda = tandas[proximaTanda];
     proximaTanda ^= 1;
+    int64_t antes = esp_timer_get_time();
     prepararTanda(fila, tanda);
+    t.giro += microsDesde(antes);
     // No espera: la interrupción avisa cuando se mandó
     if (esp_lcd_panel_draw_bitmap(panel, 0, fila, ANCHO_PANEL, fila + FILAS_TANDA, tanda) !=
         ESP_OK) {
       xSemaphoreGive(tandasLibres);
     }
   }
+  // El envío termina cuando el panel recibió la última tanda
+  int libres = 0;
+  while (libres < 2 && xSemaphoreTake(tandasLibres, pdMS_TO_TICKS(TIMEOUT_TANDA_MS)) == pdTRUE) {
+    libres++;
+  }
+  while (libres-- > 0) {
+    xSemaphoreGive(tandasLibres);
+  }
+  t.envio = microsDesde(inicio);
+}
+
+static void alEmpezarCuadro(lv_event_t *) {
+  inicioCuadro = esp_timer_get_time();
 }
 
 static void alDibujar(lv_display_t *disp, const lv_area_t *, uint8_t *) {
   // Modo directo: LVGL dibuja en la imagen entera solo lo que cambió. Se
   // manda una vez, al terminar la última zona.
   if (lv_display_flush_is_last(disp)) {
-    uint32_t inicio = millis();
-    enviarImagen();
-    ultimoEnvioMs = millis() - inicio;
+    TiemposCuadro t = {};
+    t.dibujo = microsDesde(inicioCuadro);
+    enviarImagen(t);
+    // Mientras se manda, quien tiene LVGL espera
+    t.espera = t.envio;
+    contarCuadro(t);
   }
   lv_display_flush_ready(disp);
 }
@@ -197,6 +268,7 @@ static void atenderLvgl() {
     hueco = ahora - ultimaAtencion;
   }
   ultimaAtencion = ahora;
+  cerrarSegundo();
   lv_timer_handler();
 }
 
@@ -308,6 +380,7 @@ static void iniciarLvgl() {
   display = lv_display_create(ANCHO, ALTO);
   lv_display_set_flush_cb(display, alDibujar);
   lv_display_set_buffers(display, imagen, nullptr, BYTES_IMAGEN, LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_add_event_cb(display, alEmpezarCuadro, LV_EVENT_REFR_START, nullptr);
 
   lv_indev_t *indev = lv_indev_create();
   lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
@@ -424,18 +497,20 @@ void PantallaHw::dibujarYa() {
   }
 }
 
-uint32_t PantallaHw::medirRefresco(uint32_t &envio) {
-  envio = 0;
+TiemposCuadro PantallaHw::medirRefresco() {
   if (!lista) {
-    return 0;
+    return {};
   }
   tomar();
   lv_obj_invalidate(lv_screen_active());
-  uint32_t inicio = millis();
   lv_refr_now(display);
-  envio = ultimoEnvioMs;
+  TiemposCuadro t = ultimoCuadro;
   soltar();
-  return millis() - inicio;
+  return t;
+}
+
+MedidasPantalla PantallaHw::medidas() const {
+  return medidasSegundo;
 }
 
 bool PantallaHw::toqueCrudo(uint16_t &x, uint16_t &y) const {

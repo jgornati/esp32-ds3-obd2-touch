@@ -2,6 +2,21 @@
 
 #include <stdint.h>
 
+// Lo que tardó un cuadro, en microsegundos
+struct TiemposCuadro {
+  uint32_t dibujo; // LVGL dibujando lo que cambió, en quien la tiene
+  uint32_t espera; // quien tiene LVGL, esperando el envío
+  uint32_t giro;   // pasar la imagen a vertical
+  uint32_t envio;  // desde que se empieza a mandar hasta que el panel recibió todo
+};
+
+// Los cuadros de un segundo: cuántos, y el promedio y el máximo de cada tiempo
+struct MedidasPantalla {
+  uint16_t cuadros;
+  TiemposCuadro promedio;
+  TiemposCuadro maximo;
+};
+
 // Hardware de la pantalla: panel AXS15231B por QSPI, touch por I2C,
 // retroiluminación y el puerto de LVGL. En la V2 de la placa, el reset del
 // panel y el encendido de la luz van por el TCA9554: iniciarPlaca() antes. LVGL dibuja en
@@ -32,9 +47,10 @@ public:
   // antes de algo que bloquea sin llamar a atender().
   void dibujarYa();
 
-  // Dibuja y manda la pantalla entera. Devuelve los ms del refresco
-  // completo; envio, los de mandarla al panel.
-  uint32_t medirRefresco(uint32_t &envio);
+  // Dibuja y manda la pantalla entera, y devuelve lo que tardó
+  TiemposCuadro medirRefresco();
+  // Las del último segundo completo
+  MedidasPantalla medidas() const;
 
   // Última lectura del touch, sin girar (para calibrar). false sin dedo.
   bool toqueCrudo(uint16_t &x, uint16_t &y) const;

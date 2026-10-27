@@ -88,7 +88,7 @@ constexpr uint8_t PIN_SD_CLK = 41;
 constexpr uint8_t PIN_SD_CMD = 39;
 constexpr uint8_t PIN_SD_D0 = 40;
 // Registro del viaje: una línea cada PERIODO_LINEA_MS, que espera en un búfer
-// de TAM_BUFER_REGISTRO bytes (~50 s de líneas). La tarea de la tarjeta la
+// de TAM_BUFER_REGISTRO bytes (~35 s de líneas). La tarea de la tarjeta la
 // escribe cada PERIODO_REGISTRO_MS: si se corta la luz, se pierde eso.
 constexpr uint32_t PERIODO_LINEA_MS = 1000;
 constexpr uint32_t PERIODO_REGISTRO_MS = 5000;

@@ -187,6 +187,8 @@ no se detecta después.
 | `Consultas/s` | Las consultas a la ECU del último segundo |
 | `Distancia km`, `En marcha s` | Las del viaje, como en VIAJE: la última línea tiene el total |
 | `G lateral`, `G long.` | La fuerza G en ese momento: la lateral, positiva en una curva a la derecha; la longitudinal, positiva acelerando y negativa frenando. Vacías sin calibrar o sin sensor |
+| `Pagina` | La página a la vista (`MOTOR`, `FUERZA G`...). Vacía sin datos, con la pantalla de espera |
+| `Cuadros/s` a `Envio max ms` | Lo que tardan los cuadros de la pantalla en el último segundo, como en la tabla del monitor: cuántos se mandaron y el promedio y el máximo de cada tiempo, en ms (ver **Consola**) |
 | `Eventos` | Lo que pasó en ese segundo, separado por ` \| `: el inicio de la placa y por qué (`encendido`, `brownout`...), los cambios de la conexión (`LEYENDO`, `SIN_ECU (No responde)`...), las alarmas, las fallas leídas en FALLAS cuando cambian, `Viaje reiniciado`, los errores de la tarjeta y `Reloj puesto en hora` (la columna `Hora` salta) |
 
 Los máximos del viaje salen en la planilla (`MAX()` de la columna).
@@ -248,7 +250,7 @@ borra las fallas, da `RECHAZADO`).
 
 | Comando       | Qué hace |
 | ------------- | -------- |
-| `!info`       | Chip, memoria, último reinicio, pantalla, adaptador, ECU, tarjeta y reloj |
+| `!info`       | Chip, memoria, último reinicio, pantalla (los cuadros del último segundo y un refresco completo), adaptador, ECU, tarjeta y reloj |
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
@@ -263,8 +265,20 @@ borra las fallas, da `RECHAZADO`).
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
 
 Cada segundo, con la ECU conectada, imprime una línea con todos los datos,
-las consultas por segundo (~6), la distancia y el tiempo en marcha del viaje
-y la fuerza G. Cada cambio de la tarjeta también sale ahí.
+las consultas por segundo (~6), lo que tardan los cuadros de la pantalla, la
+distancia y el tiempo en marcha del viaje y la fuerza G. Cada cambio de la
+tarjeta también sale ahí.
+
+Lo de la pantalla es cuántos cuadros se mandaron en el último segundo y, de
+cada tiempo, el promedio y el máximo de esos cuadros, en ms
+(`dibujo 3.2/7.9` es 3,2 de promedio y 7,9 de máximo):
+
+- `dibujo`: LVGL dibujando lo que cambió.
+- `espera`: el programa esperando que se termine de mandar la imagen.
+- `giro`: pasar la imagen a vertical, como la espera el panel.
+- `envio`: mandar la imagen al panel, con el giro.
+
+Lo que se le resta a las consultas es `dibujo` más `espera`.
 
 ## Hardware
 

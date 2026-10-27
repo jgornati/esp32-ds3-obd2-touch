@@ -103,6 +103,7 @@ static LecturaFallas fallas;              // la de la página Fallas
 static uint32_t proximaLecturaFallas = 0; // mientras se ve la página
 // El registro en la microSD (E13): una línea cada PERIODO_LINEA_MS desde la
 // primera lectura de la ECU
+static const size_t LARGO_LINEA_REGISTRO = 512; // con los eventos enteros
 static bool registrando = false;
 static uint32_t inicioRegistro = 0; // el millis() de la línea 0
 static uint32_t proximaLinea = 0;
@@ -183,6 +184,23 @@ static const char *motivoReinicio(esp_reset_reason_t causa) {
   }
 }
 
+static float ms(uint32_t us) {
+  return us / 1000.0f;
+}
+
+// "12 cuadros/s, dibujo 3.2/7.9, ... ms": de cada tiempo, el promedio y el
+// máximo de los cuadros de un segundo
+static void imprimirMedidas(const MedidasPantalla &m) {
+  Serial.printf("%u cuadros/s", m.cuadros);
+  if (m.cuadros == 0) {
+    return;
+  }
+  Serial.printf(", dibujo %.1f/%.1f, espera %.1f/%.1f, giro %.1f/%.1f, envio %.1f/%.1f ms",
+                ms(m.promedio.dibujo), ms(m.maximo.dibujo), ms(m.promedio.espera),
+                ms(m.maximo.espera), ms(m.promedio.giro), ms(m.maximo.giro), ms(m.promedio.envio),
+                ms(m.maximo.envio));
+}
+
 static void imprimirInfo() {
   Serial.printf("Chip: %s rev %u, %u nucleos, %lu MHz\n", ESP.getChipModel(),
                 (unsigned)ESP.getChipRevision(), (unsigned)ESP.getChipCores(),
@@ -210,10 +228,13 @@ static void imprimirInfo() {
   Serial.printf("Ultimo reinicio: %s\n", motivoReinicio(esp_reset_reason()));
 
   if (pantallaHw.iniciada()) {
-    uint32_t envio;
-    uint32_t total = pantallaHw.medirRefresco(envio);
-    Serial.printf("Pantalla: refresco completo %lu ms (envio al panel %lu ms)\n",
-                  (unsigned long)total, (unsigned long)envio);
+    Serial.print("Pantalla en el ultimo segundo: ");
+    imprimirMedidas(pantallaHw.medidas());
+    Serial.println(" (promedio/maximo)");
+    TiemposCuadro t = pantallaHw.medirRefresco();
+    Serial.printf("Pantalla: refresco completo %.1f ms: dibujo %.1f, espera %.1f, giro %.1f, envio "
+                  "%.1f ms\n",
+                  ms(t.dibujo + t.envio), ms(t.dibujo), ms(t.espera), ms(t.giro), ms(t.envio));
   }
   Serial.printf("Estado: %s; adaptador %s, %d dBm; ELM %s, protocolo %s, %u PIDs soportados\n",
                 textoEstado(estado), direccion[0] != '\0' ? direccion : "-", elm.rssi(),
@@ -364,8 +385,10 @@ static void anotar(const char *formato, ...) {
 // La primera línea del CSV: las columnas, con las etiquetas y unidades de la
 // tabla del monitor
 static size_t encabezadoRegistro(char *texto, size_t tam) {
-  static const char *const DESPUES[] = {"Consultas/s", "Distancia km", "En marcha s",
-                                        "G lateral",   "G long.",      "Eventos"};
+  static const char *const DESPUES[] = {
+      "Consultas/s", "Distancia km", "En marcha s",   "G lateral", "G long.",       "Pagina",
+      "Cuadros/s",   "Dibujo ms",    "Dibujo max ms", "Espera ms", "Espera max ms", "Giro ms",
+      "Giro max ms", "Envio ms",     "Envio max ms",  "Eventos"};
   LineaCsv linea(texto, tam);
   linea.texto("Seg");
   linea.texto("Hora");
@@ -390,7 +413,7 @@ static void abrirRegistro() {
   registrando = true;
   inicioRegistro = millis();
   proximaLinea = inicioRegistro;
-  char texto[400];
+  char texto[LARGO_LINEA_REGISTRO];
   tarjeta.abrir(texto, encabezadoRegistro(texto, sizeof(texto)));
   anotar("Inicio de la placa: %s", motivoReinicio(esp_reset_reason()));
 }
@@ -406,7 +429,7 @@ static void registrarSegundo() {
   uint32_t segundo = (ahora - inicioRegistro) / PERIODO_LINEA_MS;
   proximaLinea = inicioRegistro + (segundo + 1) * PERIODO_LINEA_MS;
 
-  char texto[400];
+  char texto[LARGO_LINEA_REGISTRO];
   char valor[24];
   LineaCsv linea(texto, sizeof(texto));
   snprintf(valor, sizeof(valor), "%lu", (unsigned long)segundo);
@@ -431,6 +454,18 @@ static void registrarSegundo() {
   linea.texto(g.actual ? valor : nullptr);
   snprintf(valor, sizeof(valor), "%+.2f", g.longitudinal);
   linea.texto(g.actual ? valor : nullptr);
+  // La pantalla: qué página se ve y lo que tardan sus cuadros
+  linea.texto(estado == Estado::LEYENDO && !descubriendo ? paginas.titulo() : nullptr);
+  MedidasPantalla m = pantallaHw.medidas();
+  snprintf(valor, sizeof(valor), "%u", m.cuadros);
+  linea.texto(valor);
+  const uint32_t tiempos[] = {m.promedio.dibujo, m.maximo.dibujo, m.promedio.espera,
+                              m.maximo.espera,   m.promedio.giro, m.maximo.giro,
+                              m.promedio.envio,  m.maximo.envio};
+  for (uint32_t us : tiempos) {
+    snprintf(valor, sizeof(valor), "%.1f", ms(us));
+    linea.texto(m.cuadros > 0 ? valor : nullptr);
+  }
   linea.texto(eventos.texto());
   eventos.vaciar();
   tarjeta.agregar(texto, linea.terminar());
@@ -1069,6 +1104,9 @@ static void imprimirTabla() {
   Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s, touch sin leer hasta %lu ms",
                 consultasPorSegundo, (unsigned long)(consultas > 0 ? msConsultas / consultas : 0),
                 (unsigned long)lecturasRpm * 1000 / lapso, (unsigned long)pantallaHw.huecoMaximo());
+  // Y lo que tardan los cuadros de la pantalla, que se le restan a loop()
+  Serial.print(", pantalla ");
+  imprimirMedidas(pantallaHw.medidas());
   Serial.printf(", viaje %.2f km en %lu s", viaje.distanciaKm(),
                 (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
   LecturaG g = imu.lectura(ahora);
