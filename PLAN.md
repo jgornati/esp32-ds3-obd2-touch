@@ -41,9 +41,8 @@ que corresponda antes de portar un módulo.
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
 | E16   | Cambiar de página deslizando el dedo   | E4         | Hecha (falta verificar en hardware) |
 | E17   | Pantalla fluida: que dibujar no frene  | E16        | Verificada (salvo FUERZA G con el punto moviéndose y el `LCD_TE`; en DS3, ~1 consulta menos por segundo) |
-| E18   | CAN directo, sin el ELM                | E17        | Pendiente (hace falta el transceptor) |
 | E19   | Micrófono y parlante: grabar y hablar  | E11        | Pendiente |
-| E20   | Asistente de voz por OpenRouter        | E19        | Pendiente (después de E17; mejor después de E18) |
+| E20   | Asistente de voz por OpenRouter        | E19        | Pendiente |
 | E21   | WhatsApp por el celular                | E20        | Pendiente |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
@@ -55,11 +54,11 @@ de usarlo en el auto. E8 se descartó (ver la etapa): se sigue por E9. E10
 y E11 se pueden hacer en cualquier orden. E14 necesita la batería puesta
 (ver la etapa). E15 la pidió el usuario el 2026-10-26, al saberse en E11 que
 la placa es la V2; se hizo antes que E12. E16 la pidió el usuario el
-2026-10-27, después de usarlo en el auto. E17 y E18 son el plan de
-optimización que pidió el mismo día: E17 no necesita nada nuevo; E18, un
-transceptor CAN. E19 a E21 son el asistente de voz que pidió también ese día:
-preguntarle cosas en voz alta y, más adelante, que lea y mande mensajes de
-WhatsApp.
+2026-10-27, después de usarlo en el auto. E17 es la optimización que pidió
+el mismo día. No hay E18: era leer la ECU por CAN directo, sin el ELM, y el
+usuario la sacó del plan el 2026-10-27 (la va a hacer en otro proyecto). E19
+a E21 son el asistente de voz que pidió también ese día: preguntarle cosas
+en voz alta y, más adelante, que lea y mande mensajes de WhatsApp.
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -749,60 +748,6 @@ Lo que se sabe hoy:
 en todas las páginas (6–7), también en FUERZA G y DS3; los cambios de página
 y las animaciones, más suaves y sin cortes.
 
-### E18 — CAN directo, sin el ELM
-
-**Objetivo:** leer la ECU directo del bus CAN del conector OBD, con el
-controlador CAN que trae el ESP32-S3 (TWAI), sin el adaptador BLE. El ELM
-por BLE no da más: **~148 ms por consulta** pidiendo uno o seis PIDs, con el
-intervalo BLE ya en 7,5–15 ms y sin hacerle caso a `ATST`/`ATAT` (E3). Por
-el bus, una ECU contesta en decenas de ms: se esperan **20 a 50 consultas
-por segundo** (hoy 6–7), y los datos ~1 s después de poner el contacto, sin
-buscar ni conectar el BLE.
-
-**Hardware:**
-
-- Un transceptor CAN de **3,3 V**: el módulo **SN65HVD230** (o "VP230").
-  No el MCP2515 + TJA1050, que es de 5 V y va por SPI.
-- Del conector OBD: CAN-H en el pin 6, CAN-L en el 14 y masa en el 4 o el 5
-  (el DS3 usa CAN de 11 bits a 500 kbit/s, `ATSP6`). Un cable en Y si se
-  quiere seguir usando el adaptador BLE.
-- A la placa, por el conector J6 de expansión: 3V3, GND, **GPIO1 (TX) y
-  GPIO2 (RX)**, según el esquemático de la V1 (J6: IO0–IO5, IO19, IO20, GND,
-  3V3, VBUS). Confirmar en la V2. El GPIO0 es BOOT, el 3 es de arranque y el
-  4 lee la batería: no usarlos.
-- **Sacarle al módulo su resistencia de 120 Ω** (en la mayoría, R2): el bus
-  del auto ya está terminado.
-
-**Antes de programar, decidir con el usuario:**
-
-- Si el ELM queda como alternativa (elegible en `config.h`) o se reemplaza.
-- Qué se ve mientras no hay ECU, ya que no hay BLE que conectar.
-- **La lista blanca a nivel de trama**, que sigue la regla del proyecto: el
-  único camino al auto, revisado y con tests.
-
-**Tareas:**
-
-1. TWAI a 500 kbit/s, primero **en modo solo escucha**: confirmar la
-   velocidad, sin errores en el bus, y que el bus de diagnóstico está
-   tranquilo con el motor andando. Recién después, transmitir.
-2. **ISO-TP** (ISO 15765-2) en `lib/obd`, con tests: trama única, primera y
-   consecutivas, y control de flujo. Los pedidos de varios PIDs y los
-   códigos de falla vienen en varias tramas.
-3. **Lista blanca:** solo pedidos a `0x7DF`/`0x7E0` de los servicios 01, 03,
-   07, 0A y 09, y el control de flujo de ISO-TP. El 04 (borrar fallas), nunca.
-4. Un transporte con la misma interfaz que `Elm327`, para que el sondeo, las
-   páginas y el registro no cambien.
-5. Medir las consultas por segundo y lo que tarda la ECU; ajustar el sondeo y
-   el redibujo para aprovecharlo.
-
-**Riesgos:** se transmite en el bus del auto, como hace el ELM. Una velocidad
-mal puesta llena el bus de errores: por eso primero solo escuchar. Hace falta
-un cable del conector OBD hasta la pantalla.
-
-**Verificación del usuario:** en el auto, los mismos datos que con el ELM, con
-más consultas por segundo; las fallas se leen igual; el auto no marca nada
-raro (ninguna luz nueva en el tablero).
-
 ### E19 — Micrófono y parlante: grabar y hablar
 
 **Objetivo:** la base del asistente, sin internet: grabar la voz con los
@@ -876,8 +821,8 @@ entre que se termina de hablar y empieza la respuesta.
 **Reglas que no se negocian:**
 
 - **Solo lectura con el auto, también para el asistente.** El modelo recibe un
-  resumen de los datos; no hay ningún camino desde la respuesta hacia el ELM
-  o el CAN. Si se usan herramientas, son solo de lectura.
+  resumen de los datos; no hay ningún camino desde la respuesta hacia el ELM.
+  Si se usan herramientas, son solo de lectura.
 - **La clave y la contraseña del Wi-Fi no van en el código ni en el
   repositorio:** se cargan por la consola y quedan en `Preferences`.
 - **Para manejar:** respuestas cortas y habladas, sin textos largos en la
@@ -888,15 +833,15 @@ entre que se termina de hablar y empieza la respuesta.
 **Riesgos que hay que medir primero** (una prueba chica antes de armar todo):
 
 - **RAM interna:** hoy quedan 74 KB libres; el Wi-Fi y TLS necesitan una parte
-  grande. Puede hacer falta E17 (búferes a la PSRAM) o E18 (sin BLE). (E17 no
-  pasó nada a la PSRAM: las dos tandas del envío, 44 KB, siguen en la RAM
-  interna, y su tarea suma 4 KB.)
+  grande. Puede hacer falta pasar búferes a la PSRAM. (E17 no pasó nada a la
+  PSRAM: las dos tandas del envío, 44 KB, siguen en la RAM interna, y su
+  tarea suma 4 KB.)
 - **Wi-Fi y BLE comparten la radio:** mientras se habla con OpenRouter, el ELM
-  por BLE puede ir más lento. Con E18 (CAN directo) el problema desaparece.
-- **Flash:** hoy 65 % de 3 MB (59 % desde E17; con todo a `-Os`, ~50 %: ver
-  notas de E17); Wi-Fi y HTTPS suman bastante. Puede hacer falta
-  otra tabla de particiones (la flash es de 16 MB y la partición FAT de 9 MB
-  no se usa), cuidando lo guardado en `Preferences`.
+  por BLE puede ir más lento.
+- **Flash:** hoy 59 % de 3 MB (con todo a `-Os`, ~50 %: ver notas de E17);
+  Wi-Fi y HTTPS suman bastante. Puede hacer falta otra tabla de particiones
+  (la flash es de 16 MB y la partición FAT de 9 MB no se usa), cuidando lo
+  guardado en `Preferences`.
 
 **Tareas:**
 
@@ -3843,7 +3788,7 @@ Falta verificar:
 - `!info` una vez, con el motor andando: `LCD_TE N barridos/s` (si el TE
   llega) y la RAM interna libre.
 
-Para E18 y E20:
+Para E20:
 
 - Compilar todo el proyecto a `-Os` bajaría el programa a ~50 % (ver **Ideas
   para después**): ayuda con la flash de E20, pero hay que volver a probar todo.
