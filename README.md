@@ -230,7 +230,8 @@ cambiando de página: no hay nada que aceptar, y la alarma se va sola.
 - **Olvidar adaptador:** hay que mantenerlo apretado 3 s (se llena de rojo
   mientras tanto); soltarlo antes o correr el dedo lo cancela. Borra la
   dirección guardada y busca el adaptador de cero.
-- **Brillo:** `-` y `+` lo cambian en 5 niveles (los segmentos del medio).
+- **Brillo:** `-` y `+` lo cambian en 5 niveles (los segmentos del medio). El
+  más bajo se sigue leyendo de noche: por debajo, la luz se apaga del todo.
   Queda guardado para el próximo arranque; sin nada guardado, al máximo.
 - **Tarjeta:** la microSD (ver **Registro en la microSD**). Hasta E13 ese
   renglón era la dirección del adaptador, que ahora sale en `!info`.
@@ -251,6 +252,7 @@ borra las fallas, da `RECHAZADO`).
 | `!log`        | Prende o apaga el detalle de cada consulta |
 | `!pitar`      | Los tres pitidos de una alarma, para probar el parlante |
 | `!brillo N`   | El brillo, de 1 a 5, como en Info (anda también sin la ECU) |
+| `!luz V`      | La luz con un valor de 0 a 255, sin guardar, para medir los niveles (con 90 o menos se apaga). `!brillo N` vuelve a un nivel |
 | `!imu`        | La última medición del IMU en sus ejes (para ver cómo está montado), la fuerza G que sale de ella, los máximos y cuántas veces calibró |
 | `!sd`         | La microSD: tamaño y espacio libre, el archivo del viaje, cuánto lleva grabado, líneas perdidas y errores |
 | `!hora AAAA-MM-DD HH:MM` | Pone el reloj en hora (también con `:SS`). Sin nada, muestra la hora |

@@ -1320,13 +1320,22 @@ static void reiniciarPlaca() {
   esp_restart();
 }
 
-// De Info (- y +) o de la consola (!brillo N). No usa el ELM.
+// De Info (- y +) o de la consola (!brillo N). No usa el ELM. La luz se
+// pone aunque sea el mismo nivel: después de un !luz, vuelve.
 static void cambiarBrillo(uint8_t nivel) {
-  if (brillo.poner(nivel)) {
-    pantallaHw.ponerBrillo(brillo.valor());
+  bool cambio = brillo.poner(nivel);
+  pantallaHw.ponerBrillo(brillo.valor());
+  if (cambio) {
     dibujar();
   }
   Serial.printf("Pantalla: brillo %u de %u\n", brillo.nivel(), CANT_NIVELES_BRILLO);
+}
+
+// !luz V: un valor de la luz, de 0 a 255, sin guardar, para medir los
+// niveles en el banco
+static void probarLuz(uint8_t valor) {
+  pantallaHw.ponerBrillo(valor);
+  Serial.printf("Pantalla: luz %u de 255, sin guardar (!brillo N vuelve a un nivel)\n", valor);
 }
 
 // Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
@@ -1351,6 +1360,10 @@ static void atenderAcciones() {
     dibujar();
   } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
     cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
+  }
+  uint8_t valorLuz;
+  if (consola.luzPedida(&valorLuz)) {
+    probarLuz(valorLuz);
   }
   uint8_t nivel = consola.brilloPedido();
   if (nivel > CANT_NIVELES_BRILLO) {
@@ -1413,8 +1426,8 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !brillo N, !imu, !sd, !hora AAAA-MM-DD HH:MM, !escanear o "
-                 "!explorar N.");
+                 "!info, !pitar, !brillo N, !luz V, !imu, !sd, !hora AAAA-MM-DD HH:MM, "
+                 "!escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
