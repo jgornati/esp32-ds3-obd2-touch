@@ -39,7 +39,7 @@ constexpr uint8_t PIN_TOUCH_SCL = 18;
 constexpr uint8_t DIRECCION_TOUCH = 0x3B;
 
 // I2C de la placa. Se inicia antes que la pantalla (placa.h), con el
-// TCA9554; el RTC y el IMU todavía no se usan.
+// TCA9554; el RTC todavía no se usa.
 constexpr uint8_t PIN_I2C_SDA = 47;
 constexpr uint8_t PIN_I2C_SCL = 48;
 constexpr uint8_t DIRECCION_RTC = 0x51;      // PCF85063
@@ -54,6 +54,27 @@ constexpr uint8_t PIN_I2S_BCLK = 15;
 constexpr uint8_t PIN_I2S_WS = 46;
 constexpr uint8_t PIN_I2S_SALIDA = 45; // DSDIN del ES8311
 constexpr uint8_t PIN_EXPANSOR_AMPLIFICADOR = 7;
+
+// IMU (E12): el acelerómetro del QMI8658, leído por una tarea cada
+// PERIODO_IMU_MS. Sus interrupciones (pines 2 y 3 del TCA9554) no se usan.
+// EJE_DERECHA_IMU es el eje del sensor (x, y, z) que va a lo largo de la
+// pantalla, hacia la derecha, con PANTALLA_GIRADA = false (girada, el
+// contrario). Sin verificar en la placa: con la placa parada sobre su lado
+// izquierdo (el derecho para arriba), !imu da ~+1 g en ese eje.
+constexpr float EJE_DERECHA_IMU[3] = {1, 0, 0};
+constexpr uint32_t PERIODO_IMU_MS = 20;
+// Las vibraciones: un filtro de primer orden con esta constante de tiempo
+constexpr uint32_t FILTRO_FUERZA_G_MS = 300;
+// "Abajo" se calibra con la placa quieta QUIETA_FUERZA_G_MS (cada muestra a
+// menos de TOLERANCIA_QUIETA_G del promedio): al arrancar y en cada parada
+// (la ECU en 0 km/h)
+constexpr uint32_t QUIETA_FUERZA_G_MS = 2000;
+constexpr float TOLERANCIA_QUIETA_G = 0.05f;
+// Sin muestras por más que esto, "--"
+constexpr uint32_t VIGENCIA_FUERZA_G_MS = 500;
+// Con FUERZA G a la vista, la página se redibuja cada esto (las demás, cada
+// PERIODO_PANTALLA_MS)
+constexpr uint32_t PERIODO_FUERZA_G_MS = 50;
 
 // GPIO16 no se usa: el ejemplo 07 lo lee para saber si está prendida por batería.
 

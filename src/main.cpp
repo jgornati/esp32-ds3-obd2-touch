@@ -18,6 +18,7 @@
 #include "descubrimiento.h"
 #include "elm327.h"
 #include "explorar.h"
+#include "imu.h"
 #include "paginas.h"
 #include "pantalla.h"
 #include "pantalla_hw.h"
@@ -66,6 +67,7 @@ static const ReglaAlarma REGLAS_ALARMAS[CANT_ALARMAS] = {
 Alarmas alarmas(REGLAS_ALARMAS);
 Sonido sonido;
 Brillo brillo;
+Imu imu;
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -206,6 +208,36 @@ static void imprimirInfo() {
                 brillo.nivel(), CANT_NIVELES_BRILLO);
   Serial.printf("Sonido: %s; alarmas activas: %u%s\n", sonido.iniciado() ? "listo" : "no anda",
                 alarmas.activas(), ALARMAS_DE_PRUEBA ? " (umbrales de prueba)" : "");
+  if (imu.iniciado()) {
+    Serial.printf("IMU: listo; %lu calibraciones, %lu lecturas fallidas\n",
+                  (unsigned long)imu.calibraciones(), (unsigned long)imu.lecturasFallidas());
+  } else {
+    Serial.println("IMU: no anda");
+  }
+}
+
+// !imu: la última muestra sin filtrar, para ver los ejes del sensor, y lo
+// que sale de ella
+static void imprimirImu() {
+  Vector a;
+  if (!imu.cruda(&a)) {
+    Serial.println("IMU: sin muestras (ver el arranque o !info)");
+    return;
+  }
+  LecturaG g = imu.lectura(millis());
+  Serial.printf("IMU: x %+.2f, y %+.2f, z %+.2f g (total %.2f g); ", a.x, a.y, a.z,
+                sqrtf(a.x * a.x + a.y * a.y + a.z * a.z));
+  if (!g.calibrada) {
+    Serial.printf("sin calibrar (calibra quieta %lu s); %lu lecturas fallidas\n",
+                  (unsigned long)(QUIETA_FUERZA_G_MS / 1000),
+                  (unsigned long)imu.lecturasFallidas());
+    return;
+  }
+  Serial.printf("lateral %+.2f, longitudinal %+.2f g%s; maximos: frenada %.2f, aceleracion %.2f, "
+                "curva izq %.2f, curva der %.2f g; %lu calibraciones, %lu lecturas fallidas\n",
+                g.lateral, g.longitudinal, g.actual ? "" : " (vencida)", g.frenada.valor,
+                g.aceleracion.valor, g.curvaIzquierda.valor, g.curvaDerecha.valor,
+                (unsigned long)imu.calibraciones(), (unsigned long)imu.lecturasFallidas());
 }
 
 // La magnitud de la página que va en rojo con cada alarma
@@ -282,7 +314,8 @@ static void dibujar() {
     paginas.dibujar(ahora,
                     {version, protocolo, soportados.cantidad(), consultasPorSegundo, direccion,
                      rssi, brillo.nivel()},
-                    fallas, segundosHasta(proximaLecturaFallas), viaje, alarmaALaVista(ahora));
+                    fallas, segundosHasta(proximaLecturaFallas), viaje,
+                    {imu.iniciado(), imu.lectura(ahora)}, alarmaALaVista(ahora));
     break;
   case Estado::SIN_ECU:
     if (ecuPerdida) {
@@ -311,12 +344,13 @@ static void cambiarA(Estado nuevo, uint32_t esperaMs = 0) {
 }
 
 // El sondeo consulta en cada vuelta lo que se ve en la página actual. En
-// Fallas, Info, Viaje y DS3 no hay datos a la vista: se siguen pidiendo los
-// de Motor, juntos. Si no, la ECU se consulta de a un PID y espaciado, y en el
-// auto hubo 4 NO DATA seguidos con el motor andando, a uno de un SIN_ECU
-// falso (E5). Para el viaje, además, la velocidad va en todas (la distancia
-// sale de integrarla) y la RPM en las que entra, para no perder el máximo. En
-// Mezcla no entra: con sus 5 y la velocidad ya son MAX_VISIBLES.
+// Fallas, Info, Viaje, Fuerza G y DS3 no hay datos a la vista: se siguen
+// pidiendo los de Motor, juntos. Si no, la ECU se consulta de a un PID y
+// espaciado, y en el auto hubo 4 NO DATA seguidos con el motor andando, a
+// uno de un SIN_ECU falso (E5). Para el viaje, además, la velocidad va en
+// todas (la distancia sale de integrarla) y la RPM en las que entra, para no
+// perder el máximo. En Mezcla no entra: con sus 5 y la velocidad ya son
+// MAX_VISIBLES. La velocidad sirve también para recalibrar la fuerza G.
 static void actualizarVisibles() {
   static const Magnitud DEL_VIAJE[] = {VELOCIDAD, RPM};
   Magnitud lista[MAX_VISIBLES];
@@ -369,13 +403,19 @@ static void atenderPaginas() {
   dibujar();
 }
 
+// En Fuerza G el punto se mueve: se redibuja más seguido
+static uint32_t periodoDibujo() {
+  bool fuerzaG = estado == Estado::LEYENDO && !descubriendo && paginas.muestraFuerzaG();
+  return fuerzaG ? PERIODO_FUERZA_G_MS : PERIODO_PANTALLA_MS;
+}
+
 // Mientras se espera al ELM, la pantalla sigue al día: así un dato que se
 // vence mientras tanto no queda a la vista. No usa el ELM. Corre también
 // mientras se busca el adaptador, con LVGL suelto (ver conectarBt()).
 static void alEsperar() {
   pantallaHw.tomar();
   atenderPaginas();
-  if (millis() - ultimoDibujo >= PERIODO_PANTALLA_MS) {
+  if (millis() - ultimoDibujo >= periodoDibujo()) {
     dibujar();
   }
   pantallaHw.atender();
@@ -871,8 +911,14 @@ static void imprimirTabla() {
   Serial.printf(" %d consultas/s, %lu ms cada una, RPM %lu/s, touch sin leer hasta %lu ms",
                 consultasPorSegundo, (unsigned long)(consultas > 0 ? msConsultas / consultas : 0),
                 (unsigned long)lecturasRpm * 1000 / lapso, (unsigned long)pantallaHw.huecoMaximo());
-  Serial.printf(", viaje %.2f km en %lu s\n", viaje.distanciaKm(),
+  Serial.printf(", viaje %.2f km en %lu s", viaje.distanciaKm(),
                 (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
+  LecturaG g = imu.lectura(ahora);
+  if (g.actual) {
+    Serial.printf(", G lateral %+.2f long. %+.2f\n", g.lateral, g.longitudinal);
+  } else {
+    Serial.println(", G --");
+  }
   consultas = 0;
   msConsultas = 0;
   lecturasRpm = 0;
@@ -1066,6 +1112,13 @@ static void revisarAlarmas() {
   revisarAlarma(RPM_ALTA, hay, valor, dato(RPM).actualizadoMs);
 }
 
+// Con la ECU en 0 km/h, el IMU recalibra si la placa está quieta
+static void avisarParado() {
+  float kmh = 0;
+  bool leyendo = estado == Estado::LEYENDO && !descubriendo;
+  imu.parado(leyendo && valorActual(VELOCIDAD, millis(), &kmh) && kmh == 0);
+}
+
 // Mantener apretada la espera, por si la placa quedó trabada. Corre en un
 // evento de LVGL, que puede ser de la otra tarea si loop() está bloqueado.
 static void reiniciarPlaca() {
@@ -1099,6 +1152,7 @@ static void atenderAcciones() {
     Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
                   (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
     viaje.reiniciar();
+    imu.reiniciarMaximos();
     dibujar();
   } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
     cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
@@ -1152,6 +1206,7 @@ void setup() {
 
   boton.iniciar();
   sonido.iniciar();
+  imu.iniciar();
   elm.iniciar();
   elm.mientrasEspera(alEsperar);
   consola.antesDeExplorar(alExplorar);
@@ -1159,7 +1214,7 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !brillo N, !escanear o !explorar N.");
+                 "!info, !pitar, !brillo N, !imu, !escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
@@ -1174,6 +1229,9 @@ void loop() {
   }
   if (consola.infoPedida()) {
     imprimirInfo();
+  }
+  if (consola.imuPedido()) {
+    imprimirImu();
   }
   if (consola.pitidoPedido()) {
     Serial.println(sonido.iniciado() ? "Consola: pitando" : "Consola: el sonido no anda");
@@ -1207,8 +1265,9 @@ void loop() {
     break;
   }
   revisarAlarmas();
+  avisarParado();
 
-  if (millis() - ultimoDibujo >= PERIODO_PANTALLA_MS) {
+  if (millis() - ultimoDibujo >= periodoDibujo()) {
     dibujar();
   }
   pantallaHw.atender();

@@ -13,8 +13,8 @@ funcionamiento del auto. Nunca muestra datos simulados ni vencidos.
 ## Qué muestra
 
 Seis páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
-(17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), una con el viaje en curso
-y al final una animación:
+(17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), una con el viaje en curso,
+otra con la fuerza G y al final una animación:
 
 | Página    | Datos |
 | --------- | ----- |
@@ -25,6 +25,7 @@ y al final una animación:
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
 | INFO      | Adaptador y señal (RSSI), dirección, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
 | VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
+| FUERZA G  | Un punto en un círculo de 1 g con la aceleración del auto; la frenada o aceleración y la lateral de ahora, y los máximos del viaje para cada lado |
 | DS3       | El DS3 andando, con nubes y el camino corriéndose. Ocupa toda la pantalla, sin la barra ni datos |
 
 Cómo se ve cada dato:
@@ -124,6 +125,31 @@ pierde al sacarla: no se guarda.
   las demás. Reiniciar la placa desde la pantalla de espera también lo
   reinicia.
 
+### Fuerza G
+
+La mide el acelerómetro de la placa (el IMU QMI8658) 50 veces por segundo,
+aparte de las consultas a la ECU.
+
+- **El punto** se mueve como una bolita, hacia donde empuja el auto: al frenar
+  sube, al acelerar baja y en una curva a la derecha va a la izquierda. El
+  círculo de afuera es 1 g y el de adentro, 0,5 g; lo que pasa de 1 g queda en
+  el borde.
+- **Los valores de ahora:** arriba la frenada o la aceleración (`Frenada`,
+  `Acel.`) y abajo la curva (`Curva der`, `Curva izq`). En 0.00 dice `Long.` y
+  `Lateral`.
+- **Los máximos** de frenada, aceleración y curva a cada lado son del viaje: se
+  reinician con él, al poner el contacto y manteniendo apretada VIAJE.
+- **Las vibraciones** se filtran: lo que dura menos de ~0,3 s casi no se ve.
+- **La calibración:** la placa mide dónde es abajo con la gravedad, quieta 2 s.
+  Lo hace al poner el contacto (mientras tanto dice `Calibrando` y `...`) y en
+  cada parada, con la ECU en 0 km/h. Si se estacionó en una pendiente, se
+  corrige en la primera parada. Manejando en una subida, la pendiente se ve
+  como aceleración: el sensor no las distingue.
+- Adelante sale de la gravedad y del lado largo de la pantalla: la placa tiene
+  que ir de frente, no girada hacia un costado (la inclinación no importa).
+- Si el sensor deja de contestar: `--` y sin el punto. Si no contestó al
+  arrancar: `N/D` y `Sin sensor`.
+
 ### Alarmas
 
 En cualquier página, la barra de arriba se pone roja con un triángulo, la
@@ -170,20 +196,22 @@ borra las fallas, da `RECHAZADO`).
 | `!log`        | Prende o apaga el detalle de cada consulta |
 | `!pitar`      | Los tres pitidos de una alarma, para probar el parlante |
 | `!brillo N`   | El brillo, de 1 a 5, como en Info (anda también sin la ECU) |
+| `!imu`        | La última medición del IMU en sus ejes (para ver cómo está montado), la fuerza G que sale de ella, los máximos y cuántas veces calibró |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
 
 Cada segundo, con la ECU conectada, imprime una línea con todos los datos,
-las consultas por segundo (~6) y la distancia y el tiempo en marcha del
-viaje.
+las consultas por segundo (~6), la distancia y el tiempo en marcha del viaje
+y la fuerza G.
 
 ## Hardware
 
 - Waveshare ESP32-S3-Touch-LCD-3.49B, V2 (la plaqueta dice `Rev1.1`):
   ESP32-S3R8 (8 MB de PSRAM, 16 MB de flash), pantalla IPS de 172×640 con
-  touch capacitivo (AXS15231B), y parlante, con el códec ES8311 y el
-  amplificador NS4150B. Se usa en horizontal, a 640×172.
+  touch capacitivo (AXS15231B), parlante, con el códec ES8311 y el
+  amplificador NS4150B, e IMU QMI8658 (se usa solo el acelerómetro). Se usa
+  en horizontal, a 640×172.
 - Adaptador OBD BLE: anuncia `OBDBLE` con el
   servicio `FFF0` y responde como `ELM327 v2.1`. Detalle en **Datos
   descubiertos** de `PLAN.md`.
@@ -205,7 +233,8 @@ en `PLAN.md`). Con una V1 no anda: habría que volver a esos pines.
 - **Montaje:** lejos del sol directo (el LCD se oscurece con calor). La
   imagen se ve derecha con `PANTALLA_GIRADA = false` en
   `include/config.h`; si se monta al revés, `true` la gira 180° junto con
-  el touch.
+  el touch (y la fuerza G). Para la fuerza G, de frente: el lado largo de la
+  pantalla paralelo al eje de las ruedas; inclinada para atrás no importa.
 - Al poner el contacto, la placa y el adaptador arrancan juntos: lleva
   unos segundos llegar a los datos. Mientras tanto se ve el DS3 de la
   pantalla de espera.
@@ -231,7 +260,7 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 ## Tests
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
-del ELM, PIDs, fallas, el viaje y las alarmas) tiene tests que corren en la
+del ELM, PIDs, fallas, el viaje, las alarmas y la fuerza G) tiene tests que corren en la
 PC, con respuestas reales del DS3 y del adaptador:
 
 ```text
