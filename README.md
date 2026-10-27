@@ -322,6 +322,10 @@ en `PLAN.md`). Con una V1 no anda: habría que volver a esos pines.
 - `espressif32 @ 8.0.0` (Arduino-ESP32 3.3.x), placa
   `esp32-s3-devkitc-1` con la configuración de `platformio.ini`; LVGL
   9.3.0.
+- Optimización: Arduino-ESP32 3.3 compila el código sin `-O` (queda en
+  `-O0`). `optimizar.py` sube a `-O2` solo LVGL y el giro de la imagen
+  (`src/giro.cpp`), que son lo que cuesta dibujar; lo demás queda sin
+  optimizar.
 - Subir el firmware por el USB-C. Si no entra en modo de descarga:
   mantener BOOT, apretar RESET y soltar BOOT.
 - Monitor serie: 115200 baudios, por el USB-C. Abrir el puerto reinicia
