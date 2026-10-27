@@ -7,8 +7,8 @@
 
 #include "pantalla_hw.h"
 
-// Puntos de página que caben en la barra: las 8 de hoy y FUERZA G (E12)
-constexpr uint8_t MAX_PAGINAS = 9;
+// Puntos de página que caben en la barra: las 9 de E12 y ANTERIORES (E22)
+constexpr uint8_t MAX_PAGINAS = 10;
 
 // La marca "SD" de la barra, a la izquierda de los puntos (E13): en gris
 // mientras graba el registro, en ámbar si hay tarjeta pero no puede grabar
@@ -31,10 +31,11 @@ public:
   // con "Toca para reintentar" abajo a la derecha. Si en ese momento no se ve
   // la espera, después aparece directamente quieto.
   void espera(const char *estado, bool problema = false);
-  // Un toque en la espera desde la última llamada (reintentar ya)
+  // Un toque en la espera desde la última llamada (reintentar ya). Con el
+  // dedo corrido más de QUIETO_PX no cuenta: es para cambiar de página (E22).
   bool tomarReintento();
-  // funcion se llama cuando la espera lleva MANTENER_REINICIO_MS apretada
-  // (reiniciar la placa). Corre dentro de PantallaHw::atender(), que también
+  // funcion se llama cuando la espera lleva MANTENER_REINICIO_MS apretada,
+  // con el dedo quieto (reiniciar la placa). Corre dentro de PantallaHw::atender(), que también
   // atiende la otra tarea mientras se conecta.
   void alMantenerApretada(void (*funcion)());
   void alimentacionBaja();
@@ -63,6 +64,9 @@ public:
   void paginaCompleta(uint8_t numero, uint8_t total, const char *alarma = nullptr,
                       MarcaSd sd = MarcaSd::NINGUNA);
   lv_obj_t *areaCompleta() const;
+  // La espera, para que Paginas sepa si se ve: sin datos también se desliza
+  // (E22). nullptr sin pantalla.
+  lv_obj_t *areaEspera() const;
 
 private:
   PantallaHw &hw;

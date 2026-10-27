@@ -5,12 +5,14 @@
 // cada redibujo cuesta ~33 ms de envío), que deslizar el dedo cambie de
 // página como corresponde y tocar no, que los botones de Info pidan lo suyo
 // sin cambiar de página y no se aprieten al deslizar,
-// que la espera reintente y reinicie, que las animaciones se muevan, que
+// que la espera reintente y reinicie (y no al deslizar), que sin datos se
+// pase de la espera a Anteriores y a DS3, que tocar Anteriores pase al viaje
+// anterior, que las animaciones se muevan, que
 // mantener apretada Viaje la reinicie, que las alarmas se vean y no
 // redibujen de más, que el punto de Fuerza G vaya para donde corresponde,
 // que la tarjeta de Info y la marca SD de la barra tengan el color de su
 // estado, que la hora esté en la barra y en la espera, que los textos de
-// Fallas, Info, Viaje y Fuerza G no se pasen de su columna, y que el giro de
+// Fallas, Info, Viaje, Anteriores y Fuerza G no se pasen de su columna, y que el giro de
 // la imagen para el panel dé lo mismo que píxel por píxel.
 //
 // El reloj de LVGL es de mentira y no se refresca solo: las animaciones
@@ -32,6 +34,7 @@
 #include <lvgl.h>
 
 #include <alarmas.h>
+#include <anteriores.h>
 #include <dtc.h>
 #include <fuerza_g.h>
 #include <registro.h>
@@ -53,14 +56,14 @@ static const int ALTO = 172;
 static const int ESCALA = 2;
 static const int SEPARACION = 6;            // entre pantallas en todas.png
 static const int X_VALOR_INFO_RENDER = 132; // X_VALOR_INFO de paginas.cpp
-// La marca SD de pantalla.cpp, con los 9 puntos: termina 12 px antes del
-// primero (x 496) y es de 26x16, centrada en la barra
-static const int X_MARCA_SD = 458;
+// La marca SD de pantalla.cpp, con los 10 puntos: termina 12 px antes del
+// primero (x 480) y es de 26x16, centrada en la barra
+static const int X_MARCA_SD = 442;
 static const int Y_MARCA_SD = 6;
 // La hora termina 12 px antes de la marca; sin la marca, 12 antes del primer
 // punto
 static const int BORDE_HORA = X_MARCA_SD - 12;
-static const int BORDE_HORA_SIN_MARCA = 496 - 12;
+static const int BORDE_HORA_SIN_MARCA = 480 - 12;
 
 static uint32_t reloj = 100000;
 static uint16_t marco[ANCHO * ALTO];
@@ -251,6 +254,22 @@ static Viaje viajeDe(uint32_t minutos, float kmh, float velocidadMaxima, float r
   return viaje;
 }
 
+// Anteriores (E22): tres viajes guardados, del más nuevo al más viejo. El del
+// medio, sin voltajes (el ELM no contestó ATRV), y el más viejo, sin fecha y
+// con los valores más largos.
+static Anteriores anterioresDeLaMaqueta() {
+  Anteriores lista;
+  const FechaHora martes = {2026, 10, 27, 8, 12, 0};
+  const FechaHora lunes = {2026, 10, 26, 18, 40, 0};
+  lista.agregarViejo(resumir(viajeDe(38, 37.4f, 118, 5120, 94, 13.6f, 14.3f), 3, &martes));
+  ResumenViaje sinVoltajes = resumir(viajeDe(14, 22, 64, 3900, 88, 13.7f, 14.2f), 2, &lunes);
+  sinVoltajes.voltajeMinimo = Extremo();
+  sinVoltajes.voltajeMaximo = Extremo();
+  lista.agregarViejo(sinVoltajes);
+  lista.agregarViejo(resumir(viajeDe(754, 98.3f, 188, 6500, 112, 11.9f, 15.2f), 1, nullptr));
+  return lista;
+}
+
 // Fuerza G, con los ejes del sensor de los tests: la derecha en x, arriba en
 // y y la cara para atrás (adelante es -z)
 static const ReglasFuerzaG REGLAS_G = {
@@ -339,17 +358,16 @@ static bool todoDeColor(int x1, int x2, int y1, int y2, lv_color_t color) {
   return true;
 }
 
-// La marca SD, de ese color (sin color: no está)
-static bool marcaSd(const lv_color_t *color) {
-  int x2 = X_MARCA_SD + 25;
+// La marca SD, de ese color (sin color: no está). x: su borde izquierdo.
+static bool marcaSd(const lv_color_t *color, int x = X_MARCA_SD) {
+  int x2 = x + 25;
   int y2 = Y_MARCA_SD + 15;
   if (color == nullptr) {
-    return !hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, ETIQUETA) &&
-           !hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, AMBAR);
+    return !hayColor(x, x2, Y_MARCA_SD, y2, ETIQUETA) && !hayColor(x, x2, Y_MARCA_SD, y2, AMBAR);
   }
   // El fondo de la marca, y nada suyo antes ni después
-  return hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, *color) &&
-         todoDeColor(X_MARCA_SD - 3, X_MARCA_SD - 1, Y_MARCA_SD, y2, FONDO_BARRA) &&
+  return hayColor(x, x2, Y_MARCA_SD, y2, *color) &&
+         todoDeColor(x - 3, x - 1, Y_MARCA_SD, y2, FONDO_BARRA) &&
          todoDeColor(x2 + 1, x2 + 3, Y_MARCA_SD, y2, FONDO_BARRA);
 }
 
@@ -432,6 +450,13 @@ static int reinicios = 0;
 
 static void contarReinicio() {
   reinicios++;
+}
+
+// Sin datos, los pedidos que se atienden desde el evento (E22)
+static int pedidosSinDatos = 0;
+
+static void contarPedidoSinDatos() {
+  pedidosSinDatos++;
 }
 
 // La hora de la barra y de la espera: 14:35, o sin hora
@@ -520,11 +545,13 @@ int main(int argc, char **argv) {
   // El de la maqueta A de E12: frenando 0.41 g en una curva a la derecha de 0.28 g
   DatosFuerzaG fuerzaG = {true, lecturaG(0.28f, -0.41f)};
   AlarmaALaVista alarma = {nullptr, 0};
+  Anteriores anteriores = anterioresDeLaMaqueta();
   size_t antes = memoriaEnUso();
   paginas.iniciar();
+  paginas.alPedirSinDatos(contarPedidoSinDatos);
   const int cantidad = cantidadDePaginas(paginas);
   for (int i = 0; i < cantidad; i++) {
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     lv_refr_now(nullptr);
     paginas.cambiar(1);
   }
@@ -599,14 +626,14 @@ int main(int argc, char **argv) {
   revisar(sinVer.quieto(), "espera: si no se veia a los 5 s, el auto aparece quieto");
 
   for (int i = 1; i <= cantidad; i++) {
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     char nombre[32];
     snprintf(nombre, sizeof(nombre), "%d-%s", i, paginas.titulo());
     for (char *c = nombre; *c != '\0'; c++) {
       *c = *c == '/' || *c == ' ' ? '-' : (char)tolower(*c);
     }
     guardar(directorio, nombre);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     char que[64];
     snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", paginas.titulo());
     revisar(display->inv_p == 0, que);
@@ -624,22 +651,22 @@ int main(int argc, char **argv) {
   actualizarDato(AJ_CORTO, -12.5f, reloj);
   actualizarDato(LAMBDA, 0.91f, reloj);
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "7-motor-extremos");
   irA(paginas, "CARGA");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "8-carga-extremos");
   irA(paginas, "MEZCLA");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "9-mezcla-extremos");
 
   // Vencidos: "--" en gris, sin barras
   reloj += 5000;
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "a-motor-vencido");
   irA(paginas, "MEZCLA");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "b-mezcla-vencido");
 
   // Fallas: cada caso con su nombre, la lectura y si los textos van en
@@ -673,9 +700,9 @@ int main(int argc, char **argv) {
   reintento = 4;
   for (const CasoFallas &caso : casos) {
     fallas = caso.lectura;
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     guardar(directorio, caso.nombre);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     char que[96];
     snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", caso.nombre);
     revisar(display->inv_p == 0, que);
@@ -691,15 +718,15 @@ int main(int argc, char **argv) {
   fallas = lecturaFallas("410185076100", "00C\r0: 43 05 04 20 01 71 \r1: 03 02 12 34 01 33 00 \r\r",
                          "47 02 01 33 03 00", "NO DATA");
   reloj += 2 * PERIODO_GRUPO_FALLAS_MS - reloj % (2 * PERIODO_GRUPO_FALLAS_MS);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "l-fallas-grupo-1");
   revisar(franjaVacia(633, ANCHO - 1) && franjaVacia(209, 219),
           "l-fallas-grupo-1: nada se pasa de su columna");
   reloj += PERIODO_GRUPO_FALLAS_MS - 1;
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(display->inv_p == 0, "el grupo no cambia antes de tiempo");
   reloj += 1;
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(display->inv_p > 0, "a los 3 s pasa al otro grupo");
   guardar(directorio, "m-fallas-grupo-2");
   revisar(guardadas[guardadas.size() - 1] != guardadas[guardadas.size() - 2],
@@ -710,12 +737,12 @@ int main(int argc, char **argv) {
   // Info: cada botón pide lo suyo sin cambiar de página. Los centros, con
   // la barra de 28 px: Reconectar (528, 66) y Olvidar (528, 134).
   irA(paginas, "INFO");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   std::vector<uint16_t> suelta = capturar();
   revisar(franjaVacia(417, 423), "Info: los datos no llegan a los botones");
 
   apoyar(indev, 528, 66);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "n-info-reconectar-apretado");
   levantar(indev);
   revisar(paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::RECONECTAR,
@@ -724,7 +751,7 @@ int main(int argc, char **argv) {
 
   apoyar(indev, 528, 134);
   bool antesDeTiempo = mantener(indev, paginas, MANTENER_OLVIDAR_MS / 2);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "o-info-olvidar-a-la-mitad");
   antesDeTiempo = mantener(indev, paginas, MANTENER_OLVIDAR_MS / 2 - 100) || antesDeTiempo;
   revisar(!antesDeTiempo, "Olvidar: antes de 3 s no pide nada");
@@ -733,7 +760,7 @@ int main(int argc, char **argv) {
   levantar(indev);
   revisar(paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
           "Olvidar: al soltarlo no cambia de pagina ni pide nada");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(capturar() == suelta, "Olvidar: suelto, el relleno desaparece");
 
   // Para arriba, hasta Reconectar: no es un deslizamiento de costado
@@ -769,9 +796,9 @@ int main(int argc, char **argv) {
           "Brillo: + pide subirlo, sin cambiar de pagina");
   revisar(paginas.tomarAccion(reloj) == Accion::NINGUNA, "Brillo: lo pide una sola vez");
   info.brillo = CANT_NIVELES_BRILLO;
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "p-info-brillo-maximo");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(display->inv_p == 0, "Info con el brillo al maximo: dibujar de nuevo no redibuja nada");
   info.brillo = 3;
 
@@ -796,7 +823,7 @@ int main(int argc, char **argv) {
   };
   for (const CasoTarjeta &caso : TARJETAS) {
     info.tarjeta = caso.estado;
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     if (caso.nombre != nullptr) {
       guardar(directorio, caso.nombre);
     } else {
@@ -812,7 +839,7 @@ int main(int argc, char **argv) {
     snprintf(que, sizeof(que), "Barra con \"%s\": la hora antes de la marca o de los puntos",
              texto);
     revisar(horaEnLaBarra(caso.marca != nullptr ? BORDE_HORA : BORDE_HORA_SIN_MARCA, BLANCO), que);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     snprintf(que, sizeof(que), "Info con \"%s\": dibujar de nuevo no redibuja nada", texto);
     revisar(display->inv_p == 0, que);
   }
@@ -837,7 +864,7 @@ int main(int argc, char **argv) {
   // DS3: el paseo, a pantalla completa. Los momentos de los cuadros 0, 5 y
   // 30 de los originales (la vuelta empieza con el reloj en 0).
   irA(paginas, "DS3");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   uint32_t vuelta = reloj - reloj % paseo.duracion_ms + paseo.duracion_ms;
   for (uint32_t cuadro : {0, 5, 30}) {
     irA(vuelta + cuadro * paseo.ms_cuadro);
@@ -848,7 +875,7 @@ int main(int argc, char **argv) {
   revisar(guardadas[guardadas.size() - 1] != guardadas[guardadas.size() - 2], "DS3: se mueve");
   irA(vuelta + paseo.duracion_ms);
   revisar(capturar() == guardadas[guardadas.size() - 3], "DS3: a los 3 s vuelve a empezar");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(display->inv_p == 0, "DS3: dibujar de nuevo lo mismo no redibuja nada");
   revisar(deslizar(indev, paginas, 100, 400, 100) == -1, "en DS3, deslizar a la derecha: anterior");
   paginas.cambiar(1);
@@ -876,9 +903,9 @@ int main(int argc, char **argv) {
   irA(paginas, "VIAJE");
   for (const CasoViaje &caso : casosViaje) {
     viaje = caso.viaje;
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     guardar(directorio, caso.nombre);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     char que[96];
     snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", caso.nombre);
     revisar(display->inv_p == 0, que);
@@ -892,14 +919,14 @@ int main(int argc, char **argv) {
   const uint8_t mapa00[] = {0xBE, 0x16, 0xA8, 0x11};
   sinVelocidad.cargar(0x00, mapa00, 4);
   reiniciarDatos(sinVelocidad);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "t-viaje-sin-velocidad");
   datosDeLaMaqueta();
 
   // Mantener apretada Viaje: la barra se llena de rojo y a los 3 s la
   // reinicia, una vez; al soltarla no cambia de página. Deslizar, sí.
   viaje = viajeDe(38, 37.4f, 118, 5120, 94, 13.6f, 14.3f);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   std::vector<uint16_t> sinApretar = capturar();
   revisar(deslizar(indev, paginas, 500, 200, 100) == 1 &&
               paginas.tomarAccion(reloj) == Accion::NINGUNA,
@@ -909,15 +936,15 @@ int main(int argc, char **argv) {
   revisar(tocar(indev, paginas, 500, 100) == 0, "en Viaje, tocar no cambia de pagina");
   apoyar(indev, 500, 100);
   pidio = mantener(indev, paginas, AVISO_MANTENER_MS - 100);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(capturar() == sinApretar, "Viaje: apretada menos de 0,5 s, la barra no cambia");
   pidio = mantener(indev, paginas, MANTENER_VIAJE_MS / 2 - AVISO_MANTENER_MS + 100) || pidio;
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "u-viaje-mantener");
   levantar(indev);
   revisar(!pidio && paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
           "Viaje: soltarla antes de 3 s no reinicia ni cambia de pagina");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(capturar() == sinApretar, "Viaje: suelta, la barra desaparece");
 
   apoyar(indev, 100, 100);
@@ -933,7 +960,7 @@ int main(int argc, char **argv) {
   revisar(pedida == Accion::REINICIAR_VIAJE, "Viaje: a los 3 s pide reiniciar el viaje");
   viaje.reiniciar(); // lo que hace main.cpp
   revisar(!mantener(indev, paginas, 1000), "Viaje: si se sigue apretando, no lo vuelve a pedir");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "v-viaje-reiniciado");
   levantar(indev);
   revisar(paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
@@ -958,12 +985,12 @@ int main(int argc, char **argv) {
   // En las otras páginas, mantenerla no hace nada
   irA(paginas, "MOTOR");
   datosDeLaMaqueta();
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   std::vector<uint16_t> motor = capturar();
   apoyar(indev, 500, 100);
   pidio = mantener(indev, paginas, MANTENER_VIAJE_MS / 2);
   datosDeLaMaqueta();
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(capturar() == motor, "en Motor, mantenerla no llena la barra");
   pidio = mantener(indev, paginas, MANTENER_VIAJE_MS) || pidio;
   levantar(indev);
@@ -990,7 +1017,7 @@ int main(int argc, char **argv) {
   };
   datosDeLaMaqueta();
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   std::vector<uint16_t> motorSinAlarma = capturar();
   for (const CasoAlarma &caso : casosAlarma) {
     datosDeLaMaqueta();
@@ -999,12 +1026,12 @@ int main(int argc, char **argv) {
     strlcat(textoBarra, caso.despues, sizeof(textoBarra));
     alarma = {textoBarra, (uint16_t)((1 << caso.magnitud) | caso.otras)};
     irA(paginas, caso.pagina);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     if (strcmp(caso.pagina, "DS3") == 0) {
       irA(reloj + 100);
     }
     guardar(directorio, caso.nombre);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
     char que[96];
     snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", caso.nombre);
     revisar(display->inv_p == 0, que);
@@ -1024,12 +1051,12 @@ int main(int argc, char **argv) {
   }
   // Sin alarma, todo vuelve a como estaba; en DS3, sin la barra
   alarma = {nullptr, 0};
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   capturar();
   revisar(marco[5 * ANCHO + 630] != lv_color_to_u16(ROJO), "DS3: sin alarma, la barra no se ve");
   datosDeLaMaqueta();
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(capturar() == motorSinAlarma, "Motor: sin alarma, como antes");
 
   // Viaje mantenida con una alarma: se ve lo de mantener
@@ -1037,7 +1064,7 @@ int main(int argc, char **argv) {
   alarma = {"REFRIGERANTE 106 °C", 1 << REFRIGERANTE};
   apoyar(indev, 300, 100);
   mantener(indev, paginas, MANTENER_VIAJE_MS / 2);
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   guardar(directorio, "z-alarma-viaje-mantenida");
   revisar(marco[5 * ANCHO + 630] != lv_color_to_u16(ROJO),
           "Viaje mantenida con una alarma: se ve lo de mantener");
@@ -1074,7 +1101,7 @@ int main(int argc, char **argv) {
       {"zf-fuerza-g-sin-sensor", {false, LecturaG()}, -1, -1},
   };
   for (const CasoFuerzaG &caso : casosG) {
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, caso.datos, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, caso.datos, alarma);
     guardar(directorio, caso.nombre);
     char que[96];
     if (caso.x >= 0) {
@@ -1092,11 +1119,11 @@ int main(int argc, char **argv) {
     revisar(zonaVacia(155, 158, 28, ALTO - 1) && franjaVaciaEnCasillas(310, 318) &&
                 franjaVaciaEnCasillas(470, 478) && franjaVaciaEnCasillas(633, ANCHO - 1),
             que);
-    paginas.dibujar(reloj, info, fallas, reintento, viaje, caso.datos, alarma);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, caso.datos, alarma);
     snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", caso.nombre);
     revisar(display->inv_p == 0, que);
   }
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(deslizar(indev, paginas, 100, 400, 100) == -1,
           "en Fuerza G, deslizar a la derecha: anterior");
   paginas.cambiar(1);
@@ -1109,10 +1136,176 @@ int main(int argc, char **argv) {
   revisar(!pidio && paginas.tomarToque() == 0,
           "en Fuerza G, mantener y soltar: no cambia de pagina ni reinicia el viaje");
 
+  // Anteriores (E22): después de Viaje, un viaje guardado en las mismas
+  // casillas y la fecha en la barra. Tocarla pasa al anterior; después del
+  // más viejo, al más nuevo. Al entrar, el más nuevo.
+  irA(paginas, "VIAJE");
+  paginas.cambiar(1);
+  revisar(strcmp(paginas.titulo(), "ANTERIORES") == 0, "Anteriores: va despues de Viaje");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
+  std::vector<uint16_t> primerAnterior = capturar();
+  const char *const nombresAnteriores[] = {"zg-anteriores-2-sin-voltajes",
+                                           "zh-anteriores-3-sin-fecha"};
+  for (const char *nombre : nombresAnteriores) {
+    char que[96];
+    revisar(tocar(indev, paginas, 300, 100) == 0 && paginas.tomarOtroViaje() &&
+                paginas.tomarAccion(reloj) == Accion::NINGUNA,
+            "Anteriores: tocar pasa al viaje anterior, sin cambiar de pagina");
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
+    guardar(directorio, nombre);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
+    snprintf(que, sizeof(que), "%s: dibujar de nuevo lo mismo no redibuja nada", nombre);
+    revisar(display->inv_p == 0, que);
+    snprintf(que, sizeof(que), "%s: nada pasa de su casilla", nombre);
+    revisar(franjaVaciaEnCasillas(150, 158) && franjaVaciaEnCasillas(310, 318) &&
+                franjaVaciaEnCasillas(470, 478) && franjaVaciaEnCasillas(633, ANCHO - 1),
+            que);
+  }
+  revisar(!paginas.tomarOtroViaje(), "Anteriores: el toque se pide una sola vez");
+  tocar(indev, paginas, 300, 100);
+  paginas.tomarOtroViaje();
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
+  revisar(capturar() == primerAnterior, "Anteriores: despues del mas viejo, el mas nuevo");
+  tocar(indev, paginas, 300, 100);
+  paginas.cambiar(1);
+  paginas.cambiar(-1);
+  paginas.tomarOtroViaje();
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
+  revisar(capturar() == primerAnterior, "Anteriores: al volver a entrar, el mas nuevo");
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1 && !paginas.tomarOtroViaje(),
+          "Anteriores: deslizar cambia de pagina, sin pasar de viaje");
+  apoyar(indev, 300, 100);
+  mantener(indev, paginas, 500);
+  dedo = {300 + QUIETO_PX + 10, 100};
+  mantener(indev, paginas, 500);
+  levantar(indev);
+  revisar(paginas.tomarToque() == 0 && !paginas.tomarOtroViaje(),
+          "Anteriores: con el dedo corrido, no pasa de viaje");
+  apoyar(indev, 300, 100);
+  revisar(!mantener(indev, paginas, MANTENER_VIAJE_MS + 500),
+          "Anteriores: mantenerla no pide nada");
+  levantar(indev);
+  paginas.tomarOtroViaje();
+
+  // La fecha más larga, con 10 viajes: no llega a la hora
+  Anteriores diez;
+  for (uint32_t n = 1; n <= VIAJES_GUARDADOS; n++) {
+    ResumenViaje r = anteriores.viaje(0);
+    r.numero = n;
+    r.inicio = {2026, 10, 28, 18, 40, 0};
+    diez.agregarNuevo(r);
+  }
+  paginas.cambiar(1);
+  paginas.cambiar(-1);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, diez, fuerzaG, alarma);
+  for (int i = 0; i < VIAJES_GUARDADOS - 1; i++) {
+    tocar(indev, paginas, 300, 100);
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, diez, fuerzaG, alarma);
+  }
+  paginas.tomarOtroViaje();
+  guardar(directorio, "zi-anteriores-10-de-10");
+  revisar(todoDeColor(BORDE_HORA - 80, BORDE_HORA - 66, 0, 27, FONDO_BARRA) &&
+              horaEnLaBarra(BORDE_HORA, BLANCO),
+          "Anteriores 10/10: el titulo no llega a la hora");
+
+  // Con uno solo, tocar no hace nada; sin ninguno, un aviso
+  Anteriores uno;
+  uno.agregarNuevo(anteriores.viaje(0));
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, uno, fuerzaG, alarma);
+  revisar(tocar(indev, paginas, 300, 100) == 0 && !paginas.tomarOtroViaje(),
+          "Anteriores con uno solo: tocar no pasa a otro");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, Anteriores(), fuerzaG, alarma);
+  guardar(directorio, "zj-anteriores-sin-viajes");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, Anteriores(), fuerzaG, alarma);
+  revisar(display->inv_p == 0, "Anteriores sin viajes: dibujar de nuevo no redibuja nada");
+  revisar(franjaVacia(0, 7) && franjaVacia(633, ANCHO - 1),
+          "Anteriores sin viajes: el aviso no pasa de los bordes");
+  revisar(tocar(indev, paginas, 300, 100) == 0 && !paginas.tomarOtroViaje(),
+          "Anteriores sin viajes: tocar no hace nada");
+
+  // Sin datos (E22): la espera, y deslizando Anteriores y DS3, con tres puntos
+  // en la barra. Deslizar en la espera no reintenta.
+  irA(paginas, "MOTOR");
+  paginas.conDatos(false);
+  revisar(paginas.muestraEspera() && strcmp(paginas.titulo(), "ESPERA") == 0 &&
+              paginas.muestraFuerzaG() == false,
+          "sin datos, desde Motor: la espera");
+  pantalla.espera("Esperando el adaptador");
+  irA(reloj + 100);
+  revisar(pedidosSinDatos == 0, "con datos, los pedidos no se atienden desde el evento");
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1 && !pantalla.tomarReintento() &&
+              pedidosSinDatos == 1,
+          "espera: deslizar a la izquierda pide la siguiente, sin reintentar, desde el evento");
+  revisar(deslizar(indev, paginas, 100, 400, 100) == -1 && !pantalla.tomarReintento(),
+          "espera: deslizar a la derecha pide la anterior, sin reintentar");
+  int reiniciosAntes = reinicios;
+  apoyar(indev, 300, 80);
+  mantenerEspera(1000);
+  dedo = {300 + QUIETO_PX + 10, 80};
+  mantenerEspera(MANTENER_REINICIO_MS);
+  levantar(indev);
+  irA(reloj + 100);
+  revisar(reinicios == reiniciosAntes && !pantalla.tomarReintento() && paginas.tomarToque() == 0,
+          "espera: con el dedo corrido no reinicia ni reintenta");
+
+  paginas.cambiar(1);
+  revisar(!paginas.muestraEspera() && strcmp(paginas.titulo(), "ANTERIORES") == 0,
+          "sin datos: despues de la espera, Anteriores");
+  paginas.dibujarSinDatos(anteriores, EstadoTarjeta::GRABANDO);
+  guardar(directorio, "zk-sin-datos-anteriores");
+  // Los tres puntos: el del medio, blanco
+  revisar(marco[14 * ANCHO + 596] == lv_color_to_u16(PUNTO_APAGADO) &&
+              marco[14 * ANCHO + 612] == lv_color_to_u16(BLANCO) &&
+              marco[14 * ANCHO + 628] == lv_color_to_u16(PUNTO_APAGADO),
+          "sin datos, Anteriores: tres puntos, el del medio blanco");
+  revisar(marcaSd(&ETIQUETA, 592 - 12 - 26) && horaEnLaBarra(592 - 12 - 26 - 12, BLANCO),
+          "sin datos, Anteriores: la marca SD y la hora antes de los puntos");
+  paginas.dibujarSinDatos(anteriores, EstadoTarjeta::GRABANDO);
+  revisar(display->inv_p == 0, "sin datos, Anteriores: dibujar de nuevo no redibuja nada");
+  int pedidos = pedidosSinDatos;
+  revisar(tocar(indev, paginas, 300, 100) == 0 && paginas.tomarOtroViaje() &&
+              pedidosSinDatos == pedidos + 1,
+          "sin datos, Anteriores: tocar pasa al viaje anterior, desde el evento");
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1, "sin datos, en Anteriores: siguiente");
+  paginas.cambiar(1);
+  revisar(strcmp(paginas.titulo(), "DS3") == 0, "sin datos: despues de Anteriores, DS3");
+  paginas.dibujarSinDatos(anteriores, EstadoTarjeta::GRABANDO);
+  irA(reloj + 100);
+  guardar(directorio, "zl-sin-datos-ds3");
+  paginas.conDatos(true);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
+  revisar(capturar() == guardadas.back(), "sin datos, DS3: como con datos, sin la barra");
+  paginas.conDatos(false);
+  revisar(deslizar(indev, paginas, 500, 200, 100) == 1, "sin datos, en DS3: siguiente");
+  paginas.cambiar(1);
+  revisar(paginas.muestraEspera(), "sin datos: despues de DS3, la espera");
+  paginas.cambiar(-1);
+  revisar(strcmp(paginas.titulo(), "DS3") == 0, "sin datos: antes de la espera, DS3");
+
+  // Con datos de nuevo: sigue DS3, que estaba a la vista. Si se van desde DS3
+  // queda DS3; desde la espera, vuelve la última con datos.
+  paginas.conDatos(true);
+  revisar(strcmp(paginas.titulo(), "DS3") == 0, "con datos, desde DS3 sin datos: DS3");
+  paginas.conDatos(false);
+  revisar(strcmp(paginas.titulo(), "DS3") == 0, "sin datos, desde DS3: DS3");
+  paginas.conDatos(true);
+  irA(paginas, "MEZCLA");
+  paginas.conDatos(false);
+  revisar(paginas.muestraEspera(), "sin datos, desde Mezcla: la espera");
+  Magnitud lista[MAX_VISIBLES];
+  revisar(paginas.visibles(lista) == 0, "sin datos, en la espera: nada a la vista");
+  paginas.conDatos(true);
+  revisar(strcmp(paginas.titulo(), "MEZCLA") == 0,
+          "con datos, desde la espera: la ultima con datos (Mezcla)");
+  irA(paginas, "ANTERIORES");
+  paginas.conDatos(false);
+  revisar(strcmp(paginas.titulo(), "ANTERIORES") == 0, "sin datos, desde Anteriores: Anteriores");
+  paginas.conDatos(true);
+
   // Deslizar con las páginas a la vista: en cualquier parte, también la barra,
   // con DESLIZAR_PX o más y más de costado que en vertical. Tocar, nada.
   irA(paginas, "MOTOR");
-  paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, anteriores, fuerzaG, alarma);
   revisar(deslizar(indev, paginas, 100, 400, 100) == -1, "deslizar a la derecha: anterior");
   revisar(deslizar(indev, paginas, 500, 200, 100) == 1, "deslizar a la izquierda: siguiente");
   revisar(deslizar(indev, paginas, 20, 320, 10) == -1, "deslizar sobre la barra: anterior");

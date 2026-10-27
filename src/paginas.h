@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include <anteriores.h>
 #include <dtc.h>
 #include <fuerza_g.h>
 #include <registro.h>
@@ -49,24 +50,30 @@ enum class Accion : uint8_t {
 constexpr uint8_t MAX_VISIBLES = 6;
 
 // Las páginas de LEYENDO, como en la maqueta de E4: Motor, Aire/Volt,
-// Carga, Mezcla, Fallas e Info, después Viaje (E10) y Fuerza G (E12), y al
-// final DS3 (E9), una animación a pantalla completa. Se pasa a la siguiente
-// deslizando el dedo hacia la izquierda, y a la anterior hacia la derecha
-// (E16), en cualquier parte de la pantalla, también sobre los botones de
-// Info, que entonces no se aprietan; después de la última vuelve a la
-// primera. Tocar no cambia de página. Los toques llegan en eventos de LVGL,
-// dentro de PantallaHw::atender(), que también corre mientras se espera al
-// ELM: quedan como pedidos (tomarToque() y tomarAccion()) y quien llama
-// actúa.
+// Carga, Mezcla, Fallas e Info, después Viaje (E10), Anteriores (E22) y
+// Fuerza G (E12), y al final DS3 (E9), una animación a pantalla completa. Se
+// pasa a la siguiente deslizando el dedo hacia la izquierda, y a la anterior
+// hacia la derecha (E16), en cualquier parte de la pantalla, también sobre
+// los botones de Info, que entonces no se aprietan; después de la última
+// vuelve a la primera. Tocar no cambia de página. Sin datos (E22) se ve la
+// espera, que arma Pantalla, y deslizando se pasa a Anteriores y a DS3. Los
+// toques llegan en eventos de LVGL, dentro de PantallaHw::atender(), que
+// también corre mientras se espera al ELM: quedan como pedidos
+// (tomarToque(), tomarOtroViaje() y tomarAccion()) y quien llama actúa.
 class Paginas {
 public:
   explicit Paginas(Pantalla &marco) : pantalla(marco) {}
 
   // Arma las páginas, después de Pantalla::iniciar(). Sin pantalla, dibujar()
-  // no hace nada; lo demás anda igual.
+  // no hace nada; lo demás anda igual. Empieza con datos, en Motor.
   void iniciar();
-  // +1 la siguiente, -1 la anterior
+  // Si hay datos (LEYENDO). Al irse los datos queda Anteriores o DS3 si se
+  // veía, y si no la espera; al volver, sigue la que se veía sin datos, o
+  // si era la espera, la última con datos.
+  void conDatos(bool con);
+  // +1 la siguiente, -1 la anterior, entre las de ahora (con datos o sin)
   void cambiar(int8_t paso);
+  // El de la página ("ANTERIORES"); "ESPERA" sin datos en la espera
   const char *titulo() const;
   // Las magnitudes que se ven en la página actual, para que el sondeo las
   // consulte en cada vuelta. Devuelve cuántas son.
@@ -79,10 +86,21 @@ public:
   bool muestraInfo() const;
   // En Fuerza G el punto se mueve: quien llama la dibuja más seguido
   bool muestraFuerzaG() const;
+  // Sin datos, en la espera: la dibuja quien llama, con Pantalla::espera()
+  bool muestraEspera() const;
   // +1 si se deslizó el dedo hacia la izquierda (la siguiente) desde la
   // última llamada, -1 hacia la derecha (la anterior); 0 si no. Solo cuenta
-  // con las páginas a la vista.
+  // con las páginas o la espera a la vista.
   int8_t tomarToque();
+  // Se tocó Anteriores desde la última llamada: ya pasó al viaje anterior, y
+  // quien llama la dibuja
+  bool tomarOtroViaje();
+  // Sin datos, funcion se llama apenas hay un pedido (deslizar o tocar
+  // Anteriores), desde el evento de LVGL: puede ser de la otra tarea, si
+  // loop() está conectando el BLE (hasta TIMEOUT_CONEXION_MS sin atender la
+  // pantalla). Así la página cambia enseguida. Con datos, los pedidos
+  // esperan a quien llama.
+  void alPedirSinDatos(void (*funcion)());
   // Lo que se pidió desde la última llamada. Reconectar y el brillo cuentan
   // al soltarlos (si no fue un deslizamiento); Olvidar, una vez por
   // apretada, cuando lleva MANTENER_OLVIDAR_MS apretado, y reiniciar el
@@ -94,11 +112,15 @@ public:
   // va en la barra, en lugar del título, también en DS3. info.tarjeta da
   // también la marca "SD" de la barra.
   void dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-               uint32_t reintento, const Viaje &viaje, const DatosFuerzaG &fuerzaG,
-               const AlarmaALaVista &alarma);
+               uint32_t reintento, const Viaje &viaje, const Anteriores &anteriores,
+               const DatosFuerzaG &fuerzaG, const AlarmaALaVista &alarma);
+  // Sin datos, Anteriores o DS3; en la espera, nada. tarjeta: para la marca
+  // "SD" de la barra.
+  void dibujarSinDatos(const Anteriores &anteriores, EstadoTarjeta tarjeta);
 
 private:
   Pantalla &pantalla;
   uint8_t actual = 0;
+  uint8_t ultimaConDatos = 0; // la que se veía al irse los datos
   bool armadas = false;
 };

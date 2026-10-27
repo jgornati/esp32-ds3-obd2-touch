@@ -29,6 +29,8 @@ public:
   bool imuPedido();
   // true una sola vez después de un !sd (la tarjeta y el registro)
   bool sdPedido();
+  // true una sola vez después de un !viajes (los guardados, E22)
+  bool viajesPedido();
   // Lo que siguió a un !hora ("" si nada), una sola vez; nullptr si no hubo
   const char *horaPedida();
   // El nivel de un !brillo N, una sola vez; 0 si no hubo
@@ -62,6 +64,7 @@ private:
   bool pitido = false;
   bool imu = false;
   bool sd = false;
+  bool viajes = false;
   bool hora = false;
   char textoHora[32] = "";
   uint8_t brillo = 0;

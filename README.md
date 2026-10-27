@@ -10,13 +10,15 @@ Bluetooth clásico y pantalla Nokia 5110), con la misma lógica OBD.
 Solo lee: no borra fallas ni manda nada que cambie la configuración o el
 funcionamiento del auto. Nunca muestra datos simulados ni vencidos.
 
-Con una microSD puesta, graba cada viaje en un CSV para verlo en la PC.
+Guarda un resumen de los últimos 10 viajes, que se ven también sin
+conexión. Con una microSD puesta, graba además cada viaje en un CSV para
+verlo en la PC.
 
 ## Qué muestra
 
 Seis páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
 (17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), una con el viaje en curso,
-otra con la fuerza G y al final una animación:
+otra con los anteriores, otra con la fuerza G y al final una animación:
 
 | Página    | Datos |
 | --------- | ----- |
@@ -27,6 +29,7 @@ otra con la fuerza G y al final una animación:
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
 | INFO      | Adaptador y señal (RSSI), la microSD, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
 | VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
+| ANTERIORES | Lo mismo de un viaje guardado, con el día y la hora en que empezó. Tocar la página pasa al anterior |
 | FUERZA G  | Un punto en un círculo de 1 g con la aceleración del auto; la frenada o aceleración y la lateral de ahora, y los máximos del viaje para cada lado |
 | DS3       | El DS3 andando, con nubes y el camino corriéndose. Ocupa toda la pantalla, sin la barra ni datos |
 
@@ -55,8 +58,11 @@ En MEZCLA, la marca de lambda va en verde entre 0,97 y 1,03; más rica, en
 - El botón BOOT, atrás de la placa: la siguiente.
 - Los puntos de la barra muestran en qué página se está.
 
-Las páginas se ven solo con la ECU conectada. La página se mantiene si la
-conexión se corta y vuelve. En DS3 no se ve la barra: se cambia de página
+Con la ECU conectada se recorren todas. Sin conexión se ve la pantalla de
+espera, y deslizando se pasa a ANTERIORES y a DS3 (la barra tiene entonces
+tres puntos). Si la conexión se corta, ANTERIORES y DS3 quedan; las demás
+dejan la espera. Cuando vuelve, sigue la página que se veía; si era la
+espera, la de antes del corte. En DS3 no se ve la barra: se cambia de página
 igual, deslizando.
 
 ### Pantalla de espera
@@ -79,11 +85,15 @@ aparece quieto.
 
 - **Tocar** la pantalla reintenta ya, sin esperar los 5 o 10 s. Con el auto
   quieto, abajo a la derecha dice `Toca para reintentar`.
-- **Mantenerla apretada 3 s** reinicia la placa, por si quedó trabada: abajo
-  crece una barra roja y dice `Mantener para reiniciar`. Soltarla antes
-  reintenta. Anda también mientras la placa conecta con el adaptador.
+- **Mantenerla apretada 3 s**, con el dedo quieto, reinicia la placa, por si
+  quedó trabada: abajo crece una barra roja y dice `Mantener para
+  reiniciar`. Soltarla antes reintenta. Anda también mientras la placa
+  conecta con el adaptador.
+- **Deslizar** pasa a ANTERIORES (hacia la izquierda) o a DS3 (hacia la
+  derecha), sin reintentar. También anda mientras la placa conecta con el
+  adaptador.
 
-Ninguno de los dos le manda nada al auto. Quedan dos pantallas de estado,
+Nada de eso le manda nada al auto. Quedan dos pantallas de estado,
 con la barra arriba:
 
 | Barra                    | Cuándo |
@@ -108,8 +118,9 @@ cada 30 s mientras se ve; si algo falla, reintenta a los 5 s.
 
 ### Viaje
 
-El viaje empieza al poner el contacto (la placa arranca con la llave) y se
-pierde al sacarla: no se guarda.
+El viaje empieza al poner el contacto (la placa arranca con la llave) y
+termina al sacarla. Lo que muestra VIAJE se guarda para ANTERIORES (ver
+**Viajes anteriores**).
 
 - **Distancia:** sale de la velocidad que da la ECU, leída en cada consulta
   (~6 por segundo). Si pasan más de 3 s sin velocidad (la ECU no contestó),
@@ -127,7 +138,32 @@ pierde al sacarla: no se guarda.
 - **Mantener apretada la página 3 s** reinicia el viaje: arriba la barra se
   llena de rojo y dice `Mantener para reiniciar el viaje`, con el dedo quieto:
   si se corre, no cuenta. Soltarla antes no hace nada. Reiniciar la placa
-  desde la pantalla de espera también lo reinicia.
+  desde la pantalla de espera también lo reinicia. El que termina pasa a
+  ANTERIORES.
+
+### Viajes anteriores
+
+La placa guarda un resumen de cada viaje en su memoria (no hace falta la
+microSD): lo mismo que muestra VIAJE y el día y la hora en que empezó.
+
+- **Qué viajes:** los que llegan a 1 min con el motor en marcha; con menos
+  (mover el auto en el garaje, poner el contacto sin arrancar) no se guardan.
+  Quedan los últimos 10: con uno más, se borra el más viejo.
+- **Cuándo se guarda:** al llegar a ese minuto y después cada minuto, si
+  cambió algo. Al sacar la llave se pierde como mucho el último minuto, con el
+  motor ya parado. Si la placa se reinicia en el medio (un corte o
+  reiniciarla desde la espera), quedan dos viajes.
+- **La página ANTERIORES,** después de VIAJE, muestra uno por vez, el más
+  nuevo primero, con las mismas casillas. La barra dice cuál es y cuándo
+  empezó: `ANTERIOR 1/3  Lun 26/10 18:40` (`Sin fecha` si el reloj no tenía la
+  hora). Tocar la página pasa al anterior; después del más viejo vuelve al
+  más nuevo, y al volver a la página empieza por el más nuevo.
+- Lo que el viaje no tuvo (por ejemplo, el voltaje si el ELM no contestó)
+  dice `N/D`. Sin ningún viaje guardado, dice `Sin viajes guardados`.
+- El viaje en curso no aparece en ANTERIORES hasta el próximo encendido (o
+  hasta reiniciarlo manteniendo apretada VIAJE).
+- Se ven también sin conexión: desde la pantalla de espera, deslizando.
+- `!viajes`, en la consola, los lista con todos sus datos.
 
 ### Fuerza G
 
@@ -259,6 +295,7 @@ borra las fallas, da `RECHAZADO`).
 | `!luz V`      | La luz con un valor de 0 a 255, sin guardar, para medir los niveles (con 90 o menos se apaga). `!brillo N` vuelve a un nivel |
 | `!imu`        | La última medición del IMU en sus ejes (para ver cómo está montado), la fuerza G que sale de ella, los máximos y cuántas veces calibró |
 | `!sd`         | La microSD: tamaño y espacio libre, el archivo del viaje, cuánto lleva grabado, líneas perdidas y errores |
+| `!viajes`     | Los viajes anteriores guardados, con todos sus datos, y si el de ahora ya se guarda |
 | `!hora AAAA-MM-DD HH:MM` | Pone el reloj en hora (también con `:SS`). Sin nada, muestra la hora |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
@@ -343,8 +380,8 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 ## Tests
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
-del ELM, PIDs, fallas, el viaje, las alarmas, la fuerza G, el registro y el
-reloj)
+del ELM, PIDs, fallas, el viaje, los viajes anteriores, las alarmas, la fuerza
+G, el registro y el reloj)
 tiene tests que corren en la PC, con respuestas reales del DS3 y del
 adaptador:
 
@@ -361,8 +398,8 @@ make -C herramientas/render -j8
 
 Deja un PNG por pantalla en `herramientas/render/salida/` y revisa que
 dibujar dos veces lo mismo no redibuje nada, que los textos no se pasen de
-su lugar, que los toques y los deslizamientos hagan lo que corresponde y que
-las animaciones se muevan.
+su lugar, que los toques y los deslizamientos hagan lo que corresponde (con
+la ECU y sin conexión) y que las animaciones se muevan.
 
 ## Las animaciones
 

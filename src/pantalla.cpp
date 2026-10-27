@@ -54,8 +54,9 @@ static Entrada entrada;
 static lv_obj_t *estadoEspera = nullptr;
 static lv_obj_t *pistaEspera = nullptr;
 static lv_obj_t *rellenoReinicio = nullptr;
-static bool apretada = false;
+static bool apretada = false; // con el dedo quieto
 static uint32_t apretadaDesde = 0;
+static lv_point_t dondeApretada = {0, 0};
 static bool reinicioPedido = false; // ya se llamó en esta apretada
 static bool reintento = false;
 static void (*alMantener)() = nullptr;
@@ -140,13 +141,22 @@ static void armarEstado(const char *texto, lv_color_t color,
 }
 
 // Tocar la espera es un pedido de reintento al soltar, salvo que ya se haya
-// pedido reiniciar. Si el dedo se va de la pantalla, no cuenta.
+// pedido reiniciar. Si el dedo se va de la pantalla o se corre (para cambiar
+// de página), no cuenta, y mantenerla tampoco.
 static void alApretarEspera(lv_event_t *e) {
   lv_event_code_t codigo = lv_event_get_code(e);
   if (codigo == LV_EVENT_PRESSED) {
     apretada = true;
     apretadaDesde = lv_tick_get();
+    lv_indev_get_point(lv_indev_active(), &dondeApretada);
     reinicioPedido = false;
+  } else if (codigo == LV_EVENT_PRESSING) {
+    lv_point_t punto;
+    lv_indev_get_point(lv_indev_active(), &punto);
+    if (LV_ABS(punto.x - dondeApretada.x) > QUIETO_PX ||
+        LV_ABS(punto.y - dondeApretada.y) > QUIETO_PX) {
+      apretada = false;
+    }
   } else if (codigo == LV_EVENT_RELEASED) {
     reintento = reintento || (apretada && !reinicioPedido);
     apretada = false;
@@ -194,7 +204,7 @@ static lv_obj_t *textoEspera(lv_color_t color, lv_align_t alineacion, int32_t x)
 static void armarEspera(lv_obj_t *raiz) {
   vistaEspera = caja(raiz, 0, 0, ANCHO, ALTO);
   lv_obj_add_flag(vistaEspera, LV_OBJ_FLAG_CLICKABLE);
-  static const lv_event_code_t EVENTOS[] = {LV_EVENT_PRESSED, LV_EVENT_RELEASED,
+  static const lv_event_code_t EVENTOS[] = {LV_EVENT_PRESSED, LV_EVENT_PRESSING, LV_EVENT_RELEASED,
                                             LV_EVENT_PRESS_LOST};
   for (lv_event_code_t codigo : EVENTOS) {
     lv_obj_add_event_cb(vistaEspera, alApretarEspera, codigo, nullptr);
@@ -325,4 +335,8 @@ void Pantalla::paginaCompleta(uint8_t numero, uint8_t total, const char *alarma,
 
 lv_obj_t *Pantalla::areaCompleta() const {
   return vistaCompleta;
+}
+
+lv_obj_t *Pantalla::areaEspera() const {
+  return vistaEspera;
 }

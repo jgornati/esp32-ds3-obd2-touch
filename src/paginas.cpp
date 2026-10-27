@@ -17,6 +17,7 @@ enum : uint8_t {
   PAGINA_FALLAS,
   PAGINA_INFO,
   PAGINA_VIAJE,
+  PAGINA_ANTERIORES,
   PAGINA_FUERZA_G,
   PAGINA_DS3,
   CANT_PAGINAS
@@ -48,12 +49,28 @@ static const Definicion PAGINAS[] = {
     {"FALLAS", nullptr, 0},
     {"INFO", nullptr, 0},
     {"VIAJE", nullptr, 0},
+    {"ANTERIORES", nullptr, 0},
     {"FUERZA G", nullptr, 0},
     {"DS3", nullptr, 0},
 };
 static_assert(sizeof(PAGINAS) / sizeof(PAGINAS[0]) == CANT_PAGINAS,
               "PAGINAS tiene que seguir el orden del enum");
 static_assert(CANT_PAGINAS <= MAX_PAGINAS, "un punto por página en la barra");
+
+// Sin datos (E22): la espera, que arma Pantalla, Anteriores y DS3
+static const uint8_t ESPERA = CANT_PAGINAS;
+static const uint8_t SIN_DATOS[] = {ESPERA, PAGINA_ANTERIORES, PAGINA_DS3};
+static const uint8_t CANT_SIN_DATOS = sizeof(SIN_DATOS);
+
+// El lugar de la página entre las de sin datos; -1 si no está
+static int8_t lugarSinDatos(uint8_t pagina) {
+  for (uint8_t i = 0; i < CANT_SIN_DATOS; i++) {
+    if (SIN_DATOS[i] == pagina) {
+      return i;
+    }
+  }
+  return -1;
+}
 
 // Escalas de las barras
 static const float RPM_MAXIMA = 7000;
@@ -103,8 +120,12 @@ static const lv_font_t *const NORMAL = &lv_font_montserrat_20;
 
 static lv_obj_t *area = nullptr;
 static lv_obj_t *areaCompleta = nullptr;
+static lv_obj_t *areaEspera = nullptr;
 static lv_obj_t *vistas[CANT_PAGINAS];
 static int8_t toque = 0;
+// Sin datos (E22), los pedidos se atienden desde el evento
+static bool hayDatos = true;
+static void (*alPedido)() = nullptr;
 // Dónde se apoyó el dedo, y si el último toque fue un deslizamiento
 static lv_point_t inicioDedo = {0, 0};
 static bool deslizado = false;
@@ -761,14 +782,17 @@ static void dibujarInfo(uint32_t ahora, const DatosInfo &info) {
 
 // Viaje: ocho casillas de 160x72, como en la maqueta B de E10. Mantener
 // apretada la página MANTENER_VIAJE_MS reinicia el viaje: mientras tanto la
-// barra de arriba se llena de rojo.
+// barra de arriba se llena de rojo. Anteriores (E22) usa las mismas.
 
 static const int32_t ANCHO_CASILLA = ANCHO / 4;
 static const int32_t ALTO_CASILLA = ALTO / 2;
 static const int32_t RELLENO_CASILLA = 12;
 
-static Valor distanciaViaje, tiempoViaje, promedioViaje, velocidadMaxima;
-static Valor rpmMaxima, refrigeranteMaximo, voltajeMinimo, voltajeMaximo;
+struct CasillasViaje {
+  Valor distancia, tiempo, promedio, velocidadMaxima;
+  Valor rpmMaxima, refrigeranteMaximo, voltajeMinimo, voltajeMaximo;
+};
+static CasillasViaje delViaje, delAnterior;
 
 // La pantalla apretada, en cualquier página: en Viaje, mantenerla reinicia
 static bool mantenida = false;
@@ -788,19 +812,19 @@ static Valor casilla(lv_obj_t *v, uint8_t numero, const char *nombre, const char
   return crearValor(v, &lv_font_montserrat_36, x, y + 63, false, unidad);
 }
 
-static void armarViaje(lv_obj_t *v) {
+static void armarCasillas(lv_obj_t *v, CasillasViaje &c) {
   for (int32_t i = 1; i < 4; i++) {
     rectangulo(v, i * ANCHO_CASILLA - 1, 0, 1, ALTO, FONDO_ESCALA);
   }
   rectangulo(v, 0, ALTO_CASILLA - 1, ANCHO, 1, FONDO_ESCALA);
-  distanciaViaje = casilla(v, 0, "Distancia", " km");
-  tiempoViaje = casilla(v, 1, "Tiempo", " min");
-  promedioViaje = casilla(v, 2, "Promedio", " km/h");
-  velocidadMaxima = casilla(v, 3, "Vel. max", " km/h");
-  rpmMaxima = casilla(v, 4, "RPM max");
-  refrigeranteMaximo = casilla(v, 5, "Refrig. max", " °C");
-  voltajeMinimo = casilla(v, 6, "Volt. min", " V");
-  voltajeMaximo = casilla(v, 7, "Volt. max", " V");
+  c.distancia = casilla(v, 0, "Distancia", " km");
+  c.tiempo = casilla(v, 1, "Tiempo", " min");
+  c.promedio = casilla(v, 2, "Promedio", " km/h");
+  c.velocidadMaxima = casilla(v, 3, "Vel. max", " km/h");
+  c.rpmMaxima = casilla(v, 4, "RPM max");
+  c.refrigeranteMaximo = casilla(v, 5, "Refrig. max", " °C");
+  c.voltajeMinimo = casilla(v, 6, "Volt. min", " V");
+  c.voltajeMaximo = casilla(v, 7, "Volt. max", " V");
 }
 
 static bool soportada(Magnitud m) {
@@ -817,40 +841,93 @@ static void ponerDelViaje(Valor &v, bool sePuede, bool hay, const char *texto) {
   }
 }
 
-static void ponerExtremo(Valor &v, bool sePuede, const Extremo &e, uint8_t decimales) {
+// En un viaje terminado (Anteriores), lo que no hubo es "N/D": ya no va a llegar
+static void ponerDelResumen(Valor &v, bool terminado, bool sePuede, bool hay, const char *texto) {
+  ponerDelViaje(v, sePuede && (hay || !terminado), hay, texto);
+}
+
+static void ponerExtremo(Valor &v, bool terminado, bool sePuede, const Extremo &e,
+                         uint8_t decimales) {
   char texto[16];
   snprintf(texto, sizeof(texto), "%.*f", decimales, e.valor);
-  ponerDelViaje(v, sePuede, e.hay, texto);
+  ponerDelResumen(v, terminado, sePuede, e.hay, texto);
 }
 
 // La distancia y la velocidad máxima salen de la velocidad; el tiempo en
-// marcha y los voltajes, de la RPM; el promedio, de las dos
-static void dibujarViaje(const Viaje &viaje) {
-  bool conVelocidad = soportada(VELOCIDAD);
-  bool conRpm = soportada(RPM);
+// marcha y los voltajes, de la RPM; el promedio, de las dos. conVelocidad,
+// conRpm y conRefrigerante: si la ECU los da.
+static void ponerCasillas(CasillasViaje &c, const ResumenViaje &r, bool terminado,
+                          bool conVelocidad, bool conRpm, bool conRefrigerante) {
   // La velocidad máxima dice si ya hubo alguna velocidad, y la RPM máxima,
   // alguna RPM
-  bool velocidadLeida = viaje.velocidadMaxima().hay;
+  bool velocidadLeida = r.velocidadMaxima.hay;
   char texto[16];
-  textoDistancia(viaje.distanciaKm(), texto, sizeof(texto));
-  ponerDelViaje(distanciaViaje, conVelocidad, velocidadLeida, texto);
+  textoDistancia(r.km, texto, sizeof(texto));
+  ponerDelResumen(c.distancia, terminado, conVelocidad, velocidadLeida, texto);
 
   char unidad[8];
-  snprintf(unidad, sizeof(unidad), " %s",
-           textoTiempo(viaje.tiempoEnMarchaMs(), texto, sizeof(texto)));
-  ponerUnidad(tiempoViaje, unidad);
-  ponerDelViaje(tiempoViaje, conRpm, viaje.rpmMaxima().hay, texto);
+  snprintf(unidad, sizeof(unidad), " %s", textoTiempo(r.enMarchaMs, texto, sizeof(texto)));
+  ponerUnidad(c.tiempo, unidad);
+  ponerDelResumen(c.tiempo, terminado, conRpm, r.rpmMaxima.hay, texto);
 
   float kmh = 0;
-  bool conPromedio = velocidadLeida && viaje.promedio(&kmh);
+  bool conPromedio = velocidadLeida && promedio(r, &kmh);
   snprintf(texto, sizeof(texto), "%.0f", kmh);
-  ponerDelViaje(promedioViaje, conVelocidad && conRpm, conPromedio, texto);
+  ponerDelResumen(c.promedio, terminado, conVelocidad && conRpm, conPromedio, texto);
 
-  ponerExtremo(velocidadMaxima, conVelocidad, viaje.velocidadMaxima(), 0);
-  ponerExtremo(rpmMaxima, conRpm, viaje.rpmMaxima(), 0);
-  ponerExtremo(refrigeranteMaximo, soportada(REFRIGERANTE), viaje.refrigeranteMaximo(), 0);
-  ponerExtremo(voltajeMinimo, conRpm, viaje.voltajeMinimo(), 1);
-  ponerExtremo(voltajeMaximo, conRpm, viaje.voltajeMaximo(), 1);
+  ponerExtremo(c.velocidadMaxima, terminado, conVelocidad, r.velocidadMaxima, 0);
+  ponerExtremo(c.rpmMaxima, terminado, conRpm, r.rpmMaxima, 0);
+  ponerExtremo(c.refrigeranteMaximo, terminado, conRefrigerante, r.refrigeranteMaximo, 0);
+  ponerExtremo(c.voltajeMinimo, terminado, conRpm, r.voltajeMinimo, 1);
+  ponerExtremo(c.voltajeMaximo, terminado, conRpm, r.voltajeMaximo, 1);
+}
+
+static void dibujarViaje(const Viaje &viaje) {
+  ponerCasillas(delViaje, resumir(viaje, 0, nullptr), false, soportada(VELOCIDAD), soportada(RPM),
+                soportada(REFRIGERANTE));
+}
+
+// Anteriores (E22): un viaje guardado en las casillas de Viaje, con la fecha
+// en la barra. Tocar la página pasa al anterior, y después del más viejo
+// vuelve al más nuevo; al entrar, el más nuevo.
+
+static lv_obj_t *conAnteriores = nullptr;
+static lv_obj_t *sinAnteriores = nullptr;
+static uint8_t anteriorALaVista = 0;   // 0 el más nuevo
+static uint8_t cantidadAnteriores = 0; // la de la última vez que se dibujó
+static bool otroAnterior = false;      // se tocó: quien llama la dibuja
+
+static void armarAnteriores(lv_obj_t *v) {
+  conAnteriores = caja(v, 0, 0, ANCHO, ALTO);
+  armarCasillas(conAnteriores, delAnterior);
+  sinAnteriores = caja(v, 0, 0, ANCHO, ALTO);
+  fijo(sinAnteriores, "Sin viajes guardados", NORMAL, GRIS, ANCHO / 2, 66, Alineacion::CENTRO);
+  fijo(sinAnteriores, "Se guarda cada viaje con 1 min o mas de motor en marcha", CHICA, ETIQUETA,
+       ANCHO / 2, 98, Alineacion::CENTRO);
+}
+
+// Devuelve el título: "ANTERIOR 1/3  Lun 27/10 08:12"
+static const char *dibujarAnteriores(const Anteriores &lista) {
+  static char titulo[48];
+  cantidadAnteriores = lista.cantidad();
+  bool hay = cantidadAnteriores > 0;
+  mostrar(conAnteriores, hay);
+  mostrar(sinAnteriores, !hay);
+  if (!hay) {
+    return PAGINAS[PAGINA_ANTERIORES].titulo;
+  }
+  if (anteriorALaVista >= cantidadAnteriores) {
+    anteriorALaVista = 0;
+  }
+  const ResumenViaje &r = lista.viaje(anteriorALaVista);
+  ponerCasillas(delAnterior, r, true, true, true, true);
+  char fecha[24] = "Sin fecha";
+  if (r.conFecha) {
+    textoInicio(r.inicio, fecha, sizeof(fecha));
+  }
+  snprintf(titulo, sizeof(titulo), "ANTERIOR %u/%u  %s", anteriorALaVista + 1, cantidadAnteriores,
+           fecha);
+  return titulo;
 }
 
 // Lo que lleva apretada, de 0 a 1, para la barra; 0 si todavía es un toque
@@ -860,7 +937,8 @@ static float fraccionMantenida(uint32_t ahora) {
 }
 
 // Los toques que llegan a la raíz: los que empiezan fuera de los botones.
-// Mantenerla deja de contar si el dedo se corre.
+// Mantenerla deja de contar si el dedo se corre. Soltar Anteriores con el
+// dedo quieto pasa al viaje anterior.
 static void alApretar(lv_event_t *e) {
   lv_event_code_t codigo = lv_event_get_code(e);
   if (codigo == LV_EVENT_PRESSED) {
@@ -873,6 +951,15 @@ static void alApretar(lv_event_t *e) {
       mantenida = false;
     }
   } else {
+    bool enAnteriores = !lv_obj_has_flag(area, LV_OBJ_FLAG_HIDDEN) &&
+                        !lv_obj_has_flag(vistas[PAGINA_ANTERIORES], LV_OBJ_FLAG_HIDDEN);
+    if (codigo == LV_EVENT_RELEASED && mantenida && enAnteriores && cantidadAnteriores > 1) {
+      anteriorALaVista = (anteriorALaVista + 1) % cantidadAnteriores;
+      otroAnterior = true;
+      if (!hayDatos && alPedido != nullptr) {
+        alPedido();
+      }
+    }
     mantenida = false;
   }
 }
@@ -992,9 +1079,13 @@ static void alDeslizar(lv_event_t *e) {
     lv_point_t corrido = corrimiento();
     deslizado = LV_ABS(corrido.x) >= DESLIZAR_PX && LV_ABS(corrido.x) > LV_ABS(corrido.y);
     bool conPaginas = !lv_obj_has_flag(area, LV_OBJ_FLAG_HIDDEN) ||
-                      !lv_obj_has_flag(areaCompleta, LV_OBJ_FLAG_HIDDEN);
+                      !lv_obj_has_flag(areaCompleta, LV_OBJ_FLAG_HIDDEN) ||
+                      !lv_obj_has_flag(areaEspera, LV_OBJ_FLAG_HIDDEN);
     if (deslizado && conPaginas) {
       toque = corrido.x < 0 ? 1 : -1;
+      if (!hayDatos && alPedido != nullptr) {
+        alPedido();
+      }
     }
   }
 }
@@ -1002,6 +1093,7 @@ static void alDeslizar(lv_event_t *e) {
 void Paginas::iniciar() {
   area = pantalla.areaPaginas();
   areaCompleta = pantalla.areaCompleta();
+  areaEspera = pantalla.areaEspera();
   if (area == nullptr) {
     return;
   }
@@ -1016,7 +1108,8 @@ void Paginas::iniciar() {
   armarMezcla(vistas[PAGINA_MEZCLA]);
   armarFallas(vistas[PAGINA_FALLAS]);
   armarInfo(vistas[PAGINA_INFO]);
-  armarViaje(vistas[PAGINA_VIAJE]);
+  armarCasillas(vistas[PAGINA_VIAJE], delViaje);
+  armarAnteriores(vistas[PAGINA_ANTERIORES]);
   armarFuerzaG(vistas[PAGINA_FUERZA_G]);
   paseoDs3.crear(vistas[PAGINA_DS3]);
   lv_timer_create(alAnimarPaseo, paseo.ms_cuadro, nullptr);
@@ -1035,12 +1128,34 @@ void Paginas::iniciar() {
   armadas = true;
 }
 
+void Paginas::conDatos(bool con) {
+  if (con == hayDatos) {
+    return;
+  }
+  hayDatos = con;
+  if (!con) {
+    ultimaConDatos = actual;
+    if (lugarSinDatos(actual) < 0) {
+      actual = ESPERA;
+    }
+  } else if (actual == ESPERA) {
+    actual = ultimaConDatos;
+  }
+}
+
 void Paginas::cambiar(int8_t paso) {
-  actual = (actual + CANT_PAGINAS + paso) % CANT_PAGINAS;
+  if (hayDatos) {
+    actual = (actual + CANT_PAGINAS + paso) % CANT_PAGINAS;
+  } else {
+    actual = SIN_DATOS[(lugarSinDatos(actual) + CANT_SIN_DATOS + paso) % CANT_SIN_DATOS];
+  }
+  if (actual == PAGINA_ANTERIORES) {
+    anteriorALaVista = 0;
+  }
 }
 
 const char *Paginas::titulo() const {
-  return PAGINAS[actual].titulo;
+  return actual == ESPERA ? "ESPERA" : PAGINAS[actual].titulo;
 }
 
 static uint8_t copiar(const Definicion &def, Magnitud lista[MAX_VISIBLES]) {
@@ -1051,7 +1166,7 @@ static uint8_t copiar(const Definicion &def, Magnitud lista[MAX_VISIBLES]) {
 }
 
 uint8_t Paginas::visibles(Magnitud lista[MAX_VISIBLES]) const {
-  return copiar(PAGINAS[actual], lista);
+  return actual == ESPERA ? 0 : copiar(PAGINAS[actual], lista);
 }
 
 uint8_t Paginas::primeras(Magnitud lista[MAX_VISIBLES]) const {
@@ -1070,10 +1185,31 @@ bool Paginas::muestraFuerzaG() const {
   return actual == PAGINA_FUERZA_G;
 }
 
+bool Paginas::muestraEspera() const {
+  return actual == ESPERA;
+}
+
 int8_t Paginas::tomarToque() {
   int8_t paso = toque;
   toque = 0;
   return paso;
+}
+
+bool Paginas::tomarOtroViaje() {
+  bool pedido = otroAnterior;
+  otroAnterior = false;
+  return pedido;
+}
+
+void Paginas::alPedirSinDatos(void (*funcion)()) {
+  alPedido = funcion;
+}
+
+// Mientras graba y si falla; sin tarjeta, nada
+static MarcaSd marcaSd(EstadoTarjeta tarjeta) {
+  return tarjeta == EstadoTarjeta::GRABANDO ? MarcaSd::GRABANDO
+         : problemaTarjeta(tarjeta)         ? MarcaSd::PROBLEMA
+                                            : MarcaSd::NINGUNA;
 }
 
 Accion Paginas::tomarAccion(uint32_t ahora) {
@@ -1093,9 +1229,9 @@ Accion Paginas::tomarAccion(uint32_t ahora) {
 }
 
 void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-                      uint32_t reintento, const Viaje &viaje, const DatosFuerzaG &fuerzaG,
-                      const AlarmaALaVista &alarma) {
-  if (!armadas) {
+                      uint32_t reintento, const Viaje &viaje, const Anteriores &anteriores,
+                      const DatosFuerzaG &fuerzaG, const AlarmaALaVista &alarma) {
+  if (!armadas || actual == ESPERA) {
     return;
   }
   enAlarma = alarma.magnitudes;
@@ -1104,10 +1240,7 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
   }
   const char *titulo = PAGINAS[actual].titulo;
   float apretada = 0;
-  // Mientras graba y si falla; sin tarjeta, nada
-  MarcaSd sd = info.tarjeta == EstadoTarjeta::GRABANDO ? MarcaSd::GRABANDO
-               : problemaTarjeta(info.tarjeta)         ? MarcaSd::PROBLEMA
-                                                       : MarcaSd::NINGUNA;
+  MarcaSd sd = marcaSd(info.tarjeta);
   switch (actual) {
   case PAGINA_MOTOR:
     dibujarMotor(ahora);
@@ -1134,6 +1267,9 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
       titulo = reinicioPedido ? "Viaje reiniciado" : "Mantener para reiniciar el viaje";
     }
     break;
+  case PAGINA_ANTERIORES:
+    titulo = dibujarAnteriores(anteriores);
+    break;
   case PAGINA_FUERZA_G:
     dibujarFuerzaG(fuerzaG);
     break;
@@ -1143,4 +1279,20 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
     return;
   }
   pantalla.pagina(titulo, actual, CANT_PAGINAS, apretada, alarma.texto, sd);
+}
+
+void Paginas::dibujarSinDatos(const Anteriores &anteriores, EstadoTarjeta tarjeta) {
+  if (!armadas || actual == ESPERA) {
+    return;
+  }
+  for (uint8_t i = 0; i < CANT_PAGINAS; i++) {
+    mostrar(vistas[i], i == actual);
+  }
+  uint8_t numero = lugarSinDatos(actual);
+  if (actual == PAGINA_DS3) {
+    pantalla.paginaCompleta(numero, CANT_SIN_DATOS, nullptr, marcaSd(tarjeta));
+  } else {
+    pantalla.pagina(dibujarAnteriores(anteriores), numero, CANT_SIN_DATOS, 0, nullptr,
+                    marcaSd(tarjeta));
+  }
 }

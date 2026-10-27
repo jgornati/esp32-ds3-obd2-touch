@@ -44,6 +44,7 @@ que corresponda antes de portar un módulo.
 | E19   | Micrófono y parlante: grabar y hablar  | E11        | Descartada (se hizo y anduvo, pero el parlante se oye bajo; se sacó) |
 | E20   | Asistente de voz por OpenRouter        | E19        | Descartada |
 | E21   | WhatsApp por el celular                | E20        | Descartada |
+| E22   | Viajes anteriores, también sin conexión | E10       | Hecha (falta verificar en hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -68,6 +69,9 @@ descartan E20 y E21. No hay más etapas. Las que dicen *Hecha* o *Verificada
 probar**, abajo. Lo que sigue, según el usuario: probarlo y optimizarlo (las
 ideas están en **Ideas para después**) y, después, mejorar la interfaz para que
 se vea más lindo.
+
+E22 la pidió el usuario el mismo 2026-10-27, después del cierre: que sin
+conexión se pueda ir a la página DS3 y ver los datos de viajes pasados.
 
 ## Pendiente de probar
 
@@ -99,6 +103,10 @@ En el auto, con el motor andando y la microSD:
   PC; después de unas semanas, cuánto se corrió.
 - **Brillo (E15):** que el nivel se mantenga al apagar y prender, y verlo de
   día en el auto (el nivel 1, 100, queda cerca del corte de 90–97).
+- **Viajes anteriores (E22):** ver sus **Pruebas del usuario**, en las notas
+  de E22. Lo principal: que un viaje aparezca en ANTERIORES al volver a poner
+  el contacto, y que sin el adaptador (llave en accesorios, o en el banco) se
+  pueda pasar deslizando de la espera a ANTERIORES y a DS3 sin demora.
 - **`!info` con el motor andando:** la RAM interna libre (la última medida fue
   74 KB en el banco, sin el adaptador; en E5, 128 KB en el auto) y `LCD_TE N
   barridos/s` (E17: si el TE llega).
@@ -142,6 +150,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15). Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
+| Viajes anteriores      | Desde E22, un resumen de cada viaje (lo de VIAJE y cuándo empezó) en la flash, con `Preferences`, no en la microSD: los últimos 10 que llegan a 1 min en marcha. Se ven en ANTERIORES, después de VIAJE, también sin conexión. Lo eligió el usuario (2026-10-27) |
 | Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. Desde E12 se inicia el IMU, solo el acelerómetro y sin sus interrupciones (EXIO2 y EXIO3 no se tocan). Desde E13 se monta la microSD, en modo SD de 1 bit. Desde E14 se lee el RTC al arrancar, sin su interrupción (EXIO4 no se toca). |
 
 ## Hardware de la placa
@@ -197,8 +206,9 @@ src/
   imu.h/.cpp        el acelerómetro del QMI8658, leído por una tarea (E12)
   tarjeta.h/.cpp    la microSD y la tarea que escribe el registro (E13)
   rtc.h/.cpp        el reloj PCF85063, que pone la hora del sistema (E14)
+  guardados.h/.cpp  los viajes anteriores en la flash, con Preferences (E22)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13) y reloj (E14)
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13), reloj (E14) y viajes anteriores (E22)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -949,6 +959,41 @@ Android (se vio por el USB en E15).
 **Verificación del usuario:** en el auto, un mensaje que llega se lee, se
 contesta dictando y la respuesta llega bien. Nunca se manda algo sin el "sí".
 
+### E22 — Viajes anteriores, también sin conexión
+
+**Objetivo:** que sin conexión con el adaptador se pueda ir a la página DS3 y
+ver los datos de los viajes pasados.
+
+Lo que pidió el usuario (2026-10-27): "si no está conectado al bluetooth, que
+te deje ir a la pantalla esa del autito girando y ver los datos de viajes
+pasados". Hasta E22 el viaje vivía solo en la RAM, y sin datos se veía solo
+la espera.
+
+**Decidido con el usuario, antes de programar** (entre las opciones que
+propuso el agente):
+
+- **De dónde salen:** un resumen de cada viaje en la flash de la placa
+  (`Preferences`), actualizado cada minuto mientras se maneja; los últimos 10.
+  No de los CSV de la microSD (solo con tarjeta, y había que recorrer cada
+  archivo).
+- **Cómo se ven:** un viaje por pantalla, con las 8 casillas de VIAJE y la
+  fecha en la barra; tocar pasa al anterior. No una tabla de los últimos 4.
+- **Cuándo:** también con la ECU conectada, como una página después de VIAJE.
+  Sin conexión: espera → viajes anteriores → DS3, deslizando.
+
+**Tareas:**
+
+1. En `lib/obd`, con tests: el resumen de un viaje, sus bytes (con versión) y
+   la lista de los anteriores.
+2. Guardarlos en la flash sin gastarla ni frenar el sondeo, y que un corte de
+   luz en el medio no deje un viaje mal leído.
+3. La página ANTERIORES, y las páginas sin datos, con sus casos en el render.
+4. `!viajes` en la consola, para verlos en el banco.
+
+**Verificación del usuario:** después de un viaje, al volver a poner el
+contacto aparece en ANTERIORES con sus datos y la fecha; sin el adaptador se
+pasa deslizando de la espera a ANTERIORES y a DS3.
+
 ## Ideas para después
 
 Fuera del plan; solo si el usuario las pide:
@@ -1037,6 +1082,7 @@ De esta placa y el adaptador nuevo:
 | Reloj del QSPI                | El SPI del S3 sale de los 80 MHz del APB (o de los 40 del cristal) dividido por un entero: 80, 40 o 26,7 MHz. 60 no se puede. Queda en 40 (decisión del usuario); 80 sin probar | E17   |
 | Volumen del parlante          | Probado por el usuario con E19 (2026-10-27): grabó y reprodujo, pero se oye bajo. La grabación se reproducía tal cual (micrófonos a 30 dB, el DAC del ES8311 a 0 dB y sin subirle el nivel), así que no se sabe cuánto es el parlante y cuánto la grabación. Los pitidos de E11 pasaron de 0,5 a 1 (el DAC sigue a 0 dB), y con eso `!pitar` "pita perfecto" (2026-10-27); con el motor andando, sin probar | E11, E19 |
 | Micrófonos (esquemático)      | Según el esquemático y el ejemplo `08_Audio_Test` de la V2: ES7210 en `0x40`; los dos micrófonos de la placa (MEMS analógicos) en MIC1 y MIC2, y su `SDOUT1` al GPIO6 por 51 Ω; `SDOUT2` y el `ASDOUT` del ES8311 no van a ningún pin. Con el I2S en full duplex (16 kHz, 16 bits, MCLK de 256 veces) y el ES7210 como esclavo sin TDM, grabó (E19, descartada) | E19   |
+| Partición NVS (`Preferences`) | 20 KB (`nvs` en `0x9000`, tabla `app3M_fat9M_16MB.csv`): 5 páginas de 4 KB, una siempre libre. La usan la dirección del adaptador (`obd`, E2), el brillo (`pantalla`, E15) y los viajes (`viajes`, E22: `ultimo` y `v0` a `v9`, de 40 bytes). Sin medir lo que tarda una escritura en la placa: `Viajes: guardado ... en N ms` lo dice | E22   |
 | `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`; en la prueba en el auto no se pasó) | E17   |
 | Pantalla en el auto (E17)     | Con la rama de E17, estacionado en ralentí (`VIAJE0003.CSV`, 2026-10-27). Por cuadro: giro ~7,2 ms (máximo 11; a `-O0`, ~20), envío ~13,8 (máximo 17,4), espera 0. Dibujo: DS3 ~14 ms, 20 cuadros/s; Motor ~9 ms, 4–6 cuadros/s; Info ~3 ms; al cambiar de página, 11–29 ms | E17   |
 | Consultas por segundo y pantalla (E17) | Mismo registro: Motor 6,4 (6–7 en 30 s, como en E3), Info 6,6, Aire/Volt, Carga, Mezcla y Viaje 6–7. DS3 5,6 (4–7 en 38 s): 20 cuadros/s de ~14 ms, ~280 ms de cada segundo dibujando. FUERZA G 6–7, pero sin redibujar (auto y placa quietos: 0 cuadros/s). Fallas, 3 los dos segundos de la entrada (la lectura de las fallas, E5) | E17   |
@@ -3920,3 +3966,113 @@ Cómo estaba hecho:
 Lo que no se llegó a saber: si el touch informa dos dedos (el usuario no lo
 detalló), cuánto bajaban las consultas grabando, la RAM interna libre y cómo
 se oía una grabación en el auto con el motor andando.
+
+### E22
+
+Rama `e22-viajes-pasados`, desde `main` con el cierre del plan (PR #24: el
+usuario pidió commitearlo y mergearlo antes de empezar). Sin maqueta aparte:
+el usuario eligió el diseño entre dos maquetas de texto (las 8 casillas con la
+fecha en la barra, o una tabla de los últimos 4).
+
+**Cómo se guarda** (`src/guardados`, con la lógica en
+`lib/obd/src/anteriores`):
+
+- En el espacio `viajes` de `Preferences`: `ultimo` (el número del último
+  viaje guardado) y `v0` a `v9` (40 bytes cada uno). El viaje N va en
+  `v(N % 10)`: el de ahora se sobrescribe en su lugar y los demás no se
+  mueven. Al arrancar se leen de `ultimo` para atrás, 10 como mucho.
+- Primero se escribe `ultimo` y después el viaje: si se corta en el medio, en
+  ese lugar queda uno con otro número (va adentro de los bytes), que al leer
+  se descarta.
+- Se guarda al llegar a `MINIMO_VIAJE_GUARDADO_MS` en marcha (60 s) y después
+  cada `PERIODO_GUARDAR_VIAJE_MS` (60 s), solo si cambiaron los bytes: con el
+  motor parado no se escribe. Estimado, sin medir: ~4 entradas de NVS por
+  escritura, una página de 4 KB llena cada ~30 min de manejo.
+- Desde `loop()`, sin tarea aparte: escribir la flash frena los dos núcleos
+  igual. Cada guardado sale en el monitor serie con lo que tardó.
+- Los bytes: versión, número, banderas (si hay fecha y qué extremos hay),
+  fecha (año, mes, día, hora y minuto), km (`float`), tiempo en marcha (ms) y
+  los 5 extremos. Si cambia el formato, subir `VERSION_RESUMEN`: los
+  guardados con otra se descartan en lugar de leerse mal.
+- La fecha es la del RTC al arrancar la placa, o al reiniciar el viaje a mano.
+  Reiniciarlo (mantener VIAJE) lo guarda como está y lo pasa a ANTERIORES, si
+  llegó al minuto; el nuevo lleva otro número.
+- El viaje en curso no está en ANTERIORES: la lista se lee al arrancar.
+
+**Las páginas sin datos** (`paginas` y `main`):
+
+- `Paginas::conDatos()` lo llaman `cambiarA()` (con datos solo en LEYENDO) y
+  `alCambiarFase()` (Reconectar u Olvidar, que empiezan todavía en LEYENDO).
+  Sin datos se recorren la espera, ANTERIORES y DS3. La espera es un valor
+  más de `actual` (`ESPERA`, igual a `CANT_PAGINAS`) y la dibuja `main` con
+  `Pantalla::espera()`, en `sinDatos()`.
+- Al irse los datos, ANTERIORES y DS3 quedan; las demás pasan a la espera, y
+  se recuerda la última con datos. Al volver: la que se veía, o si era la
+  espera, la última con datos. Como puede ser otra, al entrar a LEYENDO se
+  llama `actualizarVisibles()`.
+- **Sin datos, los pedidos se atienden en el mismo evento de LVGL**
+  (`alPedirSinDatos(atenderPaginas)`): conectar por la dirección guardada
+  bloquea `loop()` hasta 4 s sin llamar a `alEsperar()` (sin el adaptador,
+  una vez cada ~15 s), y deslizar se habría demorado. Corre con LVGL tomado,
+  en `loop()` o en la otra tarea, como mantener la espera para reiniciar. Con
+  datos sigue como antes: pedidos que toma `loop()`.
+- `textoConexion`: lo que dice la espera en CONECTANDO_BT. Hasta E22 esa
+  espera quedaba como estaba y solo la cambiaba `alCambiarFase()`; ahora hace
+  falta para volver deslizando a la espera mientras se conecta.
+- La espera: tocar reintenta y mantener reinicia **solo con el dedo quieto**
+  (`QUIETO_PX`, como mantener VIAJE); si no, cada deslizamiento reintentaba.
+  Cambia algo ya verificado: mantenerla 3 s con el dedo corrido más de 20 px
+  ya no reinicia.
+- La barra tiene 10 puntos (`MAX_PAGINAS`): la hora y la marca SD se corren
+  16 px a la izquierda. El título más largo (`Mantener para reiniciar el
+  viaje`) sigue entrando.
+- VIAJE y ANTERIORES comparten las casillas (`CasillasViaje`,
+  `ponerCasillas()`), y VIAJE se dibuja desde un `ResumenViaje`. Debajo de la
+  barra, las pantallas de VIAJE del render dan igual píxel a píxel que en
+  `main`.
+- En ANTERIORES, lo que el viaje no tuvo es `N/D`; en VIAJE sería `...`
+  (todavía no llegó).
+
+Lo decidió el agente, sin consultar: guardar desde 1 min en marcha; el título
+`ANTERIOR 1/3  Lun 26/10 18:40` (`Sin fecha` sin reloj); que después del más
+viejo vuelva al más nuevo y que al entrar a la página empiece por el más
+nuevo; que ANTERIORES y DS3 queden al cortarse la conexión; los tres puntos
+sin datos; `!viajes`.
+
+Verificado en la PC: los tests nativos (118; 5 de `test_anteriores`), el
+render (224 revisiones; las nuevas: ANTERIORES con 1, 3, 10 y ningún viaje,
+tocar y deslizar, el título con 10 viajes, el modo sin datos y sus cambios,
+deslizar en la espera sin reintentar, con el dedo corrido no reinicia, y los
+pedidos desde el evento solo sin datos) y `pio run` sin warnings (59,3 % de
+3 MB). **Nada probado en la placa.**
+
+**Pruebas del usuario:**
+
+1. En el banco (USB de la PC, sin el adaptador): deslizar a la izquierda
+   desde la espera lleva a ANTERIORES (`Sin viajes guardados`, o los que haya)
+   con tres puntos arriba; otra vez, a DS3 andando; otra, a la espera. Que
+   cambie enseguida, también mientras dice `Conectando con el adaptador...` o
+   `Buscando el adaptador...`, y que deslizar no reintente.
+2. Tocar la espera sigue reintentando, y mantenerla 3 s sigue reiniciando.
+3. En el auto, un viaje de más de 1 min en marcha. En el monitor,
+   `Viajes: guardado el N ...` al minuto y después cada minuto, con lo que
+   tarda (si pasa de ~50 ms, anotarlo). `!viajes` dice que el de ahora es el N.
+4. Sacar la llave y volver a ponerla: en ANTERIORES (después de VIAJE) está
+   ese viaje, con la fecha y los datos que tenía VIAJE, salvo el último minuto.
+5. Con dos o más: tocar ANTERIORES pasa al anterior, y deslizar cambia de
+   página sin pasar de viaje.
+6. Mantener VIAJE 3 s: el viaje que termina aparece enseguida en ANTERIORES.
+7. Estando en DS3 o ANTERIORES, cortar la conexión (Reconectar desde INFO, y
+   deslizar hasta DS3 mientras conecta): al volver los datos sigue DS3. Desde
+   MOTOR, al cortarse va a la espera y al volver, a MOTOR.
+8. Si con la llave en accesorios el USB da corriente y el adaptador no, lo
+   mismo que en el banco.
+
+Para después:
+
+- Si guardar en la flash tarda mucho o se nota en la pantalla, pasarlo a la
+  tarea de la microSD o a una propia.
+- El viaje en curso no está en ANTERIORES; si se lo quiere ahí, va primero,
+  marcado como en curso.
+- Son 10 por `VIAJES_GUARDADOS`; más es cambiar ese número (40 bytes de flash
+  y ~60 de RAM por viaje).
