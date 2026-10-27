@@ -8,6 +8,7 @@
 #include <esp_system.h>
 #include <pids.h>
 #include <registro.h>
+#include <reloj.h>
 #include <respuesta.h>
 #include <stdarg.h>
 #include <viaje.h>
@@ -25,6 +26,7 @@
 #include "pantalla.h"
 #include "pantalla_hw.h"
 #include "placa.h"
+#include "rtc.h"
 #include "sondeo.h"
 #include "sonido.h"
 #include "tarjeta.h"
@@ -72,6 +74,7 @@ Sonido sonido;
 Brillo brillo;
 Imu imu;
 Tarjeta tarjeta;
+Rtc rtc;
 
 static Estado estado = Estado::CONECTANDO_BT;
 static uint32_t proximoIntento = 0; // cuándo vuelve a actuar el estado
@@ -227,6 +230,7 @@ static void imprimirInfo() {
     Serial.println("IMU: no anda");
   }
   tarjeta.imprimir();
+  rtc.imprimir();
 }
 
 // !imu: la última muestra sin filtrar, para ver los ejes del sensor, y lo
@@ -364,6 +368,7 @@ static size_t encabezadoRegistro(char *texto, size_t tam) {
                                         "G lateral",   "G long.",      "Eventos"};
   LineaCsv linea(texto, tam);
   linea.texto("Seg");
+  linea.texto("Hora");
   for (uint8_t i = 0; i < CANT_MAGNITUDES; i++) {
     char nombre[24];
     const char *unidad = unidadDe((Magnitud)i);
@@ -406,6 +411,12 @@ static void registrarSegundo() {
   LineaCsv linea(texto, sizeof(texto));
   snprintf(valor, sizeof(valor), "%lu", (unsigned long)segundo);
   linea.texto(valor);
+  FechaHora f;
+  bool conHora = rtc.ahora(&f);
+  if (conHora) {
+    textoFechaHora(f, valor, sizeof(valor));
+  }
+  linea.texto(conHora ? valor : nullptr);
   for (uint8_t i = 0; i < CANT_MAGNITUDES; i++) {
     linea.texto(textoValor((Magnitud)i, ahora, valor, sizeof(valor)) ? valor : nullptr);
   }
@@ -423,6 +434,39 @@ static void registrarSegundo() {
   linea.texto(eventos.texto());
   eventos.vaciar();
   tarjeta.agregar(texto, linea.terminar());
+}
+
+// Para la barra y la espera: "14:35"
+static bool horaParaPantalla(char *texto, size_t tam) {
+  FechaHora f;
+  if (!rtc.ahora(&f)) {
+    return false;
+  }
+  textoHora(f, texto, tam);
+  return true;
+}
+
+// !hora: sin nada, la muestra; con "AAAA-MM-DD HH:MM", la pone en el RTC.
+// En el registro queda anotado: la columna Hora salta.
+static void ponerHora(const char *texto) {
+  if (texto[0] == '\0') {
+    rtc.imprimir();
+    return;
+  }
+  FechaHora f;
+  if (!interpretarHora(texto, &f)) {
+    Serial.println("Consola: !hora AAAA-MM-DD HH:MM (o HH:MM:SS), por ejemplo "
+                   "!hora 2026-10-27 14:35");
+    return;
+  }
+  if (!rtc.poner(f)) {
+    Serial.println("Reloj: no se pudo poner (el PCF85063 no contesta)");
+    return;
+  }
+  rtc.imprimir();
+  char puesta[24];
+  textoFechaHora(f, puesta, sizeof(puesta));
+  anotar("Reloj puesto en hora: %s", puesta);
 }
 
 // Cada cambio de la tarjeta sale en el monitor serie; un error, también en
@@ -1329,12 +1373,15 @@ void setup() {
   // la placa antes que la pantalla: en la V2, el reset del panel y la luz van
   // por el TCA9554. Lo que no anduvo se informa cuando abre el monitor (!info).
   iniciarPlaca();
+  // Antes que la pantalla, para que la hora ya esté al prenderla
+  rtc.iniciar();
   brillo.iniciar();
   bool conPantalla = pantallaHw.iniciar(brillo.valor());
   pantalla.iniciar();
   paginas.iniciar();
   pantalla.espera("Iniciando...");
   pantalla.alMantenerApretada(reiniciarPlaca);
+  pantalla.alPedirHora(horaParaPantalla);
   uint32_t inicio = millis();
   while (!Serial && millis() - inicio < ESPERA_MONITOR_MS) {
     pantallaHw.atender();
@@ -1366,7 +1413,8 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !brillo N, !imu, !sd, !escanear o !explorar N.");
+                 "!info, !pitar, !brillo N, !imu, !sd, !hora AAAA-MM-DD HH:MM, !escanear o "
+                 "!explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
@@ -1387,6 +1435,10 @@ void loop() {
   }
   if (consola.sdPedido()) {
     tarjeta.imprimir();
+  }
+  const char *hora = consola.horaPedida();
+  if (hora != nullptr) {
+    ponerHora(hora);
   }
   if (consola.pitidoPedido()) {
     Serial.println(sonido.iniciado() ? "Consola: pitando" : "Consola: el sonido no anda");

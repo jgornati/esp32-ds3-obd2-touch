@@ -8,8 +8,8 @@
 // mantener apretada Viaje la reinicie, que las alarmas se vean y no
 // redibujen de más, que el punto de Fuerza G vaya para donde corresponde,
 // que la tarjeta de Info y la marca SD de la barra tengan el color de su
-// estado, y que los textos de Fallas, Info, Viaje y Fuerza G no se pasen de su
-// columna.
+// estado, que la hora esté en la barra y en la espera, y que los textos de
+// Fallas, Info, Viaje y Fuerza G no se pasen de su columna.
 //
 // El reloj de LVGL es de mentira y no se refresca solo: las animaciones
 // avanzan con irA() y la imagen se dibuja al capturarla.
@@ -54,6 +54,10 @@ static const int X_VALOR_INFO_RENDER = 132; // X_VALOR_INFO de paginas.cpp
 // primero (x 496) y es de 26x16, centrada en la barra
 static const int X_MARCA_SD = 458;
 static const int Y_MARCA_SD = 6;
+// La hora termina 12 px antes de la marca; sin la marca, 12 antes del primer
+// punto
+static const int BORDE_HORA = X_MARCA_SD - 12;
+static const int BORDE_HORA_SIN_MARCA = 496 - 12;
 
 static uint32_t reloj = 100000;
 static uint16_t marco[ANCHO * ALTO];
@@ -337,7 +341,8 @@ static bool marcaSd(const lv_color_t *color) {
   int x2 = X_MARCA_SD + 25;
   int y2 = Y_MARCA_SD + 15;
   if (color == nullptr) {
-    return todoDeColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, FONDO_BARRA);
+    return !hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, ETIQUETA) &&
+           !hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, AMBAR);
   }
   // El fondo de la marca, y nada suyo antes ni después
   return hayColor(X_MARCA_SD, x2, Y_MARCA_SD, y2, *color) &&
@@ -410,6 +415,21 @@ static void contarReinicio() {
   reinicios++;
 }
 
+// La hora de la barra y de la espera: 14:35, o sin hora
+static bool conHora = true;
+
+static bool horaDeMentira(char *texto, size_t tam) {
+  snprintf(texto, tam, "14:35");
+  return conHora;
+}
+
+// La hora en la barra, de ese color, con el borde derecho en borde; después,
+// hasta la marca o los puntos, solo el fondo (fondo: el de la barra)
+static bool horaEnLaBarra(int borde, lv_color_t color, lv_color_t fondo = FONDO_BARRA) {
+  return hayColor(borde - 60, borde - 1, 4, 23, color) &&
+         todoDeColor(borde, borde + 11, 0, 27, fondo);
+}
+
 static size_t memoriaEnUso() {
 #ifdef __APPLE__
   malloc_statistics_t estadisticas;
@@ -436,6 +456,7 @@ int main(int argc, char **argv) {
   PantallaHw hw;
   Pantalla pantalla(hw);
   pantalla.iniciar();
+  pantalla.alPedirHora(horaDeMentira);
   Paginas paginas(pantalla);
   // Lo que piden las páginas armadas y dibujadas una vez
   datosDeLaMaqueta();
@@ -483,6 +504,16 @@ int main(int argc, char **argv) {
   }
   irA(encendida + ESPERA_ENTRADA_MS + entrada_cantidad * entrada_ms_cuadro);
   guardar(directorio, "0-espera-quieto");
+  // La hora arriba a la derecha, chica y en gris; sin hora, "--:--" más oscuro
+  revisar(hayColor(570, 631, 0, 24, ETIQUETA) && franjaVacia(633, ANCHO - 1),
+          "espera: la hora arriba a la derecha");
+  conHora = false;
+  irA(reloj + 600);
+  guardar(directorio, "0-espera-sin-hora");
+  revisar(hayColor(570, 631, 0, 24, GRIS) && !hayColor(570, 631, 0, 24, ETIQUETA),
+          "espera sin hora: --:-- en gris oscuro");
+  conHora = true;
+  irA(reloj + 600);
   irA(reloj + 1000);
   pantalla.espera("Conectando con el adaptador...");
   revisar(display->inv_p == 0, "espera: con el auto quieto, no se redibuja nada");
@@ -712,10 +743,24 @@ int main(int argc, char **argv) {
     revisar(hayColor(X_VALOR_INFO_RENDER, 416, 55, 79, caso.color) && franjaVacia(417, 423), que);
     snprintf(que, sizeof(que), "Barra con \"%s\": la marca SD como corresponde", texto);
     revisar(marcaSd(caso.marca), que);
+    snprintf(que, sizeof(que), "Barra con \"%s\": la hora antes de la marca o de los puntos",
+             texto);
+    revisar(horaEnLaBarra(caso.marca != nullptr ? BORDE_HORA : BORDE_HORA_SIN_MARCA, BLANCO), que);
     paginas.dibujar(reloj, info, fallas, reintento, viaje, fuerzaG, alarma);
     snprintf(que, sizeof(que), "Info con \"%s\": dibujar de nuevo no redibuja nada", texto);
     revisar(display->inv_p == 0, que);
   }
+
+  // Sin hora (el RTC la perdió): "--:--" en gris, en el mismo lugar
+  conHora = false;
+  irA(reloj + 600);
+  guardar(directorio, "pc-barra-sin-hora");
+  revisar(horaEnLaBarra(BORDE_HORA, GRIS) && sinBlanco(BORDE_HORA - 60, BORDE_HORA - 1, 0, 27),
+          "Barra sin hora: --:-- en gris");
+  conHora = true;
+  irA(reloj + 600);
+  capturar();
+  revisar(horaEnLaBarra(BORDE_HORA, BLANCO), "Barra: con hora, de nuevo en blanco");
 
   // Fuera de los botones, Info cambia de página como las demás
   revisar(tocar(indev, paginas, 100, 100) == -1, "en Info, tocar los datos: anterior");
@@ -879,8 +924,10 @@ int main(int argc, char **argv) {
     revisar(display->inv_p == 0, que);
     snprintf(que, sizeof(que), "%s: la barra es roja", caso.nombre);
     revisar(marco[5 * ANCHO + 630] == lv_color_to_u16(ROJO), que);
-    snprintf(que, sizeof(que), "%s: la alarma no llega a la marca SD", caso.nombre);
-    revisar(todoDeColor(X_MARCA_SD - 20, X_MARCA_SD - 1, 0, 27, ROJO) &&
+    snprintf(que, sizeof(que), "%s: la alarma no llega a la hora, que sigue con la marca SD",
+             caso.nombre);
+    revisar(todoDeColor(BORDE_HORA - 80, BORDE_HORA - 66, 0, 27, ROJO) &&
+                horaEnLaBarra(BORDE_HORA, BLANCO, ROJO) &&
                 hayColor(X_MARCA_SD, X_MARCA_SD + 25, Y_MARCA_SD, Y_MARCA_SD + 15, ETIQUETA),
             que);
     snprintf(que, sizeof(que), "%s: tocar la barra roja sigue cambiando de pagina", caso.nombre);

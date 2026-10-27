@@ -37,7 +37,7 @@ que corresponda antes de portar un módulo.
 | E11   | Alarmas                                | E9         | Hecha (falta verificar en hardware) |
 | E12   | Fuerza G                               | E10        | Hecha (falta verificar en hardware) |
 | E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo la marca SD de la barra) |
-| E14   | Reloj                                  | —          | Pendiente (con la batería puesta) |
+| E14   | Reloj                                  | —          | Hecha (falta verificar en hardware) |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Hecha (falta verificar en hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
@@ -85,7 +85,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
 | Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15). Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
-| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. Desde E12 se inicia el IMU, solo el acelerómetro y sin sus interrupciones (EXIO2 y EXIO3 no se tocan). Desde E13 se monta la microSD, en modo SD de 1 bit. |
+| Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. Desde E12 se inicia el IMU, solo el acelerómetro y sin sus interrupciones (EXIO2 y EXIO3 no se tocan). Desde E13 se monta la microSD, en modo SD de 1 bit. Desde E14 se lee el RTC al arrancar, sin su interrupción (EXIO4 no se toca). |
 
 ## Hardware de la placa
 
@@ -138,8 +138,9 @@ src/
   brillo.h/.cpp     el nivel de brillo, guardado en Preferences (E15)
   imu.h/.cpp        el acelerómetro del QMI8658, leído por una tarea (E12)
   tarjeta.h/.cpp    la microSD y la tarea que escribe el registro (E13)
+  rtc.h/.cpp        el reloj PCF85063, que pone la hora del sistema (E14)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12) y registro (E13)
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13) y reloj (E14)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -633,7 +634,8 @@ Antes de empezar: con la batería puesta y la llave sacada, medir con un
 tester la tensión en C32, al lado del RTC (debería dar ~3,4–3,9 V). Si no
 da, la placa no es como el esquemático, y las opciones eran un
 supercapacitor o una pila en la pata 10 del RTC, o la hora por Wi-Fi con el
-celular.
+celular. (El 2026-10-27 el usuario tenía la batería puesta, sin medir C32: se
+hizo igual, y lo confirma la prueba de una noche. Ver notas de E14.)
 
 **Tareas:**
 
@@ -736,6 +738,7 @@ De esta placa y el adaptador nuevo:
 | Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); desde E15 el firmware usa los de la V2. Según los ejemplos y el esquemático de la V2, sin medir | E11, E15 |
 | microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01 | E13   |
 | IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: sin saber (`EJE_DERECHA_IMU` = x es una suposición) | E12   |
+| RTC (PCF85063)                | Según el datasheet del PCF85063A y el ejemplo `02_I2C_PCF85063` de la V2 (SensorLib), sin probar en la placa: `0x51`. La hora en BCD, de `0x04` (segundos) a `0x0A` (año, de 2000 a 2099), con el día de la semana en `0x08`; el bit 7 de los segundos (`OS`) dice que el oscilador se detuvo y se borra al escribirlos. En `CONTROL_1` (`0x00`), el bit 5 lo detiene y el 1 lo pasa a 12 h: de fábrica, los dos en 0 | E14   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). Se confirma midiendo ~3,4–3,9 V en C32 con la llave sacada | E14   |
 
 ## Notas de traspaso
@@ -3061,6 +3064,109 @@ Para E14:
   `encabezadoRegistro()` y `registrarSegundo()` están en `main.cpp`.
 
 ### E14
+
+Rama `e14-reloj`, desde `main` con E13. **Maqueta** (agente, 2026-10-27), en el
+lienzo de E4 (https://claude.ai/artifact/41eQde6wkKUL81ZuDnHBGX), filas "Reloj
+(E14)": A (la hora a la derecha, antes de la marca SD, en blanco), B (al centro
+de la barra) y A en gris; y A con una alarma y sin hora.
+
+Elegido por el usuario (2026-10-27):
+
+- **A, en blanco.**
+- **Ponerla solo con `!hora`**, no desde la pantalla (Info está llena).
+- **También en la espera,** arriba a la derecha, chica y en gris.
+- **La batería está puesta, sin medir C32.** Se hizo igual: si el RTC no queda
+  alimentado con la placa apagada, se ve `--:--` al prender (el bit `OS`).
+
+Lo decidió el agente, sin objeción del usuario: el RTC guarda la hora local,
+sin zona horaria, en 24 h (con horario de verano, se corrige con `!hora`); la
+columna `Hora` del CSV, con fecha y hora; y la fecha real en los archivos de la
+FAT.
+
+Lo que se hizo:
+
+- **`lib/obd/reloj`** (nuevo, sin Arduino):
+
+  ```cpp
+  struct FechaHora { uint16_t anio; uint8_t mes, dia, hora, minuto, segundo; };
+  constexpr uint8_t REGISTROS_HORA = 7; // 0x04 a 0x0A, en BCD
+  bool leerRegistrosHora(const uint8_t registros[7], FechaHora *f); // false con OS o inválida
+  void registrosHora(const FechaHora &f, uint8_t registros[7]);     // con el día de la semana
+  bool interpretarHora(const char *texto, FechaHora *f); // "2026-10-27 14:35[:12]", 2000 a 2099
+  bool fechaValida(const FechaHora &f);
+  uint8_t diaDeLaSemana(uint16_t anio, uint8_t mes, uint8_t dia);   // 0 domingo
+  int64_t segundosDesde1970(const FechaHora &f);  // la hora local, como si fuera UTC
+  FechaHora fechaHoraDe(int64_t segundos);
+  void textoHora(const FechaHora &f, char *salida, size_t tam);      // "14:35"
+  void textoFechaHora(const FechaHora &f, char *salida, size_t tam); // "2026-10-27 14:35:12"
+  ```
+
+- **`src/rtc`** (nuevo): `iniciar()`, `poner(f)`, `ahora(&f)` e `imprimir()`.
+  - En `busPlaca()` (`0x51`, 300 kHz), con `i2c_master_probe()` antes. Se
+    inicia en `setup()` justo después de `iniciarPlaca()`, antes que la
+    pantalla, para que la hora ya esté al prenderla (lo que imprime se pierde
+    si el monitor no está abierto: `!info` lo repite).
+  - Si `CONTROL_1` tiene el bit de detenido o el de 12 h, los pone en 0; si
+    estaba en 12 h, la hora guardada no se usa. Lo demás (la capacidad del
+    cristal) queda como está.
+  - Lee los 7 registros: si son válidos y sin `OS`, pone la hora del sistema
+    (`settimeofday()`, con `TZ` en `UTC0`). De ahí la toman la barra, el
+    registro y la FAT (`get_fattime()` usa `localtime()`), sin volver a leer
+    el RTC: el reloj del ESP32 se corre menos de 0,1 s por hora.
+  - `poner()` escribe los 7 registros en una sola transmisión (el chip congela
+    la hora mientras dura; escribir los segundos borra `OS`) y la hora del
+    sistema.
+  - `ahora()` lee la hora del sistema: se puede llamar desde la tarea de la
+    pantalla.
+  - Del TCA9554 no toca nada: la interrupción del RTC (EXIO4) no se usa.
+- **`pantalla`:** `alPedirHora(funcion)`. Un timer de LVGL la pide cada 500 ms
+  y pone el texto en dos etiquetas, que redibujan solo si cambia: así anda
+  también mientras `loop()` está trabado conectando el BLE.
+  - En la barra, en blanco (`--:--` en `GRIS` sin hora), alineada a la
+    derecha 12 px antes de la marca SD, o de los puntos sin la marca, o del
+    margen en las pantallas de estado. Con una alarma queda, en blanco sobre el
+    rojo.
+  - En la espera, `lv_font_montserrat_14` en `ETIQUETA`, arriba a la derecha.
+- **`main.cpp`:** `Rtc rtc`; `horaParaPantalla()`; la columna `Hora` del CSV
+  después de `Seg`, vacía sin hora; `!hora` (nuevo, en `consola`): sin nada
+  imprime la hora, con fecha y hora la pone y anota `Reloj puesto en hora:
+  ...` en el registro; `!info` con la hora.
+- Sin cambios en la lista blanca ni en lo que se le manda al auto.
+
+Verificado por el agente:
+
+- `pio run` compila (RAM 11,1 %, flash 65,2 %). Con `-Wall -Wextra -Wshadow`,
+  sin warnings propios.
+- `pio test -e native` 113/113: 11 nuevos en `test/test_reloj/` (leer los
+  registros, con bits sueltos, con `OS` y con valores imposibles; escribirlos;
+  `!hora` bien y mal escrito, con años bisiestos y fuera de 2000–2099; el día de
+  la semana; los segundos desde 1970 contra Python, y la ida y vuelta de cada
+  día de 2000 a 2099).
+- **Render**, 171 revisiones, todas bien. Casos nuevos: `pc-barra-sin-hora` y
+  `0-espera-sin-hora`, y la hora en todas las páginas (`14:35`, de mentira).
+  Revisa que la hora quede antes de la marca, o de los puntos sin ella, que la
+  alarma no llegue a la hora, `--:--` en gris en la barra y en la espera, y que
+  vuelva al blanco. Se comprobó que fallan con la hora sin correrse por la
+  marca.
+
+Sin probar (falta la placa): que el RTC conteste, la hora al arrancar, `!hora`,
+si sigue con la placa apagada (la batería y C32) y cuánto se corre.
+
+**Pruebas del usuario** (subir el firmware de esta rama):
+
+1. Al arrancar, `!info` termina en `Reloj: ...`. La primera vez lo normal es
+   `Reloj: sin hora (se detuvo...)`, y la barra y la espera dicen `--:--`. Si
+   dice `Reloj: no anda`, avisar.
+2. `!hora AAAA-MM-DD HH:MM` con la hora de ahora: `Reloj: <la hora>`, y en la
+   pantalla aparece al medio segundo.
+3. Reiniciar con el USB puesto (botón RESET): la hora sigue bien.
+4. **La prueba de la etapa:** una noche con el auto apagado. Al día siguiente,
+   la hora sigue bien. Si dice `--:--`, el RTC no quedó alimentado por la
+   batería: medir C32 con la llave sacada.
+5. En el CSV del viaje siguiente, la columna `Hora`, y la fecha del archivo en
+   la PC.
+6. Después de unas semanas, cuánto se corrió (para saber si hace falta
+   corregirlo con el registro `Offset` del PCF85063).
 
 ### E15
 
