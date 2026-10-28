@@ -106,18 +106,17 @@ En el auto, con el motor andando y la microSD:
   reinicia; menos, no. Sacar la llave y volver a ponerla: empieza de cero. (En
   los registros de E13 el tiempo en marcha ya contaba; la distancia daba 0,
   con el auto quieto.)
-- **Fuerza G (E12):** los ejes (`EJE_DERECHA_IMU` = x es una suposición: con
-  la placa parada sobre su lado izquierdo, `!imu` tiene que dar ~+1 g en x),
-  el punto hacia el lado que corresponde al frenar y en las curvas, que
-  recalibre en las paradas (`!info`, las calibraciones suben). Que el IMU
-  contesta y calibra quieto ya se vio en E13. **El signo está al revés:** el
-  usuario vio que al acelerar la bolita iba para adelante, y en los registros
-  del 2026-10-27 la `G long.` sigue a la derivada de la velocidad con el signo
-  cambiado (correlación −0,97, pendiente −1,07, en 1700 s). El eje es el
-  correcto y la derecha es −x: se arregla con `EJE_DERECHA_IMU = {-1, 0, 0}`,
-  que da vuelta la lateral y la longitudinal juntas (adelante sale de arriba
-  por la derecha). El usuario lo probó cambiando `SIGNO` en `src/imu.cpp`, sin
-  commitear (2026-10-28).
+- **Fuerza G (E12):** el punto hacia el lado que corresponde al frenar y en las
+  curvas, y que recalibre en las paradas (`!info`, las calibraciones suben).
+  Que el IMU contesta y calibra quieto ya se vio en E13. **El signo estaba al
+  revés:** el usuario vio que al acelerar la bolita iba para adelante, y en los
+  registros del 2026-10-27 la `G long.` sigue a la derivada de la velocidad con
+  el signo cambiado (correlación −0,97, pendiente −1,07, en 1700 s). El eje es
+  el correcto y la derecha es −x: desde el 2026-10-28,
+  `EJE_DERECHA_IMU = {-1, 0, 0}` (era `{1, 0, 0}`, una suposición), que da
+  vuelta la lateral y la longitudinal juntas (adelante sale de arriba por la
+  derecha). Falta verlo en el auto: al acelerar la bolita va para abajo, y en
+  una curva a la derecha, a la izquierda.
 - **FUERZA G a 50 ms (E17):** con el punto moviéndose (andando, o moviendo la
   placa con la mano), ~20 cuadros/s y las consultas en 6–7. Si bajan, volver
   a 100 (`git revert 7176bbd`).
@@ -1268,8 +1267,9 @@ Fuera del plan; solo si el usuario las pide:
     ~6 por segundo, y el IMU a 50); el peso del auto, cargado una vez;
     detectar la pasada (acelerador a fondo, una sola marcha, con la marcha de
     E24); la masa de lo que gira en cada marcha; y una página con la curva.
-  - Antes, la fuerza G con el signo bien: en los registros del 2026-10-27 la
-    longitudinal da al revés (ver **Pendiente de probar**, Fuerza G).
+  - Necesita la fuerza G con el signo bien: en los registros del 2026-10-27 la
+    longitudinal daba al revés; se arregló el 2026-10-28 y falta verlo en el
+    auto (ver **Pendiente de probar**, Fuerza G).
   - La masa es lo que más pesa en el resultado: un 10 % de error en el peso es
     casi un 10 % en los CV. Solo en plano y donde sea legal.
 
@@ -1325,7 +1325,7 @@ De esta placa y el adaptador nuevo:
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
 | Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); desde E15 el firmware usa los de la V2. Según los ejemplos y el esquemático de la V2, sin medir | E11, E15 |
 | microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01 | E13   |
-| IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: sin saber (`EJE_DERECHA_IMU` = x es una suposición) | E12   |
+| IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: E12 supuso x; los registros del 2026-10-27 dicen que la derecha es −x (la longitudinal daba al revés, ver **Pendiente de probar**) | E12   |
 | RTC (PCF85063)                | Según el datasheet del PCF85063A y el ejemplo `02_I2C_PCF85063` de la V2 (SensorLib), sin probar en la placa: `0x51`. La hora en BCD, de `0x04` (segundos) a `0x0A` (año, de 2000 a 2099), con el día de la semana en `0x08`; el bit 7 de los segundos (`OS`) dice que el oscilador se detuvo y se borra al escribirlos. En `CONTROL_1` (`0x00`), el bit 5 lo detiene y el 1 lo pasa a 12 h: de fábrica, los dos en 0 | E14   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). **Confirmado el 2026-10-27:** la hora se mantuvo una noche con el auto apagado (C32 no se midió) | E14   |
 | Optimización del compilador   | Todo lo que compila PlatformIO (`src`, `lib/obd`, LVGL, el driver del panel, el core de Arduino y su BLE) va **sin ningún `-O`**, o sea a `-O0`: el `platformio-build.py` de Arduino-ESP32 3.3 toma los flags de `flags/c_flags` y `flags/cpp_flags`, que no lo traen (el `-Os` está en `pioarduino-build.py`, que no se usa). El ESP-IDF viene ya compilado a `-Os`. Programa: 65,2 % de 3 MB así; LVGL a `-Os`, 56,6 %; LVGL a `-O2`, 58,8 %; todo a `-Os`, 50,5 %; todo a `-O2`, 53,5 % | E17   |
