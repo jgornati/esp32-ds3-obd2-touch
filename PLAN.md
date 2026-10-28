@@ -110,7 +110,14 @@ En el auto, con el motor andando y la microSD:
   la placa parada sobre su lado izquierdo, `!imu` tiene que dar ~+1 g en x),
   el punto hacia el lado que corresponde al frenar y en las curvas, que
   recalibre en las paradas (`!info`, las calibraciones suben). Que el IMU
-  contesta y calibra quieto ya se vio en E13.
+  contesta y calibra quieto ya se vio en E13. **El signo está al revés:** el
+  usuario vio que al acelerar la bolita iba para adelante, y en los registros
+  del 2026-10-27 la `G long.` sigue a la derivada de la velocidad con el signo
+  cambiado (correlación −0,97, pendiente −1,07, en 1700 s). El eje es el
+  correcto y la derecha es −x: se arregla con `EJE_DERECHA_IMU = {-1, 0, 0}`,
+  que da vuelta la lateral y la longitudinal juntas (adelante sale de arriba
+  por la derecha). El usuario lo probó cambiando `SIGNO` en `src/imu.cpp`, sin
+  commitear (2026-10-28).
 - **FUERZA G a 50 ms (E17):** con el punto moviéndose (andando, o moviendo la
   placa con la mano), ~20 cuadros/s y las consultas en 6–7. Si bajan, volver
   a 100 (`git revert 7176bbd`).
@@ -1247,6 +1254,24 @@ Fuera del plan; solo si el usuario las pide:
   van en `Preferences`, no en el código. Qué se sube (los CSV de la microSD o
   los resúmenes de ANTERIORES) y adónde (un servidor propio, una planilla) se
   decide con el usuario.
+- Un dinamómetro: la curva de potencia y torque en las ruedas contra las RPM,
+  en una pasada a fondo en una marcha (pedido del usuario, 2026-10-28, para más
+  adelante). La potencia es la fuerza por la velocidad; la fuerza, la masa por
+  la aceleración (del IMU, o la derivada de la velocidad), más el aire
+  (½ · densidad · Cx · área frontal · v²) y la rodadura (~1,2 % del peso).
+  - Probado a mano con `VIAJE0007`: una pasada en 3ª de 84 a 130 km/h, con el
+    acelerador en 86 % (el máximo de este auto). Con ~1200 kg, Cx 0,32,
+    2,1 m² y 6 % más de masa por lo que gira (valores aproximados, sin
+    verificar), da ~100–115 CV en las ruedas entre 5000 y 6000 rpm. Fábrica:
+    120 CV a 6000 rpm, en el motor.
+  - Lo que falta: datos más seguidos que una línea por segundo (las consultas,
+    ~6 por segundo, y el IMU a 50); el peso del auto, cargado una vez;
+    detectar la pasada (acelerador a fondo, una sola marcha, con la marcha de
+    E24); la masa de lo que gira en cada marcha; y una página con la curva.
+  - Antes, la fuerza G con el signo bien: en los registros del 2026-10-27 la
+    longitudinal da al revés (ver **Pendiente de probar**, Fuerza G).
+  - La masa es lo que más pesa en el resultado: un 10 % de error en el peso es
+    casi un 10 % en los CV. Solo en plano y donde sea legal.
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
