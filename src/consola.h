@@ -25,6 +25,8 @@ public:
   bool infoPedida();
   // true una sola vez después de un !pitar (los pitidos de una alarma)
   bool pitidoPedido();
+  // true una sola vez después de un !pitar cambio (el del aviso de cambio, E25)
+  bool pitidoCambioPedido();
   // true una sola vez después de un !trabar (para probar el guardián, E23)
   bool trabaPedida();
   // true una sola vez después de un !imu (la última muestra del IMU)
@@ -37,6 +39,9 @@ public:
   const char *horaPedida();
   // El nivel de un !brillo N, una sola vez; 0 si no hubo
   uint8_t brilloPedido();
+  // Un !cambio, una sola vez (E25): rpm es el umbral pedido (0 apagado), o -1
+  // si vino sin número (mostrarlo). false si no hubo.
+  bool cambioPedido(int32_t *rpm);
   // El valor de un !luz V (la luz de 0 a 255, sin guardar), una sola vez.
   // Para medir los niveles en el banco.
   bool luzPedida(uint8_t *valor);
@@ -69,6 +74,7 @@ private:
   bool descubrir = false;
   bool info = false;
   bool pitido = false;
+  bool pitidoCambio = false;
   bool trabar = false;
   bool imu = false;
   bool sd = false;
@@ -76,6 +82,8 @@ private:
   bool hora = false;
   char textoHora[32] = "";
   uint8_t brillo = 0;
+  bool cambio = false;
+  int32_t rpmCambio = -1;
   bool luz = false;
   uint8_t valorLuz = 0;
   bool conDetalle = false;

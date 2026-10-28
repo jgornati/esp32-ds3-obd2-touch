@@ -6,7 +6,9 @@
 // Las de config.h
 static const ReglaAlarma REFRIGERANTE = {110, 108, true, 5000, 5000};
 static const ReglaAlarma BAJO = {13.0f, 13.2f, false, 10000, 10000};
-static const ReglaAlarma RPM = {6000, 5800, true, 0, 0};
+static const ReglaAlarma ALTO = {15.0f, 14.8f, true, 10000, 10000};
+// Sin espera, como era la de las RPM (ZONA ROJA) hasta E25
+static const ReglaAlarma AL_INSTANTE = {6000, 5800, true, 0, 0};
 
 void setUp() {}
 
@@ -67,8 +69,8 @@ static void test_por_abajo() {
 }
 
 static void test_al_instante() {
-  // RPM: sin espera, con histéresis
-  Alarma a(RPM);
+  // Sin espera, con histéresis
+  Alarma a(AL_INSTANTE);
   TEST_ASSERT_EQUAL(CambioAlarma::NINGUNO, a.revisar(true, 5990, 1000));
   TEST_ASSERT_EQUAL(CambioAlarma::SE_PRENDIO, a.revisar(true, 6000, 1150));
   TEST_ASSERT_EQUAL(CambioAlarma::NINGUNO, a.revisar(true, 5850, 1300));
@@ -102,34 +104,37 @@ static void test_millis_da_la_vuelta() {
 }
 
 static void test_varias() {
-  static const ReglaAlarma REGLAS[CANT_ALARMAS] = {
-      REFRIGERANTE, BAJO, {15.0f, 14.8f, true, 0, 0}, RPM};
+  static const ReglaAlarma REGLAS[CANT_ALARMAS] = {REFRIGERANTE, BAJO, ALTO};
   Alarmas alarmas(REGLAS);
   TipoAlarma tipo;
   uint8_t numero;
   TEST_ASSERT_EQUAL_UINT8(0, alarmas.activas());
   TEST_ASSERT_FALSE(alarmas.aLaVista(0, &tipo, &numero));
 
-  TEST_ASSERT_EQUAL(CambioAlarma::SE_PRENDIO, alarmas.revisar(RPM_ALTA, true, 6200, 0));
-  TEST_ASSERT_EQUAL(CambioAlarma::SE_PRENDIO, alarmas.revisar(VOLTAJE_ALTO, true, 15.4f, 0));
+  alarmas.revisar(REFRIGERANTE_ALTO, true, 112, 0);
+  alarmas.revisar(VOLTAJE_ALTO, true, 15.4f, 0);
+  TEST_ASSERT_EQUAL(CambioAlarma::SE_PRENDIO, alarmas.revisar(VOLTAJE_ALTO, true, 15.4f, 10000));
+  TEST_ASSERT_EQUAL(CambioAlarma::NINGUNO, alarmas.revisar(REFRIGERANTE_ALTO, true, 112, 4000));
+  TEST_ASSERT_EQUAL_UINT8(1, alarmas.activas());
+  TEST_ASSERT_EQUAL(CambioAlarma::SE_PRENDIO, alarmas.revisar(REFRIGERANTE_ALTO, true, 112, 5000));
   TEST_ASSERT_EQUAL_UINT8(2, alarmas.activas());
-  TEST_ASSERT_TRUE(alarmas.alarma(RPM_ALTA).activa());
+  TEST_ASSERT_TRUE(alarmas.alarma(REFRIGERANTE_ALTO).activa());
   TEST_ASSERT_FALSE(alarmas.alarma(VOLTAJE_BAJO).activa());
 
   // Se alternan en el orden de TipoAlarma
   TEST_ASSERT_TRUE(alarmas.aLaVista(0, &tipo, &numero));
-  TEST_ASSERT_EQUAL(VOLTAJE_ALTO, tipo);
+  TEST_ASSERT_EQUAL(REFRIGERANTE_ALTO, tipo);
   TEST_ASSERT_EQUAL_UINT8(0, numero);
   TEST_ASSERT_TRUE(alarmas.aLaVista(1, &tipo, &numero));
-  TEST_ASSERT_EQUAL(RPM_ALTA, tipo);
+  TEST_ASSERT_EQUAL(VOLTAJE_ALTO, tipo);
   TEST_ASSERT_EQUAL_UINT8(1, numero);
   TEST_ASSERT_TRUE(alarmas.aLaVista(2, &tipo, &numero));
-  TEST_ASSERT_EQUAL(VOLTAJE_ALTO, tipo);
+  TEST_ASSERT_EQUAL(REFRIGERANTE_ALTO, tipo);
 
   // Con una sola, siempre esa
-  alarmas.revisar(VOLTAJE_ALTO, true, 14.0f, 100);
+  alarmas.revisar(REFRIGERANTE_ALTO, false, 0, 6000);
   TEST_ASSERT_TRUE(alarmas.aLaVista(7, &tipo, &numero));
-  TEST_ASSERT_EQUAL(RPM_ALTA, tipo);
+  TEST_ASSERT_EQUAL(VOLTAJE_ALTO, tipo);
   TEST_ASSERT_EQUAL_UINT8(0, numero);
 }
 
@@ -143,7 +148,6 @@ static void test_textos() {
   verificarTexto(REFRIGERANTE_ALTO, 111.6f, "REFRIGERANTE 112 °C");
   verificarTexto(VOLTAJE_BAJO, 12.64f, "VOLTAJE BAJO 12.6 V");
   verificarTexto(VOLTAJE_ALTO, 15.4f, "VOLTAJE ALTO 15.4 V");
-  verificarTexto(RPM_ALTA, 6212.25f, "ZONA ROJA 6212 RPM");
 }
 
 int main() {

@@ -6,8 +6,8 @@
 
 static const char *const AYUDA =
     "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
-    "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora, !trabar, !escanear, "
-    "!explorar N";
+    "!info, !pitar, !pitar cambio, !brillo N, !cambio N, !luz V, !imu, !sd, !viajes, !hora, "
+    "!trabar, !escanear, !explorar N";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -59,6 +59,12 @@ bool Consola::pitidoPedido() {
   return pedido;
 }
 
+bool Consola::pitidoCambioPedido() {
+  bool pedido = pitidoCambio;
+  pitidoCambio = false;
+  return pedido;
+}
+
 bool Consola::trabaPedida() {
   bool pedida = trabar;
   trabar = false;
@@ -106,6 +112,15 @@ uint8_t Consola::brilloPedido() {
   return pedido;
 }
 
+bool Consola::cambioPedido(int32_t *rpm) {
+  if (!cambio) {
+    return false;
+  }
+  cambio = false;
+  *rpm = rpmCambio;
+  return true;
+}
+
 // El adaptador acepta una sola conexión y, conectado, no se anuncia: para
 // explorar hay que soltarlo. Después se reconecta solo.
 void Consola::soltarElm() {
@@ -135,6 +150,8 @@ void Consola::ejecutar(const char *texto) {
   char comando[16];
   int numero = 0;
   int leidos = sscanf(texto, "%15s %d", comando, &numero);
+  char palabra[16] = "";
+  sscanf(texto, "%*s %15s", palabra);
 
   if (strcasecmp(comando, "!reconectar") == 0) {
     Serial.println("Consola: reconectando");
@@ -149,7 +166,9 @@ void Consola::ejecutar(const char *texto) {
     Serial.printf("Consola: detalle de las consultas %s\n", conDetalle ? "SI" : "NO");
   } else if (strcasecmp(comando, "!info") == 0) {
     info = true;
-  } else if (strcasecmp(comando, "!pitar") == 0) {
+  } else if (strcasecmp(comando, "!pitar") == 0 && strcasecmp(palabra, "cambio") == 0) {
+    pitidoCambio = true;
+  } else if (strcasecmp(comando, "!pitar") == 0 && palabra[0] == '\0') {
     pitido = true;
   } else if (strcasecmp(comando, "!trabar") == 0) {
     trabar = true;
@@ -169,6 +188,10 @@ void Consola::ejecutar(const char *texto) {
     hora = true;
   } else if (strcasecmp(comando, "!brillo") == 0 && leidos >= 2 && numero > 0) {
     brillo = numero > UINT8_MAX ? UINT8_MAX : numero;
+  } else if (strcasecmp(comando, "!cambio") == 0 && (leidos >= 2 || palabra[0] == '\0')) {
+    // Sin número, lo muestra; si no, main.cpp revisa que sea válido
+    rpmCambio = leidos >= 2 ? (numero < 0 ? INT32_MAX : numero) : -1;
+    cambio = true;
   } else if (strcasecmp(comando, "!luz") == 0 && leidos >= 2 && numero >= 0 && numero <= 255) {
     valorLuz = numero;
     luz = true;

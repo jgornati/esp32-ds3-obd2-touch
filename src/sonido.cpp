@@ -22,6 +22,9 @@ static i2c_master_dev_handle_t codec = nullptr;
 static i2s_chan_handle_t canal = nullptr;
 static TaskHandle_t tarea = nullptr;
 static bool listo = false;
+// Los pedidos, en bits de la notificación de la tarea: así uno no pisa al otro
+static const uint32_t PEDIDO_ALARMA = 1 << 0;
+static const uint32_t PEDIDO_CAMBIO = 1 << 1;
 
 static bool escribir(i2c_master_dev_handle_t dispositivo, uint8_t registro, uint8_t valor) {
   uint8_t datos[] = {registro, valor};
@@ -130,11 +133,11 @@ static void mandar(int16_t *muestras, uint32_t cuadros) {
   i2s_channel_write(canal, muestras, cuadros * 2 * sizeof(int16_t), &escritos, portMAX_DELAY);
 }
 
-static void pitido() {
+static void pitido(uint32_t ms, uint32_t frecuencia) {
   static int16_t muestras[CUADROS_POR_TANDA * 2];
-  const uint32_t total = MUESTREO_HZ * PITIDO_MS / 1000;
+  const uint32_t total = MUESTREO_HZ * ms / 1000;
   const uint32_t rampa = MUESTREO_HZ * RAMPA_MS / 1000;
-  const float paso = 2 * (float)M_PI * FRECUENCIA_PITIDO_HZ / MUESTREO_HZ;
+  const float paso = 2 * (float)M_PI * frecuencia / MUESTREO_HZ;
   for (uint32_t hecho = 0; hecho < total; hecho += CUADROS_POR_TANDA) {
     uint32_t cuadros = min(CUADROS_POR_TANDA, total - hecho);
     for (uint32_t i = 0; i < cuadros; i++) {
@@ -159,10 +162,17 @@ static void silencio(uint32_t ms) {
 
 static void alPitar(void *) {
   for (;;) {
-    uint32_t veces = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    for (uint32_t i = 0; i < veces; i++) {
-      pitido();
+    uint32_t pedidos = 0;
+    xTaskNotifyWait(0, UINT32_MAX, &pedidos, portMAX_DELAY);
+    if (pedidos & PEDIDO_CAMBIO) {
+      pitido(PITIDO_CAMBIO_MS, FRECUENCIA_CAMBIO_HZ);
       silencio(SILENCIO_PITIDO_MS);
+    }
+    if (pedidos & PEDIDO_ALARMA) {
+      for (uint8_t i = 0; i < PITIDOS_ALARMA; i++) {
+        pitido(PITIDO_MS, FRECUENCIA_PITIDO_HZ);
+        silencio(SILENCIO_PITIDO_MS);
+      }
     }
   }
 }
@@ -201,8 +211,14 @@ bool Sonido::iniciado() const {
   return listo;
 }
 
-void Sonido::pitar(uint8_t veces) {
-  if (listo && veces > 0) {
-    xTaskNotify(tarea, veces, eSetValueWithOverwrite);
+void Sonido::pitarAlarma() {
+  if (listo) {
+    xTaskNotify(tarea, PEDIDO_ALARMA, eSetBits);
+  }
+}
+
+void Sonido::pitarCambio() {
+  if (listo) {
+    xTaskNotify(tarea, PEDIDO_CAMBIO, eSetBits);
   }
 }

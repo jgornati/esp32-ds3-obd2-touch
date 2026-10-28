@@ -60,6 +60,11 @@ static lv_point_t dondeApretada = {0, 0};
 static bool reinicioPedido = false; // ya se llamó en esta apretada
 static bool reintento = false;
 static void (*alMantener)() = nullptr;
+// El aviso de cambio (E25), arriba de todo
+static lv_obj_t *capaCambio = nullptr;
+static lv_obj_t *textoCambio = nullptr;
+static lv_timer_t *parpadeo = nullptr;
+static bool enAzul = false;
 
 // Muestra una vista y oculta las demás. La barra va con las de estado y
 // las páginas comunes, y en la completa solo con conBarra (una alarma).
@@ -195,6 +200,16 @@ static void alAnimarEspera(lv_timer_t *) {
   }
 }
 
+static void ponerAzul(bool azul) {
+  enAzul = azul;
+  ponerFondo(capaCambio, azul ? AZUL : lv_color_black());
+  ponerColor(textoCambio, azul ? lv_color_black() : AZUL);
+}
+
+static void alParpadear(lv_timer_t *) {
+  ponerAzul(!enAzul);
+}
+
 static lv_obj_t *textoEspera(lv_color_t color, lv_align_t alineacion, int32_t x) {
   lv_obj_t *e = etiqueta(vistaEspera, &lv_font_montserrat_20, color);
   lv_obj_align(e, alineacion, x, yDeBase(&lv_font_montserrat_20, BASE_ESPERA));
@@ -258,6 +273,14 @@ void Pantalla::iniciar() {
   armarEspera(raiz);
   // Arriba de todo: con una alarma, también sobre la página completa
   lv_obj_move_to_index(fondoBarra, -1);
+  // Y más arriba, el aviso de cambio
+  capaCambio = rectangulo(raiz, 0, 0, ANCHO, ALTO, AZUL);
+  textoCambio = etiqueta(capaCambio, &lv_font_montserrat_48, lv_color_black());
+  lv_label_set_text(textoCambio, "CAMBIO");
+  lv_obj_center(textoCambio);
+  lv_obj_add_flag(capaCambio, LV_OBJ_FLAG_HIDDEN);
+  parpadeo = lv_timer_create(alParpadear, PARPADEO_CAMBIO_MS, nullptr);
+  lv_timer_pause(parpadeo);
   lv_timer_create(alActualizarHora, PERIODO_RELOJ_MS, nullptr);
   alActualizarHora(nullptr);
   lista = true;
@@ -278,6 +301,20 @@ void Pantalla::espera(const char *estado, bool problema) {
   ver(vistaEspera);
   ponerTexto(estadoEspera, estado);
   ponerColor(estadoEspera, problema ? AMBAR : ETIQUETA);
+}
+
+void Pantalla::avisoCambio(bool activo) {
+  if (!lista || activo == !lv_obj_has_flag(capaCambio, LV_OBJ_FLAG_HIDDEN)) {
+    return;
+  }
+  mostrar(capaCambio, activo);
+  if (activo) {
+    ponerAzul(true);
+    lv_timer_reset(parpadeo);
+    lv_timer_resume(parpadeo);
+  } else {
+    lv_timer_pause(parpadeo);
+  }
 }
 
 bool Pantalla::tomarReintento() {

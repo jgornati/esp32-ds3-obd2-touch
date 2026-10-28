@@ -9,7 +9,8 @@
 // pase de la espera a Anteriores y a DS3, que tocar Anteriores pase al viaje
 // anterior, que las animaciones se muevan, que
 // mantener apretada Viaje la reinicie, que las alarmas se vean y no
-// redibujen de más, que el punto de Fuerza G vaya para donde corresponde,
+// redibujen de más, que el aviso de cambio tape todo, parpadee y no dibuje la
+// página de abajo, que el punto de Fuerza G vaya para donde corresponde,
 // que la tarjeta de Info y la marca SD de la barra tengan el color de su
 // estado, que la hora esté en la barra y en la espera, que los textos de
 // Fallas, Info, Viaje, Anteriores y Fuerza G no se pasen de su columna, y que el giro de
@@ -23,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <chrono>
 #include <vector>
 
 #include <zlib.h>
@@ -34,6 +36,7 @@
 #include <lvgl.h>
 
 #include <alarmas.h>
+#include <aviso_cambio.h>
 #include <anteriores.h>
 #include <dtc.h>
 #include <fuerza_g.h>
@@ -464,6 +467,24 @@ static void contarReinicio() {
   reinicios++;
 }
 
+// Las veces que LVGL dibujó el área de las páginas (el aviso de cambio la tapa)
+static int dibujosDeLaPagina = 0;
+
+static void contarDibujo(lv_event_t *) {
+  dibujosDeLaPagina++;
+}
+
+// Lo que tarda LVGL en dibujar la pantalla entera en la PC, en ms (el promedio de veces)
+static double msPorCuadro(int veces) {
+  auto inicio = std::chrono::steady_clock::now();
+  for (int i = 0; i < veces; i++) {
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(nullptr);
+  }
+  std::chrono::duration<double, std::milli> total = std::chrono::steady_clock::now() - inicio;
+  return total.count() / veces;
+}
+
 // Sin datos, los pedidos que se atienden desde el evento (E22)
 static int pedidosSinDatos = 0;
 
@@ -547,7 +568,7 @@ int main(int argc, char **argv) {
   Paginas paginas(pantalla);
   // Lo que piden las páginas armadas y dibujadas una vez
   datosDeLaMaqueta();
-  DatosInfo info = {"v2.1", "6", 17, 6, -58, 3, EstadoTarjeta::GRABANDO, 12};
+  DatosInfo info = {"v2.1", "6", 17, 6, -58, 3, CAMBIO_DE_FABRICA_RPM, EstadoTarjeta::GRABANDO, 12};
   // La de la maqueta, con la luz encendida y 2 códigos según 0101
   LecturaFallas fallas =
       lecturaFallas("410182076100", "43 02 04 20 01 71", "47 01 03 00", "NO DATA");
@@ -774,13 +795,15 @@ int main(int argc, char **argv) {
           "en Fallas, deslizar a la izquierda: siguiente");
 
   // Info: cada botón pide lo suyo sin cambiar de página. Los centros, con
-  // la barra de 28 px: Reconectar (528, 66) y Olvidar (528, 134).
+  // la barra de 28 px (E25): Reconectar (79, 146) y Olvidar (275, 146), abajo
+  // a la izquierda.
   irA(paginas, "INFO");
   paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
   std::vector<uint16_t> suelta = capturar();
-  revisar(franjaVacia(417, 423), "Info: los datos no llegan a los botones");
+  revisar(franjaVacia(392, 399),
+          "Info: los datos y los botones de abajo no llegan al brillo ni al aviso de cambio");
 
-  apoyar(indev, 528, 66);
+  apoyar(indev, 79, 146);
   paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
   guardar(directorio, "n-info-reconectar-apretado");
   levantar(indev);
@@ -788,7 +811,7 @@ int main(int argc, char **argv) {
           "Reconectar: al soltarlo pide reconectar, sin cambiar de pagina");
   revisar(paginas.tomarAccion(reloj) == Accion::NINGUNA, "Reconectar: lo pide una sola vez");
 
-  apoyar(indev, 528, 134);
+  apoyar(indev, 275, 146);
   bool antesDeTiempo = mantener(indev, paginas, MANTENER_OLVIDAR_MS / 2);
   paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
   guardar(directorio, "o-info-olvidar-a-la-mitad");
@@ -802,36 +825,38 @@ int main(int argc, char **argv) {
   paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
   revisar(capturar() == suelta, "Olvidar: suelto, el relleno desaparece");
 
-  // Para arriba, hasta Reconectar: no es un deslizamiento de costado
-  apoyar(indev, 528, 134);
+  // Hasta el - del aviso de cambio, al lado: menos de DESLIZAR_PX, no es un
+  // deslizamiento
+  apoyar(indev, 380, 146);
   mantener(indev, paginas, 500);
-  dedo = {528, 66};
+  dedo = {424, 145};
   bool pidio = mantener(indev, paginas, MANTENER_OLVIDAR_MS);
   levantar(indev);
   revisar(!pidio && paginas.tomarToque() == 0 && paginas.tomarAccion(reloj) == Accion::NINGUNA,
-          "Olvidar: si el dedo se va del boton, no pide nada (ni Reconectar, donde se solto)");
+          "Olvidar: si el dedo se va del boton, no pide nada (ni el - de al lado, donde se solto)");
 
   // Deslizar sobre los botones cambia de página sin apretarlos: empezando en
   // uno, dentro del mismo y cruzando - y +
-  revisar(deslizar(indev, paginas, 528, 300, 66) == 1 &&
+  revisar(deslizar(indev, paginas, 79, 300, 146) == -1 &&
               paginas.tomarAccion(reloj) == Accion::NINGUNA,
-          "Info: deslizar desde Reconectar: siguiente, sin reconectar");
-  revisar(deslizar(indev, paginas, 440, 620, 66) == -1 &&
+          "Info: deslizar desde Reconectar: anterior, sin reconectar");
+  revisar(deslizar(indev, paginas, 145, 12, 146) == 1 &&
               paginas.tomarAccion(reloj) == Accion::NINGUNA,
-          "Info: deslizar dentro de Reconectar: anterior, sin reconectar");
-  revisar(deslizar(indev, paginas, 160, 388, 149) == -1 &&
+          "Info: deslizar dentro de Reconectar: siguiente, sin reconectar");
+  revisar(deslizar(indev, paginas, 424, 608, 71) == -1 &&
               paginas.tomarAccion(reloj) == Accion::NINGUNA,
-          "Info: deslizar de - a +: anterior, sin cambiar el brillo");
-  revisar(deslizar(indev, paginas, 528, 300, 134) == 1 && !mantener(indev, paginas, 100),
+          "Info: deslizar de - a + del brillo: anterior, sin cambiar el brillo");
+  revisar(deslizar(indev, paginas, 608, 424, 145) == 1 &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Info: deslizar de + a - del aviso de cambio: siguiente, sin cambiarlo");
+  revisar(deslizar(indev, paginas, 380, 170, 146) == 1 && !mantener(indev, paginas, 100),
           "Info: deslizar desde Olvidar: siguiente, sin olvidar");
 
   // El brillo: - y + piden lo suyo al soltarlos, sin cambiar de página. Los
-  // centros, con la barra: - (160, 149) y + (388, 149).
-  revisar(tocar(indev, paginas, 160, 149) == 0 &&
-              paginas.tomarAccion(reloj) == Accion::BAJAR_BRILLO,
+  // centros, con la barra: - (424, 71) y + (608, 71), a la derecha.
+  revisar(tocar(indev, paginas, 424, 71) == 0 && paginas.tomarAccion(reloj) == Accion::BAJAR_BRILLO,
           "Brillo: - pide bajarlo, sin cambiar de pagina");
-  revisar(tocar(indev, paginas, 388, 149) == 0 &&
-              paginas.tomarAccion(reloj) == Accion::SUBIR_BRILLO,
+  revisar(tocar(indev, paginas, 608, 71) == 0 && paginas.tomarAccion(reloj) == Accion::SUBIR_BRILLO,
           "Brillo: + pide subirlo, sin cambiar de pagina");
   revisar(paginas.tomarAccion(reloj) == Accion::NINGUNA, "Brillo: lo pide una sola vez");
   info.brillo = CANT_NIVELES_BRILLO;
@@ -841,8 +866,51 @@ int main(int argc, char **argv) {
   revisar(display->inv_p == 0, "Info con el brillo al maximo: dibujar de nuevo no redibuja nada");
   info.brillo = 3;
 
+  // El aviso de cambio (E25), debajo del brillo: - (424, 145) y + (608, 145).
+  // Piden lo suyo y main.cpp pone el umbral de al lado (lo de acá); en el
+  // medio, las RPM, entre x 450 y 582 (sin tocar los botones).
+  {
+    static const ReglasAvisoCambio REGLAS_CAMBIO = {REARME_CAMBIO_RPM, DURACION_CAMBIO_MS,
+                                                    CANT_MARCHAS,      CAMBIO_MINIMO_RPM,
+                                                    CAMBIO_MAXIMO_RPM, PASO_CAMBIO_RPM};
+    auto medioDelCambio = [](lv_color_t color) {
+      return hayColor(456, 576, 122, 168, color) && zonaVacia(450, 455, 122, 168) &&
+             zonaVacia(577, 582, 122, 168);
+    };
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+    std::vector<uint16_t> enFabrica = capturar();
+    revisar(medioDelCambio(BLANCO), "Aviso de cambio: 6000 rpm en blanco, entre - y +");
+    bool bien = true;
+    for (int8_t paso : {-1, 1}) {
+      bien =
+          bien && tocar(indev, paginas, paso < 0 ? 424 : 608, 145) == 0 &&
+          paginas.tomarAccion(reloj) == (paso < 0 ? Accion::BAJAR_CAMBIO : Accion::SUBIR_CAMBIO) &&
+          paginas.tomarAccion(reloj) == Accion::NINGUNA;
+      info.cambio = otroUmbralCambio(REGLAS_CAMBIO, info.cambio, paso);
+      paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+      bien = bien && (capturar() != enFabrica) == (paso < 0);
+    }
+    revisar(
+        bien && info.cambio == CAMBIO_DE_FABRICA_RPM,
+        "Aviso de cambio: - y + lo piden una vez, sin cambiar de pagina, y se ve el de al lado");
+    info.cambio = CAMBIO_MAXIMO_RPM;
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+    guardar(directorio, "q-info-cambio-6500");
+    revisar(medioDelCambio(BLANCO), "Aviso de cambio: 6500 rpm en blanco, entre - y +");
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+    revisar(display->inv_p == 0, "Aviso de cambio en 6500: dibujar de nuevo no redibuja nada");
+    info.cambio = 0;
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+    guardar(directorio, "q-info-cambio-apagado");
+    revisar(medioDelCambio(GRIS) && !hayColor(456, 576, 122, 168, BLANCO),
+            "Aviso de cambio apagado: Apagado, en gris");
+    info.cambio = CAMBIO_DE_FABRICA_RPM;
+    paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+    revisar(capturar() == enFabrica, "Aviso de cambio: de vuelta en 6000, como antes");
+  }
+
   // La tarjeta (E13), en el segundo renglón: blanca grabando, gris sin
-  // tarjeta y ámbar si está pero no graba. El renglón va de y 55 a 79. La
+  // tarjeta y ámbar si está pero no graba. El renglón va de y 52 a 75. La
   // marca SD de la barra: gris grabando, ámbar si no graba y sin tarjeta no
   // está.
   struct CasoTarjeta {
@@ -872,7 +940,7 @@ int main(int argc, char **argv) {
     char que[96];
     textoTarjeta(caso.estado, info.viaje, texto, sizeof(texto));
     snprintf(que, sizeof(que), "Info: \"%s\" en su color, sin llegar a los botones", texto);
-    revisar(hayColor(X_VALOR_INFO_RENDER, 416, 55, 79, caso.color) && franjaVacia(417, 423), que);
+    revisar(hayColor(X_VALOR_INFO_RENDER, 391, 52, 75, caso.color) && franjaVacia(392, 399), que);
     snprintf(que, sizeof(que), "Barra con \"%s\": la marca SD como corresponde", texto);
     revisar(marcaSd(caso.marca), que);
     snprintf(que, sizeof(que), "Barra con \"%s\": la hora antes de la marca o de los puntos",
@@ -895,7 +963,7 @@ int main(int argc, char **argv) {
   revisar(horaEnLaBarra(BORDE_HORA, BLANCO), "Barra: con hora, de nuevo en blanco");
 
   // Fuera de los botones, Info cambia de página como las demás, y tocarla no
-  revisar(tocar(indev, paginas, 100, 100) == 0 && tocar(indev, paginas, 528, 100) == 0,
+  revisar(tocar(indev, paginas, 100, 100) == 0 && tocar(indev, paginas, 516, 100) == 0,
           "en Info, tocar los datos o entre los botones no cambia de pagina");
   revisar(deslizar(indev, paginas, 100, 300, 100) == -1,
           "en Info, deslizar a la derecha: anterior");
@@ -1050,8 +1118,7 @@ int main(int argc, char **argv) {
   };
   const CasoAlarma casosAlarma[] = {
       {"w-alarma-refrigerante", "MOTOR", REFRIGERANTE_ALTO, 112, REFRIGERANTE, "", 0},
-      {"x-alarma-zona-roja", "MOTOR", RPM_ALTA, 6250, RPM, "", 0},
-      {"y-alarma-dos", "MOTOR", VOLTAJE_ALTO, 15.4f, VOLT_ELM, "  1/2", 1 << RPM},
+      {"y-alarma-dos", "MOTOR", VOLTAJE_ALTO, 15.4f, VOLT_ELM, "  2/2", 1 << REFRIGERANTE},
       {"z-alarma-ds3", "DS3", REFRIGERANTE_ALTO, 112, REFRIGERANTE, "", 0},
   };
   datosDeLaMaqueta();
@@ -1061,6 +1128,9 @@ int main(int argc, char **argv) {
   for (const CasoAlarma &caso : casosAlarma) {
     datosDeLaMaqueta();
     actualizarDato(caso.magnitud, caso.valor, reloj);
+    if (caso.otras & (1 << REFRIGERANTE)) {
+      actualizarDato(REFRIGERANTE, 112, reloj);
+    }
     textoAlarma(caso.tipo, caso.valor, textoBarra, sizeof(textoBarra));
     strlcat(textoBarra, caso.despues, sizeof(textoBarra));
     alarma = {textoBarra, (uint16_t)((1 << caso.magnitud) | caso.otras)};
@@ -1115,6 +1185,60 @@ int main(int argc, char **argv) {
   levantar(indev);
   paginas.tomarToque();
   alarma = {nullptr, 0};
+
+  // El aviso de cambio (E25): toda la pantalla, también la barra, alterna cada
+  // PARPADEO_CAMBIO_MS entre el azul con CAMBIO en negro y el negro con CAMBIO
+  // en azul. Mientras se ve, LVGL no dibuja la página de abajo (la tapa
+  // entera), y deslizar sigue cambiando de página.
+  datosDeLaMaqueta();
+  irA(paginas, "MOTOR");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+  std::vector<uint16_t> motorSinAviso = capturar();
+  double msMotor = msPorCuadro(50);
+  lv_obj_add_event_cb(pantalla.areaPaginas(), contarDibujo, LV_EVENT_DRAW_MAIN_BEGIN, nullptr);
+  dibujosDeLaPagina = 0;
+  pantalla.avisoCambio(true);
+  guardar(directorio, "r-cambio-azul");
+  revisar(todoDeColor(0, ANCHO - 1, 0, 40, AZUL) &&
+              todoDeColor(0, ANCHO - 1, 140, ALTO - 1, AZUL) &&
+              hayColor(200, 440, 60, 120, lv_color_black()),
+          "Aviso de cambio: toda la pantalla en azul, tambien la barra, con CAMBIO en negro");
+  revisar(dibujosDeLaPagina == 0, "Aviso de cambio: la pagina de abajo no se dibuja");
+  double msAviso = msPorCuadro(50);
+  pantalla.avisoCambio(true);
+  irA(reloj + PARPADEO_CAMBIO_MS - 1);
+  revisar(display->inv_p == 0, "Aviso de cambio: antes de PARPADEO_CAMBIO_MS no se redibuja nada");
+  irA(reloj + 1);
+  guardar(directorio, "r-cambio-negro");
+  revisar(todoDeColor(0, ANCHO - 1, 0, 40, lv_color_black()) &&
+              todoDeColor(0, ANCHO - 1, 140, ALTO - 1, lv_color_black()) &&
+              hayColor(200, 440, 60, 120, AZUL),
+          "Aviso de cambio: despues, toda en negro con CAMBIO en azul");
+  irA(reloj + PARPADEO_CAMBIO_MS);
+  capturar();
+  revisar(todoDeColor(0, ANCHO - 1, 0, 40, AZUL) && dibujosDeLaPagina == 0,
+          "Aviso de cambio: y otra vez en azul (4 veces por segundo), sin dibujar la pagina");
+  revisar(deslizar(indev, paginas, 500, 300, 100) == 1 &&
+              deslizar(indev, paginas, 300, 500, 100) == -1 &&
+              paginas.tomarAccion(reloj) == Accion::NINGUNA,
+          "Aviso de cambio: deslizar sigue cambiando de pagina");
+  irA(paginas, "DS3");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+  pantalla.avisoCambio(false);
+  pantalla.avisoCambio(true);
+  capturar();
+  revisar(todoDeColor(0, ANCHO - 1, 0, 40, AZUL) && todoDeColor(0, ANCHO - 1, 140, ALTO - 1, AZUL),
+          "Aviso de cambio: en DS3 tambien tapa todo");
+  pantalla.avisoCambio(false);
+  irA(paginas, "MOTOR");
+  paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
+  revisar(capturar() == motorSinAviso && dibujosDeLaPagina > 0,
+          "Aviso de cambio: al terminar, la pagina como antes");
+  irA(reloj + 3 * PARPADEO_CAMBIO_MS);
+  revisar(display->inv_p == 0, "Aviso de cambio: terminado, no sigue parpadeando");
+  printf("Aviso de cambio: en la PC, un cuadro del aviso %.2f ms y Motor entero %.2f ms "
+         "(no se revisa)\n",
+         msAviso, msMotor);
 
   // Fuerza G: va antes de DS3, que sigue última
   irA(paginas, "FUERZA G");

@@ -14,6 +14,8 @@ static const lv_color_t VERDE = lv_color_hex(0x3CC864);
 static const lv_color_t AMBAR = lv_color_hex(0xFFB000);
 static const lv_color_t ROJO = lv_color_hex(0xFF3B30);
 static const lv_color_t CIAN = lv_color_hex(0x40C8E0);
+// El aviso de cambio (E25): toda la pantalla, distinto del rojo de las alarmas
+static const lv_color_t AZUL = lv_color_hex(0x2A7FFF);
 static const lv_color_t FONDO_BARRA = lv_color_hex(0x1A1A1A);  // barra de estado
 static const lv_color_t FONDO_ESCALA = lv_color_hex(0x262626); // barras de valores y separadores
 static const lv_color_t PUNTO_APAGADO = lv_color_hex(0x444444);

@@ -43,8 +43,9 @@ private:
   float ultimo = 0;
 };
 
-// Las del DS3, en el orden en que se muestran si hay varias
-enum TipoAlarma : uint8_t { REFRIGERANTE_ALTO, VOLTAJE_BAJO, VOLTAJE_ALTO, RPM_ALTA, CANT_ALARMAS };
+// Las del DS3, en el orden en que se muestran si hay varias. La de las RPM
+// (ZONA ROJA) salió en E25: la reemplaza el aviso de cambio (aviso_cambio.h).
+enum TipoAlarma : uint8_t { REFRIGERANTE_ALTO, VOLTAJE_BAJO, VOLTAJE_ALTO, CANT_ALARMAS };
 
 class Alarmas {
 public:
