@@ -45,6 +45,9 @@ que corresponda antes de portar un módulo.
 | E20   | Asistente de voz por OpenRouter        | E19        | Descartada |
 | E21   | WhatsApp por el celular                | E20        | Descartada |
 | E22   | Viajes anteriores, también sin conexión | E10       | Hecha (falta verificar en hardware) |
+| E23   | Que no se cuelgue al prender y apagar el auto | —    | Pendiente |
+| E24   | Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje | E22 | Pendiente |
+| E25   | Aviso de cambio y umbrales del refrigerante | E24   | Pendiente |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -64,7 +67,8 @@ en voz alta y, más adelante, que lea y mande mensajes de WhatsApp.
 **El plan está terminado** (decisión del usuario, 2026-10-27). E19 se hizo y
 anduvo en la placa, pero el parlante se oye bajo: el usuario la descartó y se
 sacó el código (no quedó en ningún commit; ver notas de E19). Con eso se
-descartan E20 y E21. No hay más etapas. Las que dicen *Hecha* o *Verificada
+descartan E20 y E21. No hay más etapas (después se sumaron E22 a E25, abajo).
+Las que dicen *Hecha* o *Verificada
 (salvo ...)* quedan así: lo que les falta probar está en **Pendiente de
 probar**, abajo. Lo que sigue, según el usuario: probarlo y optimizarlo (las
 ideas están en **Ideas para después**) y, después, mejorar la interfaz para que
@@ -72,6 +76,15 @@ se vea más lindo.
 
 E22 la pidió el usuario el mismo 2026-10-27, después del cierre: que sin
 conexión se pueda ir a la página DS3 y ver los datos de viajes pasados.
+
+E23 a E25 las pidió el usuario el 2026-10-28, después de ir de Funes a
+Rosario: que no se cuelgue más al prender y apagar el auto (hoy hay que
+desenchufarlo), una pantalla principal con la marcha y un reloj del
+refrigerante, sacar AIRE/VOLT, un aviso de cambio configurable y la alarma
+del refrigerante más alta. Van en ese orden: E23 es lo que más molesta, y E25
+usa la marcha de E24. Lo que se vio en los registros de la microSD que pasó el
+usuario (`VIAJE0003` a `VIAJE0008`, del 2026-10-27) está en **Datos
+descubiertos**.
 
 ## Pendiente de probar
 
@@ -84,7 +97,10 @@ En el auto, con el motor andando y la microSD:
 - **Alarmas (E11):** con `ALARMAS_DE_PRUEBA = true`, que cada una salte y se
   vaya cuando corresponde, con sus tres pitidos y la barra roja; con `false`,
   que no salte ninguna en un viaje normal, y que los pitidos se oigan con el
-  motor andando. `!pitar` ya suena bien (con `VOLUMEN_PITIDO` en 1).
+  motor andando. `!pitar` ya suena bien (con `VOLUMEN_PITIDO` en 1). En los
+  registros del 2026-10-27, con `false`, `REFRIGERANTE` saltó y se apagó bien,
+  pero en cada viaje caliente (el motor regula en 103–108 °C): E25 la sube a
+  110 °C. `ZONA ROJA` saltó una vez, a 6004 rpm, y se apagó al segundo.
 - **Viaje (E10):** la distancia contra el parcial del tablero en un viaje
   andando, y los máximos contra lo que se vio. Mantener apretada VIAJE 3 s la
   reinicia; menos, no. Sacar la llave y volver a ponerla: empieza de cero. (En
@@ -112,7 +128,7 @@ En el auto, con el motor andando y la microSD:
   barridos/s` (E17: si el TE llega).
 
 Sin resolver: el cuelgue ocasional al prender y apagar el auto (E7; E8, que
-lo iba a investigar, se descartó).
+lo iba a investigar, se descartó). Pasa a E23.
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -994,6 +1010,202 @@ propuso el agente):
 contacto aparece en ANTERIORES con sus datos y la fecha; sin el adaptador se
 pasa deslizando de la espera a ANTERIORES y a DS3.
 
+### E23 — Que no se cuelgue al prender y apagar el auto
+
+**Objetivo:** que la placa no quede trabada (hoy hay que desenchufarla) y, si
+se traba igual, que se reinicie sola y deje dicho dónde estaba.
+
+Lo que contó el usuario (2026-10-28): "se tilda cuando se apaga, y después me
+voy del auto, vuelvo, abro la puerta, se energiza el USB, se enciende la
+pantalla, aparece la animación del auto y se cuelga cuando está saliendo la
+trompa. Intento reiniciar manteniendo apretada la pantalla y no pasa nada:
+tengo que conectar y desconectar el USB". Es el cuelgue de E7, que E8 no llegó
+a investigar.
+
+**Lo que se sabe:**
+
+- La placa va al USB de la consola, el mismo de la radio (lo dijo el usuario):
+  del otro lado hay un host USB, no un cargador. Se prende al abrir la puerta,
+  antes de la llave, y sigue prendido de 31 s a 4 min después de sacarla
+  (**Datos descubiertos**). Mientras tanto la placa reintenta cada 15 s, 10 de
+  ellos bloqueada en `conectarBt()`.
+- Los 6 registros del 2026-10-27 empiezan con `Inicio de la placa: encendido`:
+  ningún reinicio raro. Pero un arranque sin la ECU no deja archivo (se abre
+  con la primera lectura): el cuelgue al abrir la puerta no queda en la
+  tarjeta.
+- La trompa asoma a ~0,3 s de empezar la entrada, que empieza al prender la
+  pantalla. Si `Serial` cree que hay un monitor (con un host USB puede pasar),
+  `setup()` no espera `ESPERA_MONITOR_MS` y sigue con el sonido, el IMU, la
+  microSD, el BLE e `imprimirInfo()` **con LVGL tomado**: la entrada y el touch
+  quedan quietos hasta que `conectarBt()` lo suelta. Con un cargador espera los
+  2 s y el auto termina de entrar antes.
+- **Hipótesis 1: escribir por el USB bloquea.** En Arduino-ESP32 3.3,
+  `HWCDC::write()` con un host que no lee espera hasta 20 veces
+  `tx_timeout_ms` (100 ms) por llamada antes de rendirse (`HWCDC.cpp`, "host
+  backpressure"). Lo que se imprime con LVGL tomado (en `setup()` y en
+  `loop()`) trabaría la pantalla y mantener para reiniciar. Manejando no pasó
+  (6–7 consultas/s en todos los viajes): la radio estaría en otro estado
+  recién despertada.
+- **Hipótesis 2: la radio reinicia la placa.** Abrir el puerto la reinicia
+  (README, **Consola**); según cómo la radio maneje DTR y RTS, puede quedar en
+  modo de descarga, quieta hasta cortarle la luz. Eso no lo arregla el
+  firmware: solo un cable sin datos.
+- Menos probables: un corte corto del USB mientras la radio arranca (sería un
+  `brownout` y se vería `ALIMENTACION`) y las esperas largas del BLE (notas de
+  E8), que desde E9 no traban la pantalla.
+- **En el banco se trabó igual** (2026-10-28): enchufada a la Mac sin el
+  monitor y sin el adaptador, se trabó en el mismo lugar que en el auto (con
+  la trompa asomando), el touch no respondía y revivió sola al minuto (el
+  usuario la había desenchufado y enchufado 3 veces). **Confirma la hipótesis
+  1;** la 2 no revive sola. La cuenta da lo mismo: el búfer de salida del
+  `HWCDC` es de 256 bytes (se llena con las primeras 4 o 5 líneas) y, antes de
+  soltar LVGL, `setup()` hace unas 25–35 escrituras (`imprimirInfo()`, el RTC,
+  los guardados, la tarjeta, el sonido, el IMU y el BLE): a ~2 s cada una, la
+  pantalla queda quieta ~1 min. Después, cada `cambiarA()` imprime con LVGL
+  tomado: con el adaptador apagado (llave sacada), ~2 s quieta cada 15 s.
+
+**Antes de programar, pruebas del usuario** (con el firmware de hoy):
+
+1. Enchufar la placa a la Mac **sin abrir el monitor** y mirar la entrada: si
+   se traba con la trompa, es la hipótesis 1. (Hecha el 2026-10-28: se trabó y
+   revivió sola, ver arriba.)
+2. Unos días en el auto con un cable solo de carga (o un bloqueador de datos
+   USB) entre la placa y la radio: si deja de trabarse, el problema es el USB
+   con datos (1 o 2). Con la 1 confirmada, es opcional: solo descarta la 2.
+
+**Tareas:**
+
+1. Que escribir por el USB nunca bloquee: `Serial.setTxTimeoutMs(0)` y un
+   búfer de salida más grande, para no perder líneas con el monitor abierto.
+2. Que `setup()` no deje la entrada quieta: atender LVGL entre cada inicio
+   (sonido, IMU, tarjeta, BLE) o soltarlo, como `conectarBt()`.
+3. **Un guardián:** si LVGL pasa `GUARDIAN_MS` (10 s) sin atenderse, ni por
+   `loop()` ni por la tarea de E9, un pánico a propósito: el core guarda el
+   volcado en la partición `coredump` (queda en la flash aunque se desenchufe)
+   y reinicia. Lo que bloquea a propósito con LVGL tomado (`!escanear`,
+   `!explorar`) no lo tiene que disparar.
+4. `!info`: el último reinicio y, si hay un volcado, la tarea y la función
+   donde estaba (`esp_core_dump_get_summary()`), con las direcciones para
+   `addr2line`. En el registro, `Inicio de la placa: ...` con lo mismo.
+5. README: el USB es el de la radio, se prende al abrir la puerta y sigue unos
+   minutos después de sacar la llave (hoy dice que se corta con la llave).
+
+**Verificación del usuario:** unos días de uso sin desenchufar la placa. Si se
+traba y en ~10 s no se reinicia sola, no es el programa (la hipótesis 2, o la
+alimentación): el cable solo de carga.
+
+### E24 — Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje
+
+**Objetivo:** que MOTOR muestre de un vistazo lo que importa manejando, con la
+marcha y un reloj del refrigerante, y sacar AIRE/VOLT.
+
+Lo que pidió el usuario (2026-10-28): "la pantalla principal me gustaría que
+tenga el indicador de revoluciones, indicador de marcha, reloj de temperatura
+del refrigerante", y además la velocidad y el voltaje. Y "la segunda pantalla
+[AIRE/VOLT] la volaría, no sirve para nada".
+
+**Decidido con el usuario:**
+
+- MOTOR: RPM, marcha, refrigerante (como reloj), velocidad y voltaje.
+- La caja es **manual de 5**.
+- El reloj del refrigerante: normal hasta 110 °C, ámbar de 110 a 115 y rojo
+  desde 115 (E25 pone la alarma en 110).
+- AIRE/VOLT sale: quedan 9 páginas.
+
+**Antes de programar:** una maqueta con el render, 2 o 3 formas de poner los 5
+datos en 640×144 (debajo de la barra), para que elija el usuario. La marcha y
+las RPM, grandes; el reloj, un arco con aguja y las zonas.
+
+**La marcha** (en `lib/obd`, con tests hechos con filas de los registros):
+
+- Sale de la velocidad sobre las RPM, en km/h por 1000 rpm. Las 5 están
+  medidas (**Datos descubiertos**): 8,1, 14,6, 21,0, 27,2 y 33,7. Las dos
+  vienen en la misma consulta, ~6 por segundo en MOTOR.
+- Es la más cercana, si cae dentro de un margen que sale de los registros: de
+  2ª a 5ª, el 90 % cae a menos del 4 % de la suya; en 1ª, a menos del 15 %
+  (la velocidad llega en km/h enteros).
+- Cambia recién con dos lecturas seguidas en la marcha nueva, para no
+  parpadear en el medio de un cambio.
+- Sin marcha (embrague apretado, punto muerto, cambio en curso, menos de
+  ~5 km/h): `–`. Con la RPM o la velocidad vencidas: `--`, como cualquier dato.
+  Es un cálculo con datos reales, no un dato de la ECU: el README lo dice.
+- *Propuesta:* una columna `Marcha` en el CSV, después de `Vel km/h`.
+
+**Tareas:**
+
+1. La marcha, en `lib/obd`, con tests.
+2. MOTOR nueva, con sus casos en el render (con y sin marcha, vencida, el
+   reloj en cada zona). El reloj necesita `LV_USE_ARC` o `LV_USE_SCALE` en
+   `lv_conf.h` (hoy en 0): mirar cuánta flash suma.
+3. Sacar AIRE/VOLT. El voltaje (`ATRV`, cada `PERIODO_ATRV_MS`) se sigue
+   leyendo para MOTOR, la alarma, VIAJE y el CSV; la admisión sigue en el CSV,
+   cada `PERIODO_LENTO_MS`.
+4. README: las páginas, la marcha y cómo se ve cada cosa.
+
+**MEZCLA "se cuelga y después anda"** (lo contó el usuario el mismo día). En
+los registros no hay nada trabado: en MEZCLA las consultas siguen en 6–7 por
+segundo (6,5 en 800 s de `VIAJE0007`), el dibujo no pasa de 24 ms y no faltan
+segundos. Lo que sí se ve: con `Abierto frio` (los primeros 30–90 s) la ECU da
+lambda y sonda post fijas y los ajustes en 0, y con el corte de inyección
+(soltando el acelerador) lambda queda en 2,000 (**Datos descubiertos**). La
+página se queda quieta varios segundos, y al cerrarse el lazo los números se
+empiezan a mover. *Propuesta*, si el usuario confirma que era eso: con el lazo
+abierto, lambda y sonda en gris con `sin regular`. Si era otra cosa (por
+ejemplo, que deslizar no respondía), se mira aparte.
+
+**Verificación del usuario:** en el auto, la marcha coincide con la palanca en
+las 5 y da `–` con el embrague apretado; el reloj y los datos se leen de un
+vistazo, de día y de noche.
+
+### E25 — Aviso de cambio y umbrales del refrigerante
+
+**Objetivo:** un aviso de "pasá el cambio" a las RPM que elija el usuario, y
+que la alarma del refrigerante no salte con el motor regulando normal.
+
+Lo que pidió el usuario (2026-10-28): "que la alarma de revoluciones sea
+configurable, que la pueda poner como aviso de mete el cambio a tantas
+revoluciones", "que aparezca como un parpadeo en toda la pantalla, onda auto de
+carrera", "con pitido distinto al de alerta". Y la del refrigerante, "que salte
+a 110 grados (5 s seguidos) y que se apague a 108".
+
+**Decidido con el usuario:**
+
+- `REFRIGERANTE`: 110 °C o más durante 5 s; se apaga con 108 °C o menos (hoy
+  105 y 102). El EP6C regula en 103–108 °C (**Datos descubiertos**). En los
+  registros del 2026-10-27 el máximo fue 108: con esto no habría saltado.
+- El aviso de cambio hace parpadear **toda la pantalla**, en cualquier página,
+  con un pitido distinto del de las alarmas.
+
+**Propuestas, a confirmar antes de programar:**
+
+- **Dónde se configura:** en INFO, con `-` y `+` como el brillo, de 250 en 250
+  rpm (de 2000 a 6500, o apagado), guardado en `Preferences`; y `!cambio N` en
+  la consola. INFO está llena: maqueta antes.
+- **Cómo parpadea:** la pantalla alterna con un color fuerte unas 4 veces por
+  segundo mientras las RPM están en el umbral o más, hasta 2 s. Vuelve a avisar
+  cuando las RPM bajan 300 del umbral (al pasar el cambio). Cada parpadeo es un
+  cuadro entero: le saca tiempo a las consultas solo mientras dura.
+- **El pitido:** uno corto y más agudo que los de las alarmas (por ejemplo,
+  80 ms a 4000 Hz); se elige probándolo con `!pitar cambio`.
+- **Cuándo no avisa:** en 5ª, ni sin marcha (punto muerto, embrague), así no
+  suena acelerando parado. Por eso va después de E24.
+- **ZONA ROJA:** el aviso la reemplaza; la barra de las RPM sigue con la zona
+  roja pintada desde 6000.
+- En MEZCLA la RPM se lee cada ~2,5 s: ahí el aviso puede llegar tarde, como
+  hoy la zona roja.
+
+**Tareas:**
+
+1. En `lib/obd`, con tests: el aviso (umbral, rearme, en 5ª, sin marcha, sin un
+   valor actual) y los umbrales nuevos del refrigerante.
+2. El parpadeo, el pitido nuevo y el ajuste en INFO, con sus casos en el
+   render.
+3. README: alarmas, INFO y consola.
+
+**Verificación del usuario:** en el auto, con el aviso en un valor bajo (por
+ejemplo, 2500): parpadea y suena al llegar, una vez por marcha, y no en 5ª ni
+en punto muerto. La alarma del refrigerante no salta en un viaje normal.
+
 ## Ideas para después
 
 Fuera del plan; solo si el usuario las pide:
@@ -1022,6 +1234,14 @@ Fuera del plan; solo si el usuario las pide:
   ES8311 de 0 dB, registro `0x32` en `0xBF`, que según el driver de Espressif
   llega a +32 dB en `0xFF`): más fuerte pero más áspero. O probar otra
   `FRECUENCIA_PITIDO_HZ`, por si el parlante rinde más en otra.
+- Sincronizar los viajes por Wi-Fi al llegar a casa, para verlos en una app o
+  un dashboard web (pedido del usuario, 2026-10-28, para más adelante). Lo que
+  ya se sabe: con la llave sacada la placa sigue prendida unos minutos por el
+  USB de la radio (**Datos descubiertos**), justo al llegar; Wi-Fi y BLE
+  comparten la radio y hay poca RAM interna libre (ver E20); la red y su clave
+  van en `Preferences`, no en el código. Qué se sube (los CSV de la microSD o
+  los resúmenes de ANTERIORES) y adónde (un servidor propio, una planilla) se
+  decide con el usuario.
 
 El consumo no se puede estimar bien: el DS3 no da MAF (`10`) ni MAP
 (`0B`).
@@ -1086,6 +1306,10 @@ De esta placa y el adaptador nuevo:
 | `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`; en la prueba en el auto no se pasó) | E17   |
 | Pantalla en el auto (E17)     | Con la rama de E17, estacionado en ralentí (`VIAJE0003.CSV`, 2026-10-27). Por cuadro: giro ~7,2 ms (máximo 11; a `-O0`, ~20), envío ~13,8 (máximo 17,4), espera 0. Dibujo: DS3 ~14 ms, 20 cuadros/s; Motor ~9 ms, 4–6 cuadros/s; Info ~3 ms; al cambiar de página, 11–29 ms | E17   |
 | Consultas por segundo y pantalla (E17) | Mismo registro: Motor 6,4 (6–7 en 30 s, como en E3), Info 6,6, Aire/Volt, Carga, Mezcla y Viaje 6–7. DS3 5,6 (4–7 en 38 s): 20 cuadros/s de ~14 ms, ~280 ms de cada segundo dibujando. FUERZA G 6–7, pero sin redibujar (auto y placa quietos: 0 cuadros/s). Fallas, 3 los dos segundos de la entrada (la lectura de las fallas, E5) | E17   |
+| USB del auto                  | La placa va al de la consola, el mismo de la radio: con datos y un host del otro lado. Se prende al abrir la puerta, antes de poner la llave (lo contó el usuario el 2026-10-28), y sigue después de sacarla: en los registros del 2026-10-27, de 31 s a 4 min 15 s, con la placa intentando conectar cada 15 s. Hasta E23 el README decía que se cortaba con la llave | E23   |
+| Marchas (km/h por 1000 rpm)   | Caja manual de 5. Medianas de los registros del 2026-10-27 (2416 lecturas con 6 km/h o más, 1000 rpm o más y fuera de MEZCLA, donde la RPM llega cada 2,5 s): 1ª 8,07 (el 90 % entre 7,0 y 9,3), 2ª 14,57 (14,0–15,0), 3ª 20,95 (20,5–21,3), 4ª 27,24 (26,8–27,5), 5ª 33,74 (33,3–33,9). El 98 % cae en una marcha; el resto, con el embrague o cambiando | E24   |
+| Refrigerante en marcha        | Mismos registros: con el motor caliente regula en 103–105 °C y llega a 108 parado o en tráfico (promedio 103 parado, 97 a más de 90 km/h con máximo 104). Nunca 110 en 6 viajes. Según catálogos de repuestos y foros (sin una fuente oficial), el termostato del EP6C abre a 105 °C y es pilotado (la ECU lo abre antes con carga), y el electroventilador entra cerca de 108 | E25   |
+| MEZCLA con el motor frío      | Mismos registros: con `Abierto frio` la ECU da lambda 0,995–0,996, la sonda post 0,45–0,46 V y los ajustes en 0, fijos; el lazo se cierra a los 29–85 s del arranque. Con el corte de inyección (`Abierto carga`, soltando el acelerador), lambda 2,000 y la sonda ~0 V. En MEZCLA, 6,5 consultas/s (800 s de `VIAJE0007`) | E24   |
 
 ## Notas de traspaso
 
