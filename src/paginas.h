@@ -32,7 +32,7 @@ struct DatosFuerzaG {
 
 // La alarma que se ve en la barra (E11) y las magnitudes que van en rojo
 struct AlarmaALaVista {
-  const char *texto;   // "REFRIGERANTE 106 °C"; nullptr si no hay ninguna
+  const char *texto;   // "REFRIGERANTE 112 °C"; nullptr si no hay ninguna
   uint16_t magnitudes; // un bit por Magnitud (1 << REFRIGERANTE)
 };
 static_assert(CANT_MAGNITUDES <= 16, "un bit por Magnitud en AlarmaALaVista");

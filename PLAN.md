@@ -47,7 +47,7 @@ que corresponda antes de portar un módulo.
 | E22   | Viajes anteriores, también sin conexión | E10       | Hecha (falta verificar en hardware) |
 | E23   | Que no se cuelgue al prender y apagar el auto | —    | Hecha (falta verificar en hardware) |
 | E24   | Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje | E22 | Hecha (falta verificar en hardware) |
-| E25   | Aviso de cambio y umbrales del refrigerante | E24   | Pendiente |
+| E25   | Aviso de cambio y umbrales del refrigerante | E24   | En curso (la alarma del refrigerante en 110 °C, hecha; falta el aviso de cambio) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -119,13 +119,17 @@ En el auto:
    el lazo los valores se mueven.
 9. **Fuerza G:** al acelerar la bolita va para abajo, al frenar para arriba y
    en una curva a la derecha, a la izquierda.
-10. Con la notebook en el auto, si se puede: `!info` con el motor andando (RAM
+10. **E25, refrigerante** (con un firmware que tenga E25: la rama
+    `e25-aviso-de-cambio`, o `main` después de mergearla): en un viaje normal,
+    también parado en el tráfico, `REFRIGERANTE` no salta.
+11. Con la notebook en el auto, si se puede: `!info` con el motor andando (RAM
     interna, `LCD_TE N barridos/s`) y las consultas por segundo en MOTOR (6–7).
-11. Al volver: pasar los CSV de la microSD a la Mac (la columna `Marcha`
+12. Al volver: pasar los CSV de la microSD a la Mac (la columna `Marcha`
     contra lo que se vio, y el `Inicio de la placa` de cada uno).
 
-La alarma del refrigerante sigue en 105 °C hasta E25 (va a seguir saltando
-con el motor regulando en 103–108).
+La alarma del refrigerante salta en 110 °C desde E25. Con un firmware sin E25
+(el de `main` hasta el 2026-10-28) sigue en 105 °C, y va a saltar con el motor
+regulando en 103–108.
 
 Lo demás, por etapa:
 
@@ -137,7 +141,8 @@ En el auto, con el motor andando y la microSD:
   motor andando. `!pitar` ya suena bien (con `VOLUMEN_PITIDO` en 1). En los
   registros del 2026-10-27, con `false`, `REFRIGERANTE` saltó y se apagó bien,
   pero en cada viaje caliente (el motor regula en 103–108 °C): E25 la sube a
-  110 °C. `ZONA ROJA` saltó una vez, a 6004 rpm, y se apagó al segundo.
+  110 °C y la apaga en 108 (falta verlo en el auto). `ZONA ROJA` saltó una
+  vez, a 6004 rpm, y se apagó al segundo.
 - **Viaje (E10):** la distancia contra el parcial del tablero en un viaje
   andando, y los máximos contra lo que se vio. Mantener apretada VIAJE 3 s la
   reinicia; menos, no. Sacar la llave y volver a ponerla: empieza de cero. (En
@@ -4584,3 +4589,32 @@ probado en la placa.**
 7. MEZCLA con el motor frío: `sin regular` en gris, y al cerrarse el lazo
    (~30–90 s) los valores en blanco y moviéndose. Soltando el acelerador
    andando (corte de inyección), otra vez `sin regular`.
+
+### E25
+
+Rama `e25-aviso-de-cambio`, desde `main` con E24. Va en dos commits, para que
+el primero (la alarma del refrigerante) se pueda llevar solo.
+
+**La alarma del refrigerante,** como la decidió el usuario (2026-10-28):
+
+- `config.h`: `REFRIGERANTE_ALARMA` en 110 °C y `REFRIGERANTE_NORMAL` en 108
+  (eran 105 y 102), con los mismos 5 s para prenderse y para apagarse. Los de
+  `ALARMAS_DE_PRUEBA` (40 y 37) quedan como estaban.
+- `test/test_alarmas`: la regla de los tests pasa a 110/108; 108 °C (el motor
+  regulando) un minuto no la prende, 109 tampoco, y prendida, 109 no la apaga.
+- Render: `w-alarma-refrigerante` y `z-alarma-ds3` con 112 °C (106 ya no
+  saltaría), y revisa que en MOTOR, con la alarma, el valor vaya en rojo (a
+  112 °C sin la alarma va en ámbar).
+- README: la tabla de alarmas.
+
+Con los registros del 2026-10-27 (una línea por segundo, la misma regla): con
+105/102 saltaba 10 veces en `VIAJE0004`, `VIAJE0007` y `VIAJE0008`, como pasó;
+con 110/108, ninguna (el máximo fue 108 °C).
+
+Verificado por el agente: `pio run` compila (RAM 11,6 %, flash 59,7 %), sin
+warnings propios con `-Wall -Wextra -Wshadow -Wvolatile`; `pio test -e native`
+127/127; render, 230 revisiones bien (una nueva). **Nada probado en la placa.**
+
+**Pruebas del usuario:** en un viaje normal, también parado en el tráfico (con
+el electroventilador), `REFRIGERANTE` no salta. Si llegara a 110 °C 5 s, salta
+con sus tres pitidos y se apaga al bajar a 108.

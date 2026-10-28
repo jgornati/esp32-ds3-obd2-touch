@@ -63,5 +63,5 @@ private:
   Alarma lista[CANT_ALARMAS];
 };
 
-// Para la barra: "REFRIGERANTE 106 °C", "VOLTAJE BAJO 12.6 V" (°C en UTF-8)
+// Para la barra: "REFRIGERANTE 112 °C", "VOLTAJE BAJO 12.6 V" (°C en UTF-8)
 void textoAlarma(TipoAlarma tipo, float valor, char *salida, size_t tam);

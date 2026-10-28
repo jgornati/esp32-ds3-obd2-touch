@@ -281,13 +281,13 @@ PCF85063), que sigue andando con la placa apagada gracias a la batería.
 ### Alarmas
 
 En cualquier página, la barra de arriba se pone roja con un triángulo, la
-alarma y el valor (`REFRIGERANTE 106 °C`), y el valor va en rojo en su
+alarma y el valor (`REFRIGERANTE 112 °C`), y el valor va en rojo en su
 página. Al aparecer cada una suenan tres pitidos, sin repetir. Deslizar sigue
 cambiando de página: no hay nada que aceptar, y la alarma se va sola.
 
 | Alarma                | Se prende                                   | Se apaga |
 | --------------------- | ------------------------------------------- | -------- |
-| `REFRIGERANTE`        | 105 °C o más, 5 s seguidos                  | 102 °C o menos, 5 s |
+| `REFRIGERANTE`        | 110 °C o más, 5 s seguidos (el motor caliente regula en 103–108) | 108 °C o menos, 5 s |
 | `VOLTAJE BAJO` / `ALTO` | Con el motor en marcha (desde 5 s después de arrancar): 13,0 V o menos, o 15,0 V o más, 10 s seguidos (falla de carga) | 13,2 V o más / 14,8 V o menos, 10 s |
 | `ZONA ROJA`           | 6000 rpm o más, al instante                 | 5800 rpm o menos |
 

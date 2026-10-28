@@ -201,8 +201,10 @@ constexpr uint32_t PERIODO_GUARDAR_VIAJE_MS = 60000;
 // ALARMAS_DE_PRUEBA pone umbrales que saltan manejando normal (motor tibio,
 // 13,6-14,1 V en marcha, 2000 rpm), para probarlas en el auto.
 constexpr bool ALARMAS_DE_PRUEBA = false;
-constexpr float REFRIGERANTE_ALARMA = ALARMAS_DE_PRUEBA ? 40 : 105; // °C
-constexpr float REFRIGERANTE_NORMAL = ALARMAS_DE_PRUEBA ? 37 : 102;
+// El refrigerante, en 110 °C y se apaga en 108 (lo eligió el usuario, E25): el
+// motor caliente regula en 103-108, y con 105 saltaba en cada viaje
+constexpr float REFRIGERANTE_ALARMA = ALARMAS_DE_PRUEBA ? 40 : 110; // °C
+constexpr float REFRIGERANTE_NORMAL = ALARMAS_DE_PRUEBA ? 37 : 108;
 constexpr uint32_t REFRIGERANTE_ALARMA_MS = 5000;
 constexpr float VOLTAJE_BAJO_ALARMA = ALARMAS_DE_PRUEBA ? 14.5f : 13.0f; // V
 constexpr float VOLTAJE_BAJO_NORMAL = ALARMAS_DE_PRUEBA ? 14.7f : 13.2f;

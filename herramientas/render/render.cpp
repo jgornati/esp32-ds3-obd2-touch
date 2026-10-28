@@ -1049,10 +1049,10 @@ int main(int argc, char **argv) {
     uint16_t otras;      // las magnitudes de las demás alarmas
   };
   const CasoAlarma casosAlarma[] = {
-      {"w-alarma-refrigerante", "MOTOR", REFRIGERANTE_ALTO, 106, REFRIGERANTE, "", 0},
+      {"w-alarma-refrigerante", "MOTOR", REFRIGERANTE_ALTO, 112, REFRIGERANTE, "", 0},
       {"x-alarma-zona-roja", "MOTOR", RPM_ALTA, 6250, RPM, "", 0},
       {"y-alarma-dos", "MOTOR", VOLTAJE_ALTO, 15.4f, VOLT_ELM, "  1/2", 1 << RPM},
-      {"z-alarma-ds3", "DS3", REFRIGERANTE_ALTO, 106, REFRIGERANTE, "", 0},
+      {"z-alarma-ds3", "DS3", REFRIGERANTE_ALTO, 112, REFRIGERANTE, "", 0},
   };
   datosDeLaMaqueta();
   irA(paginas, "MOTOR");
@@ -1076,6 +1076,11 @@ int main(int argc, char **argv) {
     revisar(display->inv_p == 0, que);
     snprintf(que, sizeof(que), "%s: la barra es roja", caso.nombre);
     revisar(marco[5 * ANCHO + 630] == lv_color_to_u16(ROJO), que);
+    if (caso.tipo == REFRIGERANTE_ALTO && strcmp(caso.pagina, "MOTOR") == 0) {
+      // Sin la alarma, a 112 °C iría en ámbar
+      snprintf(que, sizeof(que), "%s: el refrigerante va en rojo", caso.nombre);
+      revisar(hayColor(40, 90, 115, 135, ROJO) && !hayColor(40, 90, 115, 135, AMBAR), que);
+    }
     snprintf(que, sizeof(que), "%s: la alarma no llega a la hora, que sigue con la marca SD",
              caso.nombre);
     revisar(todoDeColor(BORDE_HORA - 80, BORDE_HORA - 66, 0, 27, ROJO) &&
@@ -1100,7 +1105,7 @@ int main(int argc, char **argv) {
 
   // Viaje mantenida con una alarma: se ve lo de mantener
   irA(paginas, "VIAJE");
-  alarma = {"REFRIGERANTE 106 °C", 1 << REFRIGERANTE};
+  alarma = {"REFRIGERANTE 112 °C", 1 << REFRIGERANTE};
   apoyar(indev, 300, 100);
   mantener(indev, paginas, MANTENER_VIAJE_MS / 2);
   paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
