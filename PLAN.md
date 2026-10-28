@@ -46,7 +46,7 @@ que corresponda antes de portar un módulo.
 | E21   | WhatsApp por el celular                | E20        | Descartada |
 | E22   | Viajes anteriores, también sin conexión | E10       | Hecha (falta verificar en hardware) |
 | E23   | Que no se cuelgue al prender y apagar el auto | —    | Hecha (falta verificar en hardware) |
-| E24   | Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje | E22 | Pendiente |
+| E24   | Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje | E22 | Hecha (falta verificar en hardware) |
 | E25   | Aviso de cambio y umbrales del refrigerante | E24   | Pendiente |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
@@ -92,6 +92,43 @@ Lo que las etapas dejaron sin probar en el hardware, según sus notas (las
 pruebas detalladas están en las **Pruebas del usuario** de cada una). Al
 probar algo, anotarlo en la etapa y sacarlo de acá.
 
+**Para la próxima prueba** (la lista para el 2026-10-29, con E23, el arreglo de
+la fuerza G y E24 en `main`; en orden):
+
+En el banco, con la Mac y sin el adaptador:
+
+1. Subir el firmware de `main` y desenchufar la placa.
+2. **E23:** enchufarla a la Mac **sin abrir el monitor**: el DS3 entra entero
+   y tocar o deslizar responde enseguida (antes se trababa ~1 min con la
+   trompa asomando). Probarlo 2 o 3 veces.
+3. **E23:** abrir el monitor y `!info`: `Ultimo reinicio`, `Volcado del ultimo
+   panico: ninguno` y la RAM interna libre. Después `!trabar`: a los ~10 s la
+   placa se reinicia sola, y `!info` dice `Ultimo reinicio: guardian (...)`.
+4. **E23:** `!escanear`: durante los 10 s la espera sigue respondiendo y la
+   placa no se reinicia.
+5. **E22:** desde la espera, deslizar a ANTERIORES y a DS3, sin demora.
+
+En el auto:
+
+6. **E23:** al abrir la puerta, el DS3 entra entero; con la llave, llega a
+   MOTOR. Unos días sin desenchufar la placa.
+7. **E24, MOTOR:** la marcha coincide con la palanca en las 5 y da `-` con el
+   embrague apretado o en punto muerto; las luces suben con las RPM; el reloj
+   del refrigerante, en blanco hasta 110 °C; el voltaje.
+8. **E24, MEZCLA:** con el motor frío dice `sin regular` en gris, y al cerrarse
+   el lazo los valores se mueven.
+9. **Fuerza G:** al acelerar la bolita va para abajo, al frenar para arriba y
+   en una curva a la derecha, a la izquierda.
+10. Con la notebook en el auto, si se puede: `!info` con el motor andando (RAM
+    interna, `LCD_TE N barridos/s`) y las consultas por segundo en MOTOR (6–7).
+11. Al volver: pasar los CSV de la microSD a la Mac (la columna `Marcha`
+    contra lo que se vio, y el `Inicio de la placa` de cada uno).
+
+La alarma del refrigerante sigue en 105 °C hasta E25 (va a seguir saltando
+con el motor regulando en 103–108).
+
+Lo demás, por etapa:
+
 En el auto, con el motor andando y la microSD:
 
 - **Alarmas (E11):** con `ALARMAS_DE_PRUEBA = true`, que cada una salte y se
@@ -133,6 +170,9 @@ En el auto, con el motor andando y la microSD:
   74 KB en el banco, sin el adaptador; en E5, 128 KB en el auto) y `LCD_TE N
   barridos/s` (E17: si el TE llega).
 
+- **Pantalla principal (E24):** ver sus **Pruebas del usuario**, en las notas
+  de E24. Lo principal: que la marcha coincida con la palanca en las 5 y dé
+  `-` con el embrague apretado, y las consultas por segundo en MOTOR (6–7).
 - **Sin cuelgues (E23):** ver sus **Pruebas del usuario**, en las notas de
   E23. Lo principal: enchufada a la Mac sin el monitor, que el DS3 entre sin
   trabarse; `!trabar` reinicia la placa a los ~10 s; y unos días en el auto
@@ -235,7 +275,7 @@ src/
   rtc.h/.cpp        el reloj PCF85063, que pone la hora del sistema (E14)
   guardados.h/.cpp  los viajes anteriores en la flash, con Preferences (E22)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13), reloj (E14) y viajes anteriores (E22)
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13), reloj (E14), viajes anteriores (E22) y la marcha (E24)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -4415,3 +4455,114 @@ la placa.**
 5. En el auto, unos días sin desenchufarla: al abrir la puerta el DS3 entra
    entero, y con la llave sacada la espera responde. Si alguna vez se reinicia
    sola, mirar `!info` o el `Inicio de la placa` del CSV, y anotarlo acá.
+
+### E24
+
+Hecho (rama `e24-pantalla-principal`, desde `main` con E23 y el arreglo de la
+fuerza G). Antes de programar, el usuario eligió (2026-10-28) entre tres
+maquetas en un lienzo (https://claude.ai/artifact/54bsJponxNHRKAVdiymbRH,
+privado, del usuario; a 640×172, con los colores y la letra del firmware): A
+(la barra de las RPM abajo, como antes), B (dos relojes, RPM y refrigerante) y
+**C, la elegida**: las RPM como luces de cambio arriba y, abajo, el reloj del
+refrigerante, la marcha, las RPM, la velocidad y el voltaje. Cambio respecto
+del plan: la maqueta no se hizo con el render sino en el lienzo, como en E4;
+la elegida sí está en el render.
+
+Lo que se hizo:
+
+- **`lib/obd/src/marcha.h/.cpp`**, sin Arduino:
+
+  ```cpp
+  struct ReglasMarcha {
+    const float *relaciones; // km/h por 1000 rpm de cada marcha, desde 1ª
+    uint8_t cantidad;
+    float tolerancia;        // de 2ª en adelante (0.05 = 5 %)
+    float toleranciaPrimera; // 1ª, más: pesan los km/h enteros
+    float velocidadMinima;   // km/h; debajo, sin marcha
+    uint8_t lecturasIguales; // seguidas, para cambiar la que se muestra
+    uint32_t vigenciaMs;
+  };
+  uint8_t marchaDe(const ReglasMarcha &reglas, float rpm, float kmh); // 0 sin marcha
+  class Marcha {
+    void lectura(float rpm, float kmh, uint32_t ahora);
+    bool actual(uint32_t ahora) const;
+    uint8_t numero() const; // la que se muestra; 0 sin marcha
+  };
+  ```
+
+  Después de un hueco de más de `vigenciaMs` empieza de cero, sin marcha, así
+  no muestra la vieja mientras confirma. `test/test_marcha`: 8 tests, con
+  filas de `VIAJE0004.CSV` y `VIAJE0007.CSV` de cada marcha y del embrague.
+- **`config.h`:** `RELACIONES_MARCHAS` (8,07, 14,57, 20,95, 27,24 y 33,74),
+  `TOLERANCIA_MARCHA` (5 %), `TOLERANCIA_PRIMERA` (15 %),
+  `VELOCIDAD_MINIMA_MARCHA` (5 km/h) y `LECTURAS_PARA_MARCHA` (2). Elegidas
+  con los registros: con el motor andando (10 km/h o más y 1000 rpm o más),
+  el 97 % de las lecturas tienen marcha (con 4 %, 95,7; con 6 %, 97,2).
+- **`main.cpp`:** la marcha se calcula en `guardarVarias()`, solo con la RPM
+  y la velocidad de la misma respuesta (en MOTOR, en cada consulta; en MEZCLA,
+  cada ~2,5 s, cuando entra la RPM). De a un PID no se calcula y queda `--`.
+  En el CSV, una columna `Marcha` después de `Vel km/h` (de 1 a 5, 0 sin
+  marcha, vacía sin un valor actual), y en la tabla del monitor `Marcha N`.
+- **MOTOR** (`paginas.cpp`), en el área de 640×144:
+  - 14 luces de 500 rpm (y 8–24), apagadas en `FONDO_ESCALA` (las de la zona
+    roja, en `ROJO_OSCURO`); prendidas en verde, ámbar desde 4500 y rojo desde
+    6000. Debajo, los miles (base 42).
+  - El reloj del refrigerante (centro 64, 98; radio 40 al medio del arco, 9 de
+    ancho; 270°, de 40 a 130 °C): cuatro `lv_arc` sin toques (si no, el arco
+    se mueve con el dedo y se come los deslizamientos), solo con la parte
+    principal: la pista, la zona roja (redondeada), la ámbar (encima, para tapar
+    la punta de la roja) y el valor. El valor en `NORMAL` al medio, en blanco,
+    ámbar desde 110 y rojo desde 115 o con la alarma; `°C` en el hueco de abajo.
+    Cambiar los ángulos invalida solo lo que cambió.
+  - La marcha en un recuadro de 92×96 (x 124, y 44), con la fuente de 110;
+    `-` sin marcha, en `ETIQUETA`; `...`, `--` o `N/D` en Montserrat 48 y gris.
+  - RPM (Montserrat 48, x 232, base 100), velocidad (48, x 440, base 88) y
+    voltaje (28, x 440, base 126), con la unidad pegada.
+  - `DE_MOTOR` suma `VOLT_ELM`, que igual sale de `ATRV` cada
+    `PERIODO_ATRV_MS`.
+- **Sale AIRE/VOLT:** quedan 9 páginas (y 9 puntos: el primero pasa de x 480 a
+  496, y la marca `SD` y la hora se corren 16 px). La admisión se sigue
+  leyendo (cada `PERIODO_LENTO_MS`) para el CSV.
+- `Paginas::dibujar()` recibe la marcha, después del viaje.
+- `lv_conf.h`: `LV_USE_ARC 1`. La flash pasa de 59,4 % a 59,7 % de 3 MB.
+- **Render:** la marcha (global, como `reloj`), confirmada con los datos de la
+  maqueta: la velocidad pasa de 62 a 58 km/h, para que con 2140 rpm sea 4ª.
+  Casos nuevos `a-motor-andando` y `a-motor-caliente` (112 °C), y revisa que
+  el refrigerante vaya en blanco, ámbar o rojo según la zona y que dibujar dos
+  veces no redibuje. En los extremos, sin marcha (6500 rpm a 188 km/h). La
+  alarma doble (`y-alarma-dos`) pasa de AIRE/VOLT a MOTOR. Las constantes de
+  la barra (`X_MARCA_SD`, `BORDE_HORA`), para 9 puntos.
+- README: las páginas, **La marcha y el reloj**, la columna `Marcha`, la tabla
+  del monitor y los tests.
+
+- **MEZCLA:** el usuario confirmó (2026-10-28) que lo que veía era la página
+  quieta, con los valores fijos. `lazoRegulando()` en `pids.h` (lazo cerrado:
+  `0x02`, o `0x10` con una falla en alguna sonda; con test). Con el lazo
+  abierto, lambda y la sonda post van en gris (la marca y la barra también) y
+  al lado de sus etiquetas dice `sin regular`, en `CHICA`. `ponerValor()` y
+  `ponerMagnitud()` tienen un parámetro `atenuado` para eso. En el render, que
+  con el lazo abierto (los extremos, `Abierto carga`) diga `sin regular` y con
+  el cerrado no.
+
+Verificado por el agente: `pio run` compila (RAM 11,6 %, flash 59,7 % de
+3 MB), sin warnings propios con `-Wall -Wextra -Wshadow -Wvolatile`;
+`pio test -e native` 127/127 (9 nuevos); render, 229 revisiones bien. **Nada
+probado en la placa.**
+
+**Pruebas del usuario:**
+
+1. En el banco: MOTOR se ve como la maqueta C, con `...` hasta los datos y
+   `--` sin ellos. Deslizar sobre el reloj cambia de página (no lo mueve).
+2. En el auto, en cada marcha: el número coincide con la palanca; con el
+   embrague apretado o en punto muerto, `-`; al cambiar, no muestra una marcha
+   equivocada en el medio.
+3. Las luces suben con las RPM, ámbar desde 4500 y rojas desde 6000; el reloj
+   del refrigerante, en blanco hasta 110 °C.
+4. El voltaje en MOTOR, y la alarma de voltaje (en rojo) si corresponde.
+5. En el monitor, las consultas por segundo en MOTOR (6–7, como antes) y lo que
+   tardan sus cuadros (`dibujo`): las luces y el reloj cambian más seguido que
+   la barra de antes.
+6. Después de un viaje, la columna `Marcha` del CSV contra lo que se vio.
+7. MEZCLA con el motor frío: `sin regular` en gris, y al cerrarse el lazo
+   (~30–90 s) los valores en blanco y moviéndose. Soltando el acelerador
+   andando (corte de inyección), otra vez `sin regular`.

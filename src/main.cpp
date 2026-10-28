@@ -2,6 +2,7 @@
 #include <alarmas.h>
 #include <comandos.h>
 #include <dtc.h>
+#include <marcha.h>
 #include <esp_core_dump.h>
 #include <esp_flash.h>
 #include <esp_heap_caps.h>
@@ -63,6 +64,9 @@ PidsSoportados soportados;
 Sondeo sondeo;
 // Desde que se puso el contacto: la placa arranca con la llave
 Viaje viaje({VIGENCIA_MS, RPM_EN_MARCHA, ESPERA_VOLTAJE_VIAJE_MS});
+// Con la RPM y la velocidad de una misma consulta (E24)
+Marcha marcha({RELACIONES_MARCHAS, CANT_MARCHAS, TOLERANCIA_MARCHA, TOLERANCIA_PRIMERA,
+               VELOCIDAD_MINIMA_MARCHA, LECTURAS_PARA_MARCHA, VIGENCIA_MS});
 // En el orden de TipoAlarma
 static const ReglaAlarma REGLAS_ALARMAS[CANT_ALARMAS] = {
     {REFRIGERANTE_ALARMA, REFRIGERANTE_NORMAL, true, REFRIGERANTE_ALARMA_MS,
@@ -393,8 +397,9 @@ static void dibujar() {
     paginas.dibujar(ahora,
                     {version, protocolo, soportados.cantidad(), consultasPorSegundo, rssi,
                      brillo.nivel(), tarjeta.estado(), tarjeta.viaje()},
-                    fallas, segundosHasta(proximaLecturaFallas), viaje, guardados.anteriores(),
-                    {imu.iniciado(), imu.lectura(ahora)}, alarmaALaVista(ahora));
+                    fallas, segundosHasta(proximaLecturaFallas), viaje, marcha,
+                    guardados.anteriores(), {imu.iniciado(), imu.lectura(ahora)},
+                    alarmaALaVista(ahora));
     break;
   case Estado::SIN_ECU:
     if (ecuPerdida) {
@@ -439,6 +444,9 @@ static size_t encabezadoRegistro(char *texto, size_t tam) {
     snprintf(nombre, sizeof(nombre), "%s%s%s", etiquetaDe((Magnitud)i),
              unidad[0] != '\0' ? " " : "", unidad);
     linea.texto(nombre);
+    if (i == VELOCIDAD) {
+      linea.texto("Marcha"); // E24
+    }
   }
   for (const char *nombre : DESPUES) {
     linea.texto(nombre);
@@ -483,6 +491,11 @@ static void registrarSegundo() {
   linea.texto(conHora ? valor : nullptr);
   for (uint8_t i = 0; i < CANT_MAGNITUDES; i++) {
     linea.texto(textoValor((Magnitud)i, ahora, valor, sizeof(valor)) ? valor : nullptr);
+    if (i == VELOCIDAD) {
+      // 0 sin marcha
+      snprintf(valor, sizeof(valor), "%u", marcha.numero());
+      linea.texto(marcha.actual(ahora) ? valor : nullptr);
+    }
   }
   snprintf(valor, sizeof(valor), "%d", consultasPorSegundo);
   linea.texto(estado == Estado::LEYENDO && consultasPorSegundo >= 0 ? valor : nullptr);
@@ -934,11 +947,15 @@ static void armarPedido(const Magnitud *lista, uint8_t cantidad, char *comando, 
 }
 
 // Guarda las magnitudes de lista que vinieron en la respuesta a un pedido
-// de varios PIDs. Devuelve cuántas.
+// de varios PIDs. Devuelve cuántas. Con la RPM y la velocidad, la marcha.
 static uint8_t guardarVarias(const Respuesta &respuesta, const Magnitud *lista, uint8_t cantidad) {
   DatoPid pids[MAX_PIDS_POR_PEDIDO];
   uint8_t llegados = separarPids(respuesta.datos, respuesta.largo, pids, MAX_PIDS_POR_PEDIDO);
   uint8_t guardadas = 0;
+  bool conRpm = false;
+  bool conVelocidad = false;
+  float rpm = 0;
+  float kmh = 0;
   for (uint8_t i = 0; i < cantidad; i++) {
     for (uint8_t j = 0; j < llegados; j++) {
       float valor;
@@ -946,9 +963,19 @@ static uint8_t guardarVarias(const Respuesta &respuesta, const Magnitud *lista, 
           valorDesdePid(lista[i], pids[j].datos, pids[j].largo, &valor)) {
         guardar(lista[i], valor);
         guardadas++;
+        if (lista[i] == RPM) {
+          conRpm = true;
+          rpm = valor;
+        } else if (lista[i] == VELOCIDAD) {
+          conVelocidad = true;
+          kmh = valor;
+        }
         break;
       }
     }
+  }
+  if (conRpm && conVelocidad) {
+    marcha.lectura(rpm, kmh, millis());
   }
   return guardadas;
 }
@@ -1157,6 +1184,11 @@ static void imprimirTabla() {
     char texto[16];
     textoDato((Magnitud)i, ahora, false, texto, sizeof(texto));
     Serial.printf(" %s %s |", etiquetaDe((Magnitud)i), texto);
+  }
+  if (marcha.actual(ahora)) {
+    Serial.printf(" Marcha %u |", marcha.numero());
+  } else {
+    Serial.print(" Marcha -- |");
   }
   // Con el promedio de cada consulta se ve cuánto se va fuera de ellas
   uint32_t lapso = ahora - ultimaTabla;

@@ -175,6 +175,18 @@ constexpr int32_t QUIETO_PX = 20;
 constexpr float RPM_EN_MARCHA = 500;
 constexpr uint32_t ESPERA_VOLTAJE_VIAJE_MS = 5000;
 constexpr uint32_t MANTENER_VIAJE_MS = 3000;
+// La marcha (E24), de la velocidad sobre las RPM: los km/h por 1000 rpm de
+// cada una, medidos en los registros del 2026-10-27 (caja manual de 5). Vale
+// la que queda a TOLERANCIA_MARCHA (en 1ª, TOLERANCIA_PRIMERA: a poca
+// velocidad pesan los km/h enteros), desde VELOCIDAD_MINIMA_MARCHA. Así, con
+// el motor andando, el 97 % de las lecturas tienen marcha. Cambia con
+// LECTURAS_PARA_MARCHA seguidas iguales.
+constexpr float RELACIONES_MARCHAS[] = {8.07f, 14.57f, 20.95f, 27.24f, 33.74f};
+constexpr uint8_t CANT_MARCHAS = sizeof(RELACIONES_MARCHAS) / sizeof(RELACIONES_MARCHAS[0]);
+constexpr float TOLERANCIA_MARCHA = 0.05f;
+constexpr float TOLERANCIA_PRIMERA = 0.15f;
+constexpr float VELOCIDAD_MINIMA_MARCHA = 5; // km/h
+constexpr uint8_t LECTURAS_PARA_MARCHA = 2;
 // Viajes anteriores (E22): un viaje se guarda en la flash cuando lleva
 // MINIMO_VIAJE_GUARDADO_MS en marcha, y después cada PERIODO_GUARDAR_VIAJE_MS
 // si cambió. Al sacar la llave se pierde como mucho ese rato.
