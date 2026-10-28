@@ -329,10 +329,13 @@ un pitido corto y agudo, distinto de los de las alarmas.
   dirección guardada y busca el adaptador de cero.
 - **Brillo:** `-` y `+` lo cambian en 5 niveles (los segmentos del medio). El
   más bajo se sigue leyendo de noche: por debajo, la luz se apaga del todo.
-  Queda guardado para el próximo arranque; sin nada guardado, al máximo.
+  Queda guardado para el próximo arranque, un segundo después del último
+  toque; sin nada guardado, al máximo.
 - **Aviso de cambio:** `-` y `+` lo cambian de 250 en 250 rpm, de 2000 a 6500;
-  con `-` desde 2000 queda `Apagado`, en gris (ver **Aviso de cambio**). Queda
-  guardado; sin nada guardado, 6000.
+  con `-` desde 2000 queda `Apagado`, en gris (ver **Aviso de cambio**). Se
+  guarda como el brillo; sin nada guardado, 6000.
+- Cada toque de `-` y `+` cuenta, aunque se toque seguido, y aceptan el toque
+  hasta 6 px afuera del borde. Hasta E25 se perdían algunos.
 - Desde E25, Reconectar y Olvidar van abajo a la izquierda, y el brillo y el
   aviso de cambio a la derecha, uno arriba del otro.
 - **Tarjeta:** la microSD (ver **Registro en la microSD**). Hasta E13 ese

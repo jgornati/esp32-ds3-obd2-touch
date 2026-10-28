@@ -795,6 +795,9 @@ static const int32_t ALTO_MAS_MENOS = 46;
 static const int32_t Y_BRILLO = 20;
 static const int32_t Y_CAMBIO = 94;
 static const int32_t SOBRE_AJUSTE = 6; // de la base del nombre al ajuste
+// - y + aceptan el toque hasta esto afuera del borde: si el touch marca el
+// apoyo apenas afuera, o el dedo tiembla en el borde, igual cuenta (E25)
+static const int32_t MARGEN_TOQUE = 6;
 static const int32_t X_MEDIO_AJUSTE =
     (X_AJUSTES + ANCHO_MAS_MENOS + BORDE_DERECHO - ANCHO_MAS_MENOS) / 2;
 // El brillo: un segmento por nivel
@@ -806,15 +809,25 @@ static lv_obj_t *datosInfo[RENGLONES_INFO];
 static lv_obj_t *segmentosBrillo[CANT_NIVELES_BRILLO];
 static lv_obj_t *textoCambio = nullptr;
 static lv_obj_t *rellenoOlvidar = nullptr;
-static Accion accion = Accion::NINGUNA;
+// Los pedidos, en orden: tocar varias veces entre dos vueltas de loop() no
+// pierde ninguno (hasta E25, el último pisaba a los anteriores)
+static const uint8_t MAX_PEDIDOS = 8;
+static Accion pedidos[MAX_PEDIDOS];
+static uint8_t cantidadPedidos = 0;
 static bool olvidando = false;    // Olvidar apretado
 static uint32_t olvidoDesde = 0;  // desde cuándo
 static bool olvidoPedido = false; // ya se pidió en esta apretada
 
+static void pedir(Accion accion) {
+  if (cantidadPedidos < MAX_PEDIDOS) {
+    pedidos[cantidadPedidos++] = accion;
+  }
+}
+
 // Si el dedo se deslizó dentro del botón, es para cambiar de página
 static void alSoltarBoton(lv_event_t *e) {
   if (!deslizado) {
-    accion = (Accion)(uintptr_t)lv_event_get_user_data(e);
+    pedir((Accion)(uintptr_t)lv_event_get_user_data(e));
   }
 }
 
@@ -864,9 +877,11 @@ static int32_t armarAjuste(lv_obj_t *v, const char *nombre, int32_t y, Accion ba
   lv_obj_t *menos =
       boton(v, X_AJUSTES, y, ANCHO_MAS_MENOS, ALTO_MAS_MENOS, ETIQUETA, FONDO_ESCALA, bajar);
   textoBoton(menos, LV_SYMBOL_MINUS, NORMAL, BLANCO);
+  lv_obj_set_ext_click_area(menos, MARGEN_TOQUE);
   lv_obj_t *mas = boton(v, BORDE_DERECHO - ANCHO_MAS_MENOS, y, ANCHO_MAS_MENOS, ALTO_MAS_MENOS,
                         ETIQUETA, FONDO_ESCALA, subir);
   textoBoton(mas, LV_SYMBOL_PLUS, NORMAL, BLANCO);
+  lv_obj_set_ext_click_area(mas, MARGEN_TOQUE);
   return y + ALTO_MAS_MENOS / 2;
 }
 
@@ -1389,15 +1404,19 @@ Accion Paginas::tomarAccion(uint32_t ahora) {
   if (olvidando && !olvidoPedido && actual == PAGINA_INFO &&
       (int32_t)(ahora - olvidoDesde) >= (int32_t)MANTENER_OLVIDAR_MS) {
     olvidoPedido = true;
-    accion = Accion::OLVIDAR;
+    pedir(Accion::OLVIDAR);
   }
   if (mantenida && !reinicioPedido && actual == PAGINA_VIAJE &&
       (int32_t)(ahora - mantenidaDesde) >= (int32_t)MANTENER_VIAJE_MS) {
     reinicioPedido = true;
-    accion = Accion::REINICIAR_VIAJE;
+    pedir(Accion::REINICIAR_VIAJE);
   }
-  Accion pedida = accion;
-  accion = Accion::NINGUNA;
+  if (cantidadPedidos == 0) {
+    return Accion::NINGUNA;
+  }
+  Accion pedida = pedidos[0];
+  cantidadPedidos--;
+  memmove(pedidos, pedidos + 1, cantidadPedidos * sizeof(pedidos[0]));
   return pedida;
 }
 

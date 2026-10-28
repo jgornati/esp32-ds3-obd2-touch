@@ -106,11 +106,13 @@ public:
   // pantalla). Así la página cambia enseguida. Con datos, los pedidos
   // esperan a quien llama.
   void alPedirSinDatos(void (*funcion)());
-  // Lo que se pidió desde la última llamada. Reconectar, el brillo y el aviso
-  // de cambio cuentan al soltarlos (si no fue un deslizamiento); Olvidar, una
-  // vez por apretada, cuando lleva MANTENER_OLVIDAR_MS apretado, y reiniciar
-  // el viaje, cuando la página Viaje lleva MANTENER_VIAJE_MS apretada con el
-  // dedo quieto (ahora es la hora de millis()).
+  // Lo pedido desde la última vez, de a uno y en orden: quien llama repite
+  // hasta NINGUNA (desde E25 cada toque cuenta, aunque haya varios entre dos
+  // llamadas). Reconectar, el brillo y el aviso de cambio cuentan al soltarlos
+  // (si no fue un deslizamiento); Olvidar, una vez por apretada, cuando lleva
+  // MANTENER_OLVIDAR_MS apretado, y reiniciar el viaje, cuando la página
+  // Viaje lleva MANTENER_VIAJE_MS apretada con el dedo quieto (ahora es la
+  // hora de millis()).
   Accion tomarAccion(uint32_t ahora);
   // fallas: la última lectura de la página Fallas. reintento: segundos
   // hasta volver a leerla, que se muestran si falló y no hay códigos. alarma:

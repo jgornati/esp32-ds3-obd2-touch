@@ -1,5 +1,6 @@
 #include "brillo.h"
 
+#include <Arduino.h>
 #include <Preferences.h>
 
 #include "config.h"
@@ -15,6 +16,7 @@ void Brillo::iniciar() {
   if (actual < 1 || actual > CANT_NIVELES_BRILLO) {
     actual = CANT_NIVELES_BRILLO;
   }
+  guardado = actual;
 }
 
 uint8_t Brillo::valor() const {
@@ -26,9 +28,17 @@ bool Brillo::poner(uint8_t nivel) {
     return false;
   }
   actual = nivel;
+  cambiadoEn = millis();
+  return true;
+}
+
+void Brillo::guardar() {
+  if (actual == guardado || millis() - cambiadoEn < ESPERA_GUARDAR_AJUSTE_MS) {
+    return;
+  }
   Preferences preferencias;
   preferencias.begin(ESPACIO, false);
   preferencias.putUChar(CLAVE, actual);
   preferencias.end();
-  return true;
+  guardado = actual;
 }

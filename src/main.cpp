@@ -1534,31 +1534,38 @@ static void probarLuz(uint8_t valor) {
 // Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
 // consola. Acá y no mientras se espera al ELM: los dos lo sueltan. Y
 // reiniciar el viaje, de la página Viaje, y el brillo y el aviso de cambio, de
-// Info, que no usan el ELM.
+// Info, que no usan el ELM. De la pantalla, todos los pedidos desde la vuelta
+// anterior, en orden: desde E25, tocar rápido no pierde ninguno.
 static void atenderAcciones() {
-  Accion accion = paginas.tomarAccion(millis());
-  if (estado != Estado::LEYENDO || descubriendo) {
-    accion = Accion::NINGUNA;
-  }
-  if (accion == Accion::RECONECTAR) {
-    Serial.println("Pantalla: reconectando");
-  } else if (accion == Accion::OLVIDAR) {
-    Serial.println("Pantalla: olvidando el adaptador");
-  } else if (accion == Accion::REINICIAR_VIAJE) {
-    Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
-                  (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
-    // Si llegó a guardarse, pasa a Anteriores
-    guardados.terminar(viaje);
-    viaje.reiniciar();
-    empezarViaje();
-    imu.reiniciarMaximos();
-    anotar("Viaje reiniciado");
-    dibujar();
-  } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
-    cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
-  } else if (accion == Accion::BAJAR_CAMBIO || accion == Accion::SUBIR_CAMBIO) {
-    cambiarUmbralCambio(otroUmbralCambio(REGLAS_CAMBIO, umbralCambio.rpm(),
-                                         accion == Accion::SUBIR_CAMBIO ? 1 : -1));
+  bool reconectar = false;
+  bool olvidar = false;
+  for (Accion accion = paginas.tomarAccion(millis()); accion != Accion::NINGUNA;
+       accion = paginas.tomarAccion(millis())) {
+    if (estado != Estado::LEYENDO || descubriendo) {
+      continue;
+    }
+    if (accion == Accion::RECONECTAR) {
+      Serial.println("Pantalla: reconectando");
+      reconectar = true;
+    } else if (accion == Accion::OLVIDAR) {
+      Serial.println("Pantalla: olvidando el adaptador");
+      olvidar = true;
+    } else if (accion == Accion::REINICIAR_VIAJE) {
+      Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
+                    (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
+      // Si llegó a guardarse, pasa a Anteriores
+      guardados.terminar(viaje);
+      viaje.reiniciar();
+      empezarViaje();
+      imu.reiniciarMaximos();
+      anotar("Viaje reiniciado");
+      dibujar();
+    } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
+      cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
+    } else if (accion == Accion::BAJAR_CAMBIO || accion == Accion::SUBIR_CAMBIO) {
+      cambiarUmbralCambio(otroUmbralCambio(REGLAS_CAMBIO, umbralCambio.rpm(),
+                                           accion == Accion::SUBIR_CAMBIO ? 1 : -1));
+    }
   }
   uint8_t valorLuz;
   if (consola.luzPedida(&valorLuz)) {
@@ -1574,10 +1581,10 @@ static void atenderAcciones() {
   if (consola.cambioPedido(&rpmCambio)) {
     atenderCambioPedido(rpmCambio);
   }
-  if (consola.reconexionPedida() || accion == Accion::RECONECTAR) {
+  if (consola.reconexionPedida() || reconectar) {
     volverAConectar(false);
   }
-  if (consola.olvidoPedido() || accion == Accion::OLVIDAR) {
+  if (consola.olvidoPedido() || olvidar) {
     volverAConectar(true);
   }
 }
@@ -1723,6 +1730,8 @@ void loop() {
   revisarTarjeta();
   registrarSegundo();
   guardados.actualizar(viaje, millis());
+  brillo.guardar();
+  umbralCambio.guardar();
 
   if (millis() - ultimoDibujo >= periodoDibujo()) {
     dibujar();

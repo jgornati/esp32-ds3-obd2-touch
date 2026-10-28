@@ -114,7 +114,8 @@ En el banco, con la Mac y sin el adaptador:
 6. **E25, consola:** `!pitar cambio`: un pitido corto y más agudo, distinto de
    los tres de `!pitar` (si no gusta, decir cómo: más largo, más grave...).
    `!cambio` dice `Aviso de cambio: 6000 rpm`; `!cambio 2600` dice cuáles
-   valen; `!cambio 2500` lo pone. Apretar RESET y `!cambio` sigue en 2500.
+   valen; `!cambio 2500` lo pone. Esperar un segundo, apretar RESET y
+   `!cambio` sigue en 2500.
 
 En el auto:
 
@@ -129,7 +130,9 @@ En el auto:
     en una curva a la derecha, a la izquierda.
 11. **E25, INFO** (con el contacto, parado; INFO se ve solo con la ECU): la
     fila `Aviso de cambio` en `2500 rpm` (la 6); `-` y `+` de 250 en 250,
-    `Apagado` (en gris) debajo de 2000 y no más de 6500. Dejarlo en 2500.
+    `Apagado` (en gris) debajo de 2000 y no más de 6500. Tocar `-` y `+` del
+    brillo y del aviso varias veces seguido, y también cerca del borde: cada
+    toque cuenta (antes, en el brillo, se perdían algunos). Dejarlo en 2500.
     Reconectar, Olvidar (mantener 3 s) y el brillo andan en su lugar nuevo.
 12. **E25, refrigerante:** en un viaje normal, también parado en el tráfico,
     `REFRIGERANTE` no salta.
@@ -185,7 +188,9 @@ En el auto, con el motor andando y la microSD:
 - **Reloj (E14):** después de unas semanas, cuánto se corrió (la columna `Hora`
   y la fecha de los archivos ya se vieron en los registros del 2026-10-27).
 - **Brillo (E15):** que el nivel se mantenga al apagar y prender, y verlo de
-  día en el auto (el nivel 1, 100, queda cerca del corte de 90–97).
+  día en el auto (el nivel 1, 100, queda cerca del corte de 90–97). Desde E25
+  se guarda un segundo después del último toque, y `-` y `+` ya no pierden
+  toques (ver las notas de E25).
 - **Viajes anteriores (E22):** ver sus **Pruebas del usuario**, en las notas
   de E22. Lo principal: que un viaje aparezca en ANTERIORES al volver a poner
   el contacto, y que sin el adaptador (llave en accesorios, o en el banco) se
@@ -244,7 +249,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
 | Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep (confirmado en E7). El 2026-10-26 el usuario decidió ponerle una batería de 3,7 V, para que el RTC no pierda la hora (ver **Hardware de la placa**). La placa se sigue apagando con la llave: el firmware no activa `SYS_EN` |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
-| Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15). Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
+| Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15); desde E25, un segundo después del último toque. Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
 | Viajes anteriores      | Desde E22, un resumen de cada viaje (lo de VIAJE y cuándo empezó) en la flash, con `Preferences`, no en la microSD: los últimos 10 que llegan a 1 min en marcha. Se ven en ANTERIORES, después de VIAJE, también sin conexión. Lo eligió el usuario (2026-10-27) |
 | Aviso de cambio        | Desde E25, en lugar de la alarma `ZONA ROJA`: a las RPM que elija el usuario, toda la pantalla parpadea en cualquier página, con un pitido distinto del de las alarmas (lo decidió el usuario, 2026-10-28). *Propuestas* sin confirmar: dónde se elige, de cuánto a cuánto, el de fábrica (6000), cuánto dura, cuándo no avisa, los colores y el pitido (ver **Decisiones a confirmar por el usuario**, en las notas de E25) |
@@ -4783,6 +4788,50 @@ decisiones de arriba. Reemplaza la alarma `ZONA ROJA`.
 - README: alarmas, **Aviso de cambio** (nueva), INFO, la consola, la columna
   `Eventos` y los tests.
 
+**Los toques de `-` y `+` que se perdían** (lo contó el usuario el 2026-10-28,
+después del PR: el brillo "responde a algunos click y a otros no"; los botones
+del aviso son iguales, así que les iba a pasar lo mismo). Reproducido en la PC
+con el render, tres causas:
+
+1. **Tocar seguido.** Cada botón dejaba un solo pedido, que `loop()` toma una
+   vez por vuelta (~150 ms, una consulta): dos toques en la misma vuelta
+   contaban uno.
+2. **El dedo cae apenas afuera.** LVGL manda `CLICKED` solo si el toque
+   empezó sobre el botón: si el touch marca el apoyo 3 px afuera y después el
+   dedo entra, no cuenta (el toque queda en la página, que tiene
+   `PRESS_LOCK`).
+3. **El dedo tiembla en el borde.** Sin `PRESS_LOCK` en los botones (a
+   propósito, para cancelar corriendo el dedo), una lectura 3 px afuera es un
+   `PRESS_LOST`, y al soltar no cuenta.
+
+Los del brillo eran de 56×38: con 38 px de alto el borde quedaba muy a mano.
+Lo que se hizo (lo aprobó el usuario):
+
+- **`paginas`:** los pedidos van a una cola de 8 (`pedir()`), y
+  `tomarAccion()` los da de a uno y en orden; `atenderAcciones()` (en
+  `main.cpp`) los atiende todos en cada vuelta.
+- **Los `-` y `+`** del brillo y del aviso aceptan el toque hasta 6 px afuera
+  (`lv_obj_set_ext_click_area()`, `MARGEN_TOQUE` en `paginas.cpp`): se ven
+  igual. No se pisan con nada: entre el `-` del aviso (x 400) y Olvidar (hasta
+  391) quedan 8 px, y entre las dos filas, 28. Reconectar y Olvidar quedan
+  como estaban.
+- **El guardado, después:** `Brillo` y `UmbralCambio` cambian el valor
+  enseguida y lo escriben en la flash `ESPERA_GUARDAR_AJUSTE_MS` (1 s) después
+  del último cambio (`guardar()`, en cada vuelta de `loop()`). Antes escribían
+  en cada toque, con `loop()` y el touch quietos mientras tanto. Si se corta
+  la luz (o se reinicia) en ese segundo, queda el anterior.
+
+Queda una cuarta, sin tocar: el touch se lee cada 33 ms (`LV_DEF_REFR_PERIOD`,
+el de LVGL), así que un toque de menos de eso puede no leerse. Debería ser
+raro (un toque dura ~100 ms); leerlo más seguido le saca tiempo a las
+consultas (cada lectura es una transacción I2C de ~1 ms).
+
+Verificado en la PC: render, 249 revisiones bien. Las 7 nuevas: dos y tres
+toques seguidos dan dos y tres pedidos en orden; el dedo que cae 3 px afuera
+y entra, y el que tiembla 3 px afuera, cuentan; 6 px afuera cuenta, 8 no; y
+entre el `-` del aviso y Olvidar, cada uno lo suyo. Con el margen en 0 y la
+cola de un solo pedido, 6 de ellas fallan. Sin probar en la placa.
+
 **Lo que cuesta el parpadeo.** Cada cambio de color es un cuadro entero (cambia
 toda la pantalla): 8 por segundo, como mucho 2 s. Pero la capa tapa todo, y
 LVGL dibuja desde el objeto de más arriba que cubre el área entera: no dibuja
@@ -4819,13 +4868,15 @@ de mergearla; están también, en orden, en **Para la próxima prueba**):
 1. En el banco, por la consola: `!pitar cambio` suena un pitido corto y
    agudo, distinto de los tres de `!pitar`. `!cambio` dice `Aviso de cambio:
    6000 rpm`; `!cambio 2600` dice cuáles valen; `!cambio 2500` lo pone.
-   Apretar RESET: `!cambio` sigue en 2500. `!info` lo dice en la línea del
-   sonido.
+   Esperar un segundo y apretar RESET: `!cambio` sigue en 2500. `!info` lo
+   dice en la línea del sonido.
 2. En el auto, con el contacto, en INFO (se ve solo con la ECU): la fila
    `Aviso de cambio` en `2500 rpm`; `-` y `+` de 250 en 250; `Apagado` en gris
    debajo de 2000; no pasa de 6500. Reconectar, Olvidar (mantener 3 s) y el
    brillo andan en su lugar nuevo; deslizar sobre los botones cambia de página
-   sin apretarlos.
+   sin apretarlos. Tocando `-` y `+` seguido, o cerca del borde, cada toque
+   cuenta. Si alguno se sigue perdiendo, contar cómo (rápido, en el borde, un
+   toque muy corto).
 3. Andando, con el aviso en 2500: al llegar a 2500 en 1ª a 4ª toda la pantalla
    parpadea en azul y negro y suena el pitido; una vez por marcha (al poner la
    siguiente y llegar otra vez, de nuevo); en 5ª no; acelerando parado, en

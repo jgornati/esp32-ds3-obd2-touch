@@ -425,6 +425,34 @@ static int8_t tocar(lv_indev_t *indev, Paginas &paginas, int32_t x, int32_t y) {
   return paginas.tomarToque();
 }
 
+// Un toque que el touch lee en esos puntos, uno cada LV_DEF_REFR_PERIOD como
+// la placa: el dedo se apoya en el primero y se levanta en el último
+static void tocarPor(lv_indev_t *indev, std::initializer_list<lv_point_t> puntos) {
+  bool apoyado = false;
+  for (lv_point_t punto : puntos) {
+    if (!apoyado) {
+      apoyar(indev, punto.x, punto.y);
+      apoyado = true;
+    } else {
+      reloj += LV_DEF_REFR_PERIOD;
+      dedo = punto;
+      lv_indev_read(indev);
+    }
+  }
+  reloj += LV_DEF_REFR_PERIOD;
+  levantar(indev);
+}
+
+// Todos los pedidos que quedaron, en orden
+static std::vector<Accion> pedidosDe(Paginas &paginas) {
+  std::vector<Accion> lista;
+  for (Accion a = paginas.tomarAccion(reloj); a != Accion::NINGUNA;
+       a = paginas.tomarAccion(reloj)) {
+    lista.push_back(a);
+  }
+  return lista;
+}
+
 // Desliza el dedo de x1 a x2 en 5 pasos de 30 ms (unos 150 ms, como un dedo
 // rápido) y lo levanta. Devuelve el pedido de cambio de página.
 static int8_t deslizar(lv_indev_t *indev, Paginas &paginas, int32_t x1, int32_t x2, int32_t y,
@@ -859,6 +887,37 @@ int main(int argc, char **argv) {
   revisar(tocar(indev, paginas, 608, 71) == 0 && paginas.tomarAccion(reloj) == Accion::SUBIR_BRILLO,
           "Brillo: + pide subirlo, sin cambiar de pagina");
   revisar(paginas.tomarAccion(reloj) == Accion::NINGUNA, "Brillo: lo pide una sola vez");
+
+  // Los toques que se perdían (E25). El + del brillo va de x 584 a 631 y de y
+  // 48 a 93, y acepta el toque hasta 6 px afuera; el - del aviso de cambio
+  // empieza en x 400, y Olvidar termina en 391.
+  using Pedidos = std::vector<Accion>;
+  tocar(indev, paginas, 608, 71);
+  tocar(indev, paginas, 608, 71);
+  revisar(pedidosDe(paginas) == Pedidos{Accion::SUBIR_BRILLO, Accion::SUBIR_BRILLO},
+          "Brillo: dos toques antes de que loop() los tome, dos pedidos (antes contaba uno)");
+  tocar(indev, paginas, 424, 145);
+  tocar(indev, paginas, 608, 145);
+  tocar(indev, paginas, 424, 145);
+  revisar(pedidosDe(paginas) ==
+              Pedidos{Accion::BAJAR_CAMBIO, Accion::SUBIR_CAMBIO, Accion::BAJAR_CAMBIO},
+          "Aviso de cambio: tres toques seguidos, tres pedidos y en orden");
+  tocarPor(indev, {{608, 97}, {608, 90}});
+  revisar(pedidosDe(paginas) == Pedidos{Accion::SUBIR_BRILLO},
+          "Brillo: el dedo cae 3 px debajo del + y entra, cuenta (antes no)");
+  tocarPor(indev, {{608, 92}, {608, 97}, {608, 92}});
+  revisar(pedidosDe(paginas) == Pedidos{Accion::SUBIR_BRILLO},
+          "Brillo: el dedo tiembla 3 px afuera del + y vuelve, cuenta (antes no)");
+  tocarPor(indev, {{578, 71}});
+  revisar(pedidosDe(paginas) == Pedidos{Accion::SUBIR_BRILLO},
+          "Brillo: 6 px a la izquierda del +, todavia cuenta");
+  revisar(tocar(indev, paginas, 608, 102) == 0 && pedidosDe(paginas).empty() &&
+              tocar(indev, paginas, 576, 71) == 0 && pedidosDe(paginas).empty(),
+          "Brillo: a 8 px del +, no cuenta ni cambia de pagina");
+  revisar(tocar(indev, paginas, 395, 145) == 0 &&
+              pedidosDe(paginas) == Pedidos{Accion::BAJAR_CAMBIO} &&
+              tocar(indev, paginas, 390, 145) == 0 && pedidosDe(paginas).empty(),
+          "Aviso de cambio: 5 px a la izquierda del - es el -; en el borde de Olvidar, nada");
   info.brillo = CANT_NIVELES_BRILLO;
   paginas.dibujar(reloj, info, fallas, reintento, viaje, marcha, anteriores, fuerzaG, alarma);
   guardar(directorio, "p-info-brillo-maximo");

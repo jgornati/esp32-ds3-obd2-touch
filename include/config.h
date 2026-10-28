@@ -241,6 +241,10 @@ constexpr uint32_t DURACION_CAMBIO_MS = 2000;
 constexpr uint32_t PARPADEO_CAMBIO_MS = 125; // ~4 parpadeos por segundo
 constexpr uint32_t PITIDO_CAMBIO_MS = 80;
 constexpr uint32_t FRECUENCIA_CAMBIO_HZ = 4000;
+// El brillo y el aviso de cambio se guardan en la flash cuando pasa esto sin
+// cambiarlos (E25): tocando - y + seguido, no frena la placa en cada toque. Si
+// se corta la luz antes, queda el anterior.
+constexpr uint32_t ESPERA_GUARDAR_AJUSTE_MS = 1000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se
