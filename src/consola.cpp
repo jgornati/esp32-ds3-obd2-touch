@@ -6,7 +6,8 @@
 
 static const char *const AYUDA =
     "Comandos locales: !reconectar, !olvidar, !descubrir, !log, "
-    "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora, !escanear, !explorar N";
+    "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora, !trabar, !escanear, "
+    "!explorar N";
 
 void Consola::atender() {
   while (Serial.available()) {
@@ -56,6 +57,12 @@ bool Consola::pitidoPedido() {
   bool pedido = pitido;
   pitido = false;
   return pedido;
+}
+
+bool Consola::trabaPedida() {
+  bool pedida = trabar;
+  trabar = false;
+  return pedida;
 }
 
 bool Consola::imuPedido() {
@@ -112,6 +119,12 @@ void Consola::soltarElm() {
   reconectar = true;
 }
 
+void Consola::terminarExploracion() {
+  if (alTerminar != nullptr) {
+    alTerminar();
+  }
+}
+
 void Consola::ejecutar(const char *texto) {
   if (texto[0] != '!') {
     // enviar() ya deja el comando, la respuesta o el rechazo en el log
@@ -138,6 +151,8 @@ void Consola::ejecutar(const char *texto) {
     info = true;
   } else if (strcasecmp(comando, "!pitar") == 0) {
     pitido = true;
+  } else if (strcasecmp(comando, "!trabar") == 0) {
+    trabar = true;
   } else if (strcasecmp(comando, "!imu") == 0) {
     imu = true;
   } else if (strcasecmp(comando, "!sd") == 0) {
@@ -160,9 +175,11 @@ void Consola::ejecutar(const char *texto) {
   } else if (strcasecmp(comando, "!escanear") == 0) {
     soltarElm();
     explorador.escanear();
+    terminarExploracion();
   } else if (strcasecmp(comando, "!explorar") == 0 && leidos >= 2) {
     soltarElm();
     explorador.explorar(numero);
+    terminarExploracion();
   } else {
     Serial.printf("Consola: no conozco %s. %s\n", texto, AYUDA);
   }

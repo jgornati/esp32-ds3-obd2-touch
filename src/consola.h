@@ -25,6 +25,8 @@ public:
   bool infoPedida();
   // true una sola vez después de un !pitar (los pitidos de una alarma)
   bool pitidoPedido();
+  // true una sola vez después de un !trabar (para probar el guardián, E23)
+  bool trabaPedida();
   // true una sola vez después de un !imu (la última muestra del IMU)
   bool imuPedido();
   // true una sola vez después de un !sd (la tarjeta y el registro)
@@ -43,14 +45,19 @@ public:
     return conDetalle;
   }
   // funcion se llama después de soltar el ELM para !escanear o !explorar,
-  // que bloquean varios segundos (para sacar los datos de la pantalla).
+  // que bloquean varios segundos (para sacar los datos de la pantalla y
+  // soltar LVGL), y la de despuesDeExplorar() al terminar.
   void antesDeExplorar(void (*funcion)()) {
     alSoltar = funcion;
+  }
+  void despuesDeExplorar(void (*funcion)()) {
+    alTerminar = funcion;
   }
 
 private:
   void ejecutar(const char *texto);
   void soltarElm();
+  void terminarExploracion();
 
   Elm327 &elm;
   Explorador &explorador;
@@ -62,6 +69,7 @@ private:
   bool descubrir = false;
   bool info = false;
   bool pitido = false;
+  bool trabar = false;
   bool imu = false;
   bool sd = false;
   bool viajes = false;
@@ -72,4 +80,5 @@ private:
   uint8_t valorLuz = 0;
   bool conDetalle = false;
   void (*alSoltar)() = nullptr;
+  void (*alTerminar)() = nullptr;
 };

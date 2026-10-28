@@ -2,6 +2,7 @@
 #include <alarmas.h>
 #include <comandos.h>
 #include <dtc.h>
+#include <esp_core_dump.h>
 #include <esp_flash.h>
 #include <esp_heap_caps.h>
 #include <esp_psram.h>
@@ -188,6 +189,22 @@ static const char *motivoReinicio(esp_reset_reason_t causa) {
   }
 }
 
+// El motivo del último reinicio; si fue el guardián (E23), con lo que anotó
+static const char *motivoInicio() {
+  static char texto[128];
+  const char *traba = pantallaHw.trabaAnterior();
+  if (traba[0] == '\0') {
+    return motivoReinicio(esp_reset_reason());
+  }
+  snprintf(texto, sizeof(texto), "guardian (%s)", traba);
+  return texto;
+}
+
+// Para el guardián: lo llama desde su tarea, con loop() quizás trabado
+static const char *estadoActual() {
+  return textoEstado(estado);
+}
+
 static float ms(uint32_t us) {
   return us / 1000.0f;
 }
@@ -229,7 +246,16 @@ static void imprimirInfo() {
   Serial.printf("RAM interna libre: %u KB (bloque mayor %u KB)\n",
                 (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) >> 10),
                 (unsigned)(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) >> 10));
-  Serial.printf("Ultimo reinicio: %s\n", motivoReinicio(esp_reset_reason()));
+  Serial.printf("Ultimo reinicio: %s\n", motivoInicio());
+  // Queda hasta el próximo pánico. Las demás tareas (dónde estaba trabado
+  // loop()) se ven leyendo la partición coredump con esptool.
+  esp_core_dump_summary_t volcado;
+  if (esp_core_dump_get_summary(&volcado) == ESP_OK) {
+    Serial.printf("Volcado del ultimo panico: tarea %s, pc 0x%08lx\n", volcado.exc_task,
+                  (unsigned long)volcado.exc_pc);
+  } else {
+    Serial.println("Volcado del ultimo panico: ninguno");
+  }
 
   if (pantallaHw.iniciada()) {
     MedidasPantalla m = pantallaHw.medidas();
@@ -430,7 +456,7 @@ static void abrirRegistro() {
   proximaLinea = inicioRegistro;
   char texto[LARGO_LINEA_REGISTRO];
   tarjeta.abrir(texto, encabezadoRegistro(texto, sizeof(texto)));
-  anotar("Inicio de la placa: %s", motivoReinicio(esp_reset_reason()));
+  anotar("Inicio de la placa: %s", motivoInicio());
 }
 
 // Una línea por segundo, con lo de la tabla del monitor; sin un valor
@@ -667,11 +693,17 @@ static void perderConexion(const char *por) {
   cambiarA(Estado::BT_PERDIDO, REINTENTO_BT_MS);
 }
 
-// !escanear y !explorar sueltan el ELM y bloquean varios segundos sin
-// atender la pantalla: antes se sacan los datos.
+// !escanear y !explorar sueltan el ELM y bloquean varios segundos (hasta 30
+// si un dispositivo conecta y no contesta): antes se sacan los datos, y
+// mientras tanto LVGL queda suelto, como en conectarBt(). Si no, el guardián
+// reiniciaría la placa.
 static void alExplorar() {
   perderConexion("Explorando BLE");
-  pantallaHw.dibujarYa();
+  pantallaHw.soltar();
+}
+
+static void alTerminarExploracion() {
+  pantallaHw.tomar();
 }
 
 static void alAvanzarDescubrimiento(uint16_t hechos, uint16_t total) {
@@ -1459,6 +1491,10 @@ static void atenderAcciones() {
 }
 
 void setup() {
+  // Escribir no espera nunca (E23): con un host USB que no lee, como la
+  // radio del auto, cada línea esperaba hasta 2 s con la pantalla tomada
+  Serial.setTxBufferSize(TAM_SALIDA_USB);
+  Serial.setTxTimeoutMs(0);
   Serial.begin(115200);
 
   // La pantalla antes que el BLE: necesita RAM interna con DMA. Y el I2C de
@@ -1498,18 +1534,24 @@ void setup() {
   }
 
   boton.iniciar();
+  // Lo que sigue tarda (la tarjeta, el BLE) y no usa LVGL: mientras tanto la
+  // atiende la otra tarea, y el DS3 sigue entrando
+  pantallaHw.soltar();
   sonido.iniciar();
   imu.iniciar();
   tarjeta.iniciar();
   elm.iniciar();
+  pantallaHw.tomar();
   elm.mientrasEspera(alEsperar);
   consola.antesDeExplorar(alExplorar);
+  consola.despuesDeExplorar(alTerminarExploracion);
+  pantallaHw.alTrabarse(estadoActual);
   marcarSinConexion();
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
                  "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora AAAA-MM-DD HH:MM, "
-                 "!escanear o !explorar N.");
+                 "!trabar, !escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
@@ -1541,6 +1583,13 @@ void loop() {
   if (consola.pitidoPedido()) {
     Serial.println(sonido.iniciado() ? "Consola: pitando" : "Consola: el sonido no anda");
     sonido.pitar(PITIDOS_ALARMA);
+  }
+  if (consola.trabaPedida()) {
+    // Con LVGL tomado y sin atenderlo: el guardián tiene que reiniciar la placa
+    Serial.printf("Consola: trabando la pantalla; el guardian reinicia a los %lu s\n",
+                  (unsigned long)(GUARDIAN_MS / 1000));
+    delay(GUARDIAN_MS + 5000);
+    Serial.println("Consola: el guardian no reinicio la placa");
   }
 
   bool usaBt = estado != Estado::CONECTANDO_BT && estado != Estado::BT_PERDIDO;

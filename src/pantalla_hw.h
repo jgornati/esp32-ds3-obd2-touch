@@ -35,6 +35,11 @@ struct MedidasPantalla {
 // mientras tanto loop() sigue, y LVGL dibuja la siguiente en la otra. Si la
 // necesita antes de que se termine de mandar, quien tiene LVGL espera (la
 // "espera" de las medidas).
+//
+// Un guardián (E23) mira cada segundo que LVGL se atienda y que la tarea de
+// envío termine sus imágenes. Si algo pasa GUARDIAN_MS trabado, anota quién
+// tenía LVGL y provoca un pánico: el core guarda el volcado en la flash y
+// reinicia. Lo que bloquea a propósito con LVGL tomado tiene que soltarlo.
 class PantallaHw {
 public:
   // Panel, touch y LVGL. Deja la pantalla en negro, con la luz en brillo
@@ -50,9 +55,12 @@ public:
   // Lo más que pasó entre dos atender() desde la última llamada: un toque
   // más corto que eso se puede perder
   uint32_t huecoMaximo();
-  // Dibuja y manda ya lo que cambió, sin esperar el período de LVGL. Para
-  // antes de algo que bloquea sin llamar a atender().
-  void dibujarYa();
+
+  // Lo que el guardián anota del programa al trabarse (el estado de la
+  // conexión). Lo llama desde su tarea: no puede tomar nada.
+  void alTrabarse(const char *(*estado)());
+  // Lo que anotó el guardián, si el último reinicio fue suyo; si no, ""
+  const char *trabaAnterior() const;
 
   // Dibuja y manda la pantalla entera, y devuelve lo que tardó
   TiemposCuadro medirRefresco();

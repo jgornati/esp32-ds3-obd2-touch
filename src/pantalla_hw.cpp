@@ -6,12 +6,16 @@
 #include <driver/i2c_master.h>
 #include <driver/ledc.h>
 #include <driver/spi_master.h>
+#include <esp_attr.h>
 #include <esp_heap_caps.h>
 #include <esp_lcd_panel_io.h>
 #include <esp_lcd_panel_ops.h>
+#include <esp_system.h>
 #include <esp_timer.h>
 #include <freertos/semphr.h>
 #include <lvgl.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "config.h"
 #include "giro.h"
@@ -57,6 +61,13 @@ static const uint32_t TE_VIGENTE_MS = 200;
 // la siguiente deja correr a las demás
 static const uint32_t PILA_APARTE = 8192;
 static const uint32_t PAUSA_APARTE_MS = 5;
+// El guardián: revisa cada tanto, con más prioridad que loop() y que las
+// tareas de la pantalla, en cualquier núcleo
+static const uint32_t PERIODO_GUARDIAN_MS = 1000;
+static const uint32_t PILA_GUARDIAN = 4096;
+static const UBaseType_t PRIORIDAD_GUARDIAN = 5;
+// En la memoria del RTC, que no se borra al reiniciar: la anotación es suya
+static const uint32_t MARCA_TRABA = 0x54524142;
 
 // Los del ejemplo: salir del modo sueño y prender la imagen. El driver
 // manda antes MADCTL y COLMOD. En el medio, TEON (E17): que avise cada
@@ -71,7 +82,7 @@ static const axs15231b_lcd_init_cmd_t COMANDOS_PANEL[] = {
 
 static bool lista = false;
 static uint8_t brilloActual = 0;
-static uint32_t ultimaAtencion = 0;
+static volatile uint32_t ultimaAtencion = 0; // la mira el guardián
 static uint32_t hueco = 0;
 // LVGL: lo tiene loop(), salvo entre soltar() y tomar()
 static SemaphoreHandle_t cerrojo = nullptr;
@@ -120,6 +131,21 @@ static bool tocando = false;
 static uint16_t crudoX = 0;
 static uint16_t crudoY = 0;
 static bool touchFallando = false;
+
+// La tarea de envío avisa al guardián desde cuándo tiene una imagen
+static volatile bool conImagen = false;
+static volatile uint32_t imagenDesde = 0;
+static const char *(*describirEstado)() = nullptr;
+// Lo que anota el guardián antes de reiniciar. Sobrevive al reinicio, no a
+// un corte de luz.
+struct Traba {
+  uint32_t marca;
+  bool envio;      // la tarea de envío no terminaba; si no, LVGL sin atender
+  char tarea[16];  // quién tenía LVGL
+  char estado[24]; // lo que devolvió describirEstado
+};
+static RTC_NOINIT_ATTR Traba traba;
+static char trabaLeida[96] = "";
 
 static bool falla(const char *que, esp_err_t err) {
   Serial.printf("Pantalla: fallo %s: %s\n", que, esp_err_to_name(err));
@@ -233,10 +259,13 @@ static void enviarAparte(void *) {
   for (;;) {
     uint32_t pixeles = 0;
     xTaskNotifyWait(0, 0, &pixeles, portMAX_DELAY);
+    imagenDesde = millis();
+    conImagen = true;
     esperarBarrido();
     TiemposCuadro t = {};
     enviarImagen((const uint16_t *)(uintptr_t)pixeles, t);
     tiemposEnvio = t;
+    conImagen = false;
     xSemaphoreGive(envioListo);
   }
 }
@@ -370,6 +399,48 @@ static void atenderAparte(void *) {
     xSemaphoreGiveRecursive(cerrojo);
     vTaskDelay(pdMS_TO_TICKS(PAUSA_APARTE_MS));
   }
+}
+
+// La pantalla quedó trabada: se anota quién tenía LVGL y en qué andaba el
+// programa, y un pánico guarda el volcado (todas las tareas) y reinicia
+static void trabarse(bool envio) {
+  TaskHandle_t duenio = xSemaphoreGetMutexHolder(cerrojo);
+  traba.envio = envio;
+  strlcpy(traba.tarea, duenio != nullptr ? pcTaskGetName(duenio) : "nadie", sizeof(traba.tarea));
+  strlcpy(traba.estado, describirEstado != nullptr ? describirEstado() : "?", sizeof(traba.estado));
+  traba.marca = MARCA_TRABA;
+  Serial.printf("Guardian: %s; LVGL lo tiene %s, en %s. Se reinicia\n",
+                envio ? "el envio de una imagen no termina" : "la pantalla no se atiende",
+                traba.tarea, traba.estado);
+  abort();
+}
+
+static void vigilar(void *) {
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(PERIODO_GUARDIAN_MS));
+    // Lo anotado antes que la hora: si no, otra tarea puede anotar algo más
+    // nuevo en el medio, y la resta da negativa (enorme)
+    uint32_t atendida = ultimaAtencion;
+    bool conUna = conImagen;
+    uint32_t desde = imagenDesde;
+    uint32_t ahora = millis();
+    bool envio = conUna && ahora - desde > GUARDIAN_MS;
+    if (envio || ahora - atendida > GUARDIAN_MS) {
+      trabarse(envio);
+    }
+  }
+}
+
+// Antes que nada: si el último reinicio fue del guardián, lo que anotó
+static void leerTraba() {
+  if (traba.marca == MARCA_TRABA && esp_reset_reason() == ESP_RST_PANIC) {
+    traba.tarea[sizeof(traba.tarea) - 1] = '\0';
+    traba.estado[sizeof(traba.estado) - 1] = '\0';
+    snprintf(trabaLeida, sizeof(trabaLeida), "%s; LVGL lo tenia %s, en %s",
+             traba.envio ? "el envio de una imagen no terminaba" : "la pantalla no se atendia",
+             traba.tarea, traba.estado);
+  }
+  traba.marca = 0;
 }
 
 static bool iniciarPanel() {
@@ -524,6 +595,7 @@ static bool iniciarLuz() {
 }
 
 bool PantallaHw::iniciar(uint8_t brillo) {
+  leerTraba();
   // Apagada mientras el panel muestra basura
   if (!iniciarLuz()) {
     Serial.println("Pantalla: no se pudo iniciar el PWM de la luz");
@@ -574,6 +646,12 @@ bool PantallaHw::iniciar(uint8_t brillo) {
   terminarEnvio(TIMEOUT_ENVIO_MS);
   ponerBrillo(brillo);
   salidaExpansor(PIN_EXPANSOR_LUZ, true);
+
+  ultimaAtencion = millis();
+  if (xTaskCreate(vigilar, "guardian", PILA_GUARDIAN, nullptr, PRIORIDAD_GUARDIAN, nullptr) !=
+      pdPASS) {
+    Serial.println("Pantalla: no se pudo crear el guardian");
+  }
   return true;
 }
 
@@ -619,12 +697,12 @@ uint32_t PantallaHw::huecoMaximo() {
   return maximo;
 }
 
-void PantallaHw::dibujarYa() {
-  if (lista) {
-    tomar();
-    lv_refr_now(display);
-    soltar();
-  }
+void PantallaHw::alTrabarse(const char *(*estado)()) {
+  describirEstado = estado;
+}
+
+const char *PantallaHw::trabaAnterior() const {
+  return trabaLeida;
 }
 
 TiemposCuadro PantallaHw::medirRefresco() {

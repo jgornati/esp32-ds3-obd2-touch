@@ -101,6 +101,23 @@ con la barra arriba:
 | `ALIMENTACION` (rojo)    | La placa se reinició por falta de corriente (brownout): revisar los 5 V |
 | `DESCUBRIENDO`           | Durante `!descubrir` (consola) |
 
+### Si se traba
+
+Si la pantalla queda quieta y sin responder 10 s, la placa se reinicia sola.
+Lo hace un guardián que mira que la pantalla se siga atendiendo y que cada
+imagen se termine de mandar al panel.
+
+- Antes de reiniciar anota qué se trabó, quién tenía la pantalla y en qué
+  andaba la conexión. Lo dice `!info`, en `Ultimo reinicio: guardian (...)`, y
+  el registro de la microSD, en `Inicio de la placa`.
+- Además, el core guarda en la flash un volcado de memoria con todas las
+  tareas, que queda hasta el próximo. `!info` dice de qué tarea es; para ver
+  dónde estaba cada una hay que leer la partición `coredump` con esptool e
+  interpretarla con el `.elf` del firmware.
+- Hasta E23 se trababa ~1 min al prender en el auto: la radio, del otro lado
+  del USB, no leía lo que la placa escribía, y cada línea esperaba hasta 2 s
+  con la pantalla tomada. Ahora escribir no espera (ver **Consola**).
+
 ### Fallas
 
 La página FALLAS lee la luz de falla y los códigos al entrar y después
@@ -118,9 +135,10 @@ cada 30 s mientras se ve; si algo falla, reintenta a los 5 s.
 
 ### Viaje
 
-El viaje empieza al poner el contacto (la placa arranca con la llave) y
-termina al sacarla. Lo que muestra VIAJE se guarda para ANTERIORES (ver
-**Viajes anteriores**).
+El viaje empieza al prenderse la placa (al abrir la puerta o poner el
+contacto) y termina al apagarse, unos minutos después de sacar la llave (ver
+**Instalación en el auto**). Lo que muestra VIAJE se guarda para ANTERIORES
+(ver **Viajes anteriores**).
 
 - **Distancia:** sale de la velocidad que da la ECU, leída en cada consulta
   (~6 por segundo). Si pasan más de 3 s sin velocidad (la ECU no contestó),
@@ -205,9 +223,9 @@ no se detecta después.
 - **Una línea por segundo,** con lo mismo que la tabla del monitor. Es un CSV
   estándar: coma entre columnas y punto decimal. Google Sheets lo abre
   directo; en Excel en español, con Datos > Desde texto/CSV.
-- **Se graba cada 5 s.** Al sacar la llave la placa se apaga y se pierden
-  esos últimos segundos, ya con el motor parado. El archivo queda hasta el
-  último bloque grabado.
+- **Se graba cada 5 s.** Cuando la placa se apaga (unos minutos después de
+  sacar la llave) se pierden esos últimos segundos, ya con el motor parado.
+  El archivo queda hasta el último bloque grabado.
 - En la barra de todas las páginas, a la izquierda de los puntos, una marca
   `SD`: gris mientras graba y ámbar si hay tarjeta pero no puede grabar. Sin
   tarjeta no aparece.
@@ -284,9 +302,13 @@ Por el USB-C, a 115200 baudios. Una línea sin `!` se le manda al ELM,
 siempre que esté en la lista blanca de comandos de solo lectura (`04`, que
 borra las fallas, da `RECHAZADO`).
 
+Escribir por el USB no espera nunca: sin el monitor abierto, o en el auto con
+la radio del otro lado, lo que no entra en el búfer (4 KB) se pierde, en vez
+de frenar la placa.
+
 | Comando       | Qué hace |
 | ------------- | -------- |
-| `!info`       | Chip, memoria, último reinicio, pantalla (los cuadros del último segundo, los barridos del panel por el `LCD_TE` y un refresco completo), adaptador, ECU, tarjeta y reloj |
+| `!info`       | Chip, memoria, último reinicio (si fue el guardián, por qué: ver **Si se traba**), el volcado del último pánico, pantalla (los cuadros del último segundo, los barridos del panel por el `LCD_TE` y un refresco completo), adaptador, ECU, tarjeta y reloj |
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
@@ -297,6 +319,7 @@ borra las fallas, da `RECHAZADO`).
 | `!sd`         | La microSD: tamaño y espacio libre, el archivo del viaje, cuánto lleva grabado, líneas perdidas y errores |
 | `!viajes`     | Los viajes anteriores guardados, con todos sus datos, y si el de ahora ya se guarda |
 | `!hora AAAA-MM-DD HH:MM` | Pone el reloj en hora (también con `:SS`). Sin nada, muestra la hora |
+| `!trabar`     | Traba la pantalla a propósito, para probar el guardián: a los ~10 s la placa se tiene que reiniciar sola (ver **Si se traba**) |
 | `!descubrir`  | Relevamiento de la ECU (PIDs, tiempos), con la ECU conectada |
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
@@ -329,7 +352,7 @@ Lo que se le resta a las consultas es `dibujo` más `espera`.
   servicio `FFF0` y responde como `ELM327 v2.1`. Detalle en **Datos
   descubiertos** de `PLAN.md`.
 - Una batería de 3,7 V en el conector de la placa, solo para que el reloj no
-  pierda la hora: la placa se sigue apagando con la llave.
+  pierda la hora: la placa se sigue apagando cuando el auto corta el USB.
 
 El firmware usa los pines de la V2: la luz por PWM en el GPIO42 y el reset de
 la pantalla por el expansor TCA9554. Desde E17 lee también el `LCD_TE`
@@ -340,8 +363,12 @@ a esos pines.
 
 ## Instalación en el auto
 
-- **Placa:** 5 V desde un USB del auto que se corta con la llave
-  (conviene que dé 1 A o más). La placa se apaga al sacar la llave.
+- **Placa:** 5 V desde el USB de la consola, el mismo de la radio (conviene
+  que dé 1 A o más). Ese USB se prende al abrir la puerta, antes de poner la
+  llave, y se corta unos minutos después de sacarla (de 30 s a 4 min en los
+  registros): mientras tanto la placa espera el adaptador. Del otro lado está
+  la radio, que es un host USB: hasta E23, si no leía, la placa se trababa
+  ~1 min al prender (ver **Si se traba**).
 - **Adaptador:** alimentado desde el pin 1 del conector OBD, que en el DS3
   se corta con la llave, en lugar del 16 (permanente): se le sacó la pata
   16 y se puenteó la 1 al pad. Así no queda consumiendo con el auto
@@ -351,8 +378,8 @@ a esos pines.
   `include/config.h`; si se monta al revés, `true` la gira 180° junto con
   el touch (y la fuerza G). Para la fuerza G, de frente: el lado largo de la
   pantalla paralelo al eje de las ruedas; inclinada para atrás no importa.
-- Al poner el contacto, la placa y el adaptador arrancan juntos: lleva
-  unos segundos llegar a los datos. Mientras tanto se ve el DS3 de la
+- Al abrir la puerta arranca la placa, y al poner el contacto el adaptador:
+  lleva unos segundos llegar a los datos. Mientras tanto se ve el DS3 de la
   pantalla de espera.
 
 ## Entorno de desarrollo

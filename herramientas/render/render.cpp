@@ -76,10 +76,6 @@ bool PantallaHw::iniciada() const {
   return true;
 }
 
-void PantallaHw::dibujarYa() {
-  lv_refr_now(nullptr);
-}
-
 static uint32_t tick() {
   return reloj;
 }

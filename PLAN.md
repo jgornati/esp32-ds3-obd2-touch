@@ -45,7 +45,7 @@ que corresponda antes de portar un módulo.
 | E20   | Asistente de voz por OpenRouter        | E19        | Descartada |
 | E21   | WhatsApp por el celular                | E20        | Descartada |
 | E22   | Viajes anteriores, también sin conexión | E10       | Hecha (falta verificar en hardware) |
-| E23   | Que no se cuelgue al prender y apagar el auto | —    | Pendiente |
+| E23   | Que no se cuelgue al prender y apagar el auto | —    | Hecha (falta verificar en hardware) |
 | E24   | Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje | E22 | Pendiente |
 | E25   | Aviso de cambio y umbrales del refrigerante | E24   | Pendiente |
 
@@ -127,8 +127,13 @@ En el auto, con el motor andando y la microSD:
   74 KB en el banco, sin el adaptador; en E5, 128 KB en el auto) y `LCD_TE N
   barridos/s` (E17: si el TE llega).
 
-Sin resolver: el cuelgue ocasional al prender y apagar el auto (E7; E8, que
-lo iba a investigar, se descartó). Pasa a E23.
+- **Sin cuelgues (E23):** ver sus **Pruebas del usuario**, en las notas de
+  E23. Lo principal: enchufada a la Mac sin el monitor, que el DS3 entre sin
+  trabarse; `!trabar` reinicia la placa a los ~10 s; y unos días en el auto
+  sin desenchufarla.
+
+El cuelgue ocasional al prender y apagar el auto (E7; E8, que lo iba a
+investigar, se descartó) se encontró y se arregló en E23.
 
 ## Qué se reutiliza del proyecto anterior
 
@@ -157,7 +162,7 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Biblioteca BLE         | *Propuesta:* la `BLE` del core (viene con la plataforma, sin dependencia nueva). Si da problemas, NimBLE-Arduino con versión fijada. E0 ya la usa: en el S3 corre sobre NimBLE, no Bluedroid (ver notas de E0). |
 | Gráficos               | *Propuesta:* LVGL 9.3.0 (la versión de los ejemplos de Waveshare) y el driver `esp_lcd_axs15231b` del ejemplo `10_LVGL_V9_Test`. |
 | Orientación            | Horizontal, 640×172, con rotación por software como en el ejemplo de Waveshare. Montada como en el banco: `PANTALLA_GIRADA = false` en `config.h` (confirmado en E7). |
-| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). Desde E12, una tarea en el núcleo 0 lee el IMU cada 20 ms, con un mutex para la cuenta (ver notas de E12). Desde E13, otra en el núcleo 0 escribe en la microSD cada 5 s lo que `loop()` deja en un búfer (ver notas de E13). Desde E17, otra en el núcleo 0 gira y manda cada imagen al panel, sin tocar LVGL, mientras LVGL dibuja la siguiente en otra imagen (ver notas de E17). |
+| Concurrencia           | La lógica sigue en un solo `loop()`. Las notificaciones BLE llegan desde la tarea del stack y se pasan a un buffer. LVGL es de `loop()`: `lv_timer_handler()` se llama desde `loop()` y mientras se espera una respuesta del ELM. Desde E9, mientras `loop()` bloquea conectando el BLE (hasta 30 s), una tarea de `PantallaHw` atiende LVGL, con un mutex: así las animaciones no se traban y mantener apretado para reiniciar anda aunque la conexión se cuelgue (ver notas de E9). Desde E12, una tarea en el núcleo 0 lee el IMU cada 20 ms, con un mutex para la cuenta (ver notas de E12). Desde E13, otra en el núcleo 0 escribe en la microSD cada 5 s lo que `loop()` deja en un búfer (ver notas de E13). Desde E17, otra en el núcleo 0 gira y manda cada imagen al panel, sin tocar LVGL, mientras LVGL dibuja la siguiente en otra imagen (ver notas de E17). Desde E23, un guardián (prioridad 5, en cualquier núcleo) reinicia la placa si LVGL pasa 10 s sin atenderse o una imagen no se termina de mandar; `setup()` suelta LVGL mientras inicia el sonido, el IMU, la tarjeta y el BLE, y la consola mientras hace `!escanear` y `!explorar` (ver notas de E23). |
 | Optimización           | Arduino-ESP32 3.3 compila el proyecto y las bibliotecas sin `-O` (GCC en `-O0`; el ESP-IDF viene ya compilado a `-Os`). Desde E17, `optimizar.py` sube a `-O2` solo LVGL y `src/giro.cpp`, que son lo que cuesta dibujar: lo eligió el usuario. Lo demás queda como se probó |
 | Protocolo              | `ATSP6` (CAN 11 bit 500 kbaud), confirmado en el DS3. Heredada.                                |
 | Sufijo de cantidad     | `01PP1`. Heredada; se reconfirma con el adaptador nuevo en E3.                                 |
@@ -207,7 +212,7 @@ src/
   explorar.h/.cpp   !escanear, !explorar (E0; !usar salió en E2)
   elm327.h/.cpp     transporte BLE con la interfaz del anterior (E2)
   consola.h/.cpp    consola por el USB (E0, E2)
-  pantalla_hw.h/.cpp  QSPI, rotación, touch y puerto de LVGL (E1); la tarea que lo atiende mientras se conecta (E9); la tarea que manda la imagen y el LCD_TE (E17)
+  pantalla_hw.h/.cpp  QSPI, rotación, touch y puerto de LVGL (E1); la tarea que lo atiende mientras se conecta (E9); la tarea que manda la imagen y el LCD_TE (E17); el guardián (E23)
   giro.h/.cpp       pasa la imagen a vertical para el panel, sin Arduino ni LVGL, a -O2 (E17)
   pantalla.h/.cpp   pantalla de espera (E9), pantallas de estado (E3) y el marco de las páginas (E4)
   paginas.h/.cpp    páginas y navegación táctil (E4)
@@ -1306,6 +1311,7 @@ De esta placa y el adaptador nuevo:
 | `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`; en la prueba en el auto no se pasó) | E17   |
 | Pantalla en el auto (E17)     | Con la rama de E17, estacionado en ralentí (`VIAJE0003.CSV`, 2026-10-27). Por cuadro: giro ~7,2 ms (máximo 11; a `-O0`, ~20), envío ~13,8 (máximo 17,4), espera 0. Dibujo: DS3 ~14 ms, 20 cuadros/s; Motor ~9 ms, 4–6 cuadros/s; Info ~3 ms; al cambiar de página, 11–29 ms | E17   |
 | Consultas por segundo y pantalla (E17) | Mismo registro: Motor 6,4 (6–7 en 30 s, como en E3), Info 6,6, Aire/Volt, Carga, Mezcla y Viaje 6–7. DS3 5,6 (4–7 en 38 s): 20 cuadros/s de ~14 ms, ~280 ms de cada segundo dibujando. FUERZA G 6–7, pero sin redibujar (auto y placa quietos: 0 cuadros/s). Fallas, 3 los dos segundos de la entrada (la lectura de las fallas, E5) | E17   |
+| Escribir por el USB sin que lean | Arduino-ESP32 3.3 (`HWCDC.cpp`): el búfer de salida es de 256 bytes y, lleno, con un host enchufado que no lee (la Mac sin el monitor, la radio del auto), cada escritura espera hasta 20 veces `tx_timeout_ms` (100 ms). Probado el 2026-10-28: con la Mac sin el monitor, la placa quedó ~1 min trabada al arrancar, con la trompa del DS3 asomando y sin touch, igual que en el auto. Desde E23, 4 KB y sin espera | E23   |
 | USB del auto                  | La placa va al de la consola, el mismo de la radio: con datos y un host del otro lado. Se prende al abrir la puerta, antes de poner la llave (lo contó el usuario el 2026-10-28), y sigue después de sacarla: en los registros del 2026-10-27, de 31 s a 4 min 15 s, con la placa intentando conectar cada 15 s. Hasta E23 el README decía que se cortaba con la llave | E23   |
 | Marchas (km/h por 1000 rpm)   | Caja manual de 5. Medianas de los registros del 2026-10-27 (2416 lecturas con 6 km/h o más, 1000 rpm o más y fuera de MEZCLA, donde la RPM llega cada 2,5 s): 1ª 8,07 (el 90 % entre 7,0 y 9,3), 2ª 14,57 (14,0–15,0), 3ª 20,95 (20,5–21,3), 4ª 27,24 (26,8–27,5), 5ª 33,74 (33,3–33,9). El 98 % cae en una marcha; el resto, con el embrague o cambiando | E24   |
 | Refrigerante en marcha        | Mismos registros: con el motor caliente regula en 103–105 °C y llega a 108 parado o en tráfico (promedio 103 parado, 97 a más de 90 km/h con máximo 104). Nunca 110 en 6 viajes. Según catálogos de repuestos y foros (sin una fuente oficial), el termostato del EP6C abre a 105 °C y es pilotado (la ECU lo abre antes con carga), y el electroventilador entra cerca de 108 | E25   |
@@ -4300,3 +4306,87 @@ Para después:
   marcado como en curso.
 - Son 10 por `VIAJES_GUARDADOS`; más es cambiar ese número (40 bytes de flash
   y ~60 de RAM por viaje).
+
+### E23
+
+Hecho (rama `e23-sin-cuelgues`, desde `main` con el plan de E23 a E25). La
+causa estaba confirmada antes de programar (ver la etapa): con un host USB que
+no lee, cada escritura esperaba hasta 2 s, y `setup()` y `loop()` escriben con
+LVGL tomado.
+
+Lo que se hizo:
+
+- **Escribir no espera.** En `setup()`, antes de `begin()`:
+  `Serial.setTxBufferSize(TAM_SALIDA_USB)` (4 KB; eran 256 bytes) y
+  `Serial.setTxTimeoutMs(0)`. Con un host que no lee, lo que no entra se
+  pierde; con el monitor abierto, 4 KB alcanzan para `imprimirInfo()` entera.
+  Si dos tareas escriben a la vez, la que no consigue el cerrojo del `HWCDC`
+  pierde su línea (antes esperaba 100 ms).
+- **El arranque no frena la entrada:** `setup()` suelta LVGL alrededor del
+  sonido, el IMU, la tarjeta y `elm.iniciar()`, y mientras tanto la atiende la
+  tarea de E9. `boton.iniciar()` va antes: `atenderPaginas()` (desde un toque)
+  lo lee.
+- **El guardián** (`pantalla_hw.cpp`): una tarea `guardian` (prioridad 5, sin
+  núcleo fijo, 4 KB de pila) que cada segundo mira cuándo se atendió LVGL por
+  última vez y desde cuándo la tarea de envío tiene una imagen. Si algo pasa
+  `GUARDIAN_MS` (10 s):
+  - anota en la memoria del RTC (`RTC_NOINIT_ATTR`: sobrevive al reinicio, no
+    a un corte de luz) qué se trabó, quién tenía LVGL
+    (`xSemaphoreGetMutexHolder()`) y el estado de la conexión (lo da `main`
+    con `alTrabarse()`);
+  - imprime una línea y llama a `abort()`: el pánico guarda el volcado en la
+    partición `coredump` y reinicia.
+
+  Lee las marcas de tiempo antes que el reloj: al revés, otra tarea podía
+  anotar una más nueva en el medio y la resta sin signo daba enorme.
+- **Al arrancar,** `PantallaHw::iniciar()` lee lo anotado si el reinicio fue un
+  pánico con su marca (`trabaAnterior()`). `!info` y el registro lo muestran:
+  `Ultimo reinicio: guardian (la pantalla no se atendia; LVGL lo tenia
+  loopTask, en CONECTANDO_BT)`.
+- **Cambio respecto del plan:** iba a mostrar en `!info` la tarea y la función
+  del volcado (`esp_core_dump_get_summary()`). Pero el resumen es de la tarea
+  que provocó el pánico, que es el guardián: no dice dónde estaba trabado
+  `loop()`. Por eso el guardián anota quién tenía LVGL. `!info` igual dice la
+  tarea y el `pc` del último volcado (sirve para un pánico de verdad). El
+  volcado completo, con la pila de cada tarea, se lee con
+  `esptool.py read_flash 0xFF0000 0x10000 coredump.bin` y
+  `esp-coredump info_corefile -t raw -c coredump.bin .pio/build/esp32s3/firmware.elf`
+  (sin probar).
+- **`!escanear` y `!explorar`** bloqueaban hasta 10 y 30 s con LVGL tomado: el
+  guardián los cortaría. Ahora lo sueltan, como `conectarBt()`
+  (`Consola::despuesDeExplorar()`), y la pantalla sigue andando mientras
+  tanto. Salió `PantallaHw::dibujarYa()`, que usaban solo ellos.
+- **`!trabar`** en la consola: retiene LVGL sin atenderlo, para probar el
+  guardián.
+- README: el USB de la radio (se prende al abrir la puerta y se corta unos
+  minutos después de sacar la llave), cuándo empieza y termina el viaje, **Si
+  se traba**, la consola y `!trabar`.
+
+Lo que podría disparar el guardián sin una traba de verdad, revisado: lo que
+espera al ELM (`enviar()`, buscar el adaptador) atiende LVGL con
+`alEsperar()`; conectar el BLE lo suelta; la tarjeta monta y mide el espacio
+libre en su tarea; `imprimirInfo()` tarda menos de 1 s (un refresco completo).
+Si aparece un `guardian` con `loopTask` en una operación nueva que bloquea, esa
+operación tiene que soltar LVGL o atenderlo.
+
+Verificado por el agente: `pio run` compila (RAM 11,6 %, flash 59,4 % de
+3 MB), sin warnings propios con `-Wall -Wextra -Wshadow -Wvolatile`;
+`pio test -e native` 118/118; render, 224 revisiones bien. **Nada probado en
+la placa.**
+
+**Pruebas del usuario:**
+
+1. Subir el firmware y desenchufar. Enchufarla a la Mac **sin abrir el
+   monitor**: el DS3 entra entero, sin trabarse, y tocar o deslizar responde
+   enseguida. Repetirlo 2 o 3 veces.
+2. Abrir el monitor y `!info`: `Ultimo reinicio`, `Volcado del ultimo panico:
+   ninguno` (o uno de antes) y la RAM interna libre (con 4 KB más del búfer).
+3. `!trabar`: la pantalla queda quieta y a los ~10 s la placa se reinicia sola
+   (en el monitor, `Guardian: la pantalla no se atiende; LVGL lo tiene
+   loopTask, en ...`). Después, `!info`: `Ultimo reinicio: guardian (...)` y
+   `Volcado del ultimo panico: tarea guardian`.
+4. `!escanear`: mientras busca (10 s), la espera sigue respondiendo y la placa
+   no se reinicia.
+5. En el auto, unos días sin desenchufarla: al abrir la puerta el DS3 entra
+   entero, y con la llave sacada la espera responde. Si alguna vez se reinicia
+   sola, mirar `!info` o el `Inicio de la placa` del CSV, y anotarlo acá.
