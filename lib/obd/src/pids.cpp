@@ -161,6 +161,10 @@ const char *textoLazo(uint8_t estado) {
   return nullptr;
 }
 
+bool lazoRegulando(uint8_t estado) {
+  return estado == 0x02 || estado == 0x10;
+}
+
 bool sondaPresente(uint8_t mapa, uint8_t banco, uint8_t sensor) {
   if (banco < 1 || banco > 2 || sensor < 1 || sensor > 4) {
     return false;

@@ -103,6 +103,17 @@ static void test_lazo() {
   TEST_ASSERT_NULL(textoLazo(0x03));
 }
 
+// En los registros del 2026-10-27: con Abierto frio, lambda 0,995 y la sonda
+// 0,46 V fijas; con Abierto carga (corte), lambda 2,000
+static void test_lazo_regulando() {
+  TEST_ASSERT_TRUE(lazoRegulando(0x02));
+  TEST_ASSERT_TRUE(lazoRegulando(0x10));
+  TEST_ASSERT_FALSE(lazoRegulando(0x01));
+  TEST_ASSERT_FALSE(lazoRegulando(0x04));
+  TEST_ASSERT_FALSE(lazoRegulando(0x08));
+  TEST_ASSERT_FALSE(lazoRegulando(0x00)); // apagado
+}
+
 static void test_sondas() {
   // 0x03: banco 1, sensores 1 y 2 (antes y después del catalizador)
   TEST_ASSERT_TRUE(sondaPresente(0x03, 1, 1));
@@ -202,6 +213,7 @@ int main() {
   RUN_TEST(test_calcular_falla);
   RUN_TEST(test_luz_falla);
   RUN_TEST(test_lazo);
+  RUN_TEST(test_lazo_regulando);
   RUN_TEST(test_sondas);
   RUN_TEST(test_soportados);
   RUN_TEST(test_separar_pids);

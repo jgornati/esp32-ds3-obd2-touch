@@ -38,6 +38,10 @@ bool luzFalla(const uint8_t *datos, uint8_t largo, bool *encendida, uint8_t *can
 // PID 03: estado del sistema de combustible 1 (primer byte), en texto
 // corto. nullptr si no es uno de los valores definidos.
 const char *textoLazo(uint8_t estado);
+// La ECU regula la mezcla con las sondas: lazo cerrado (también con una falla
+// en alguna sonda). Con el lazo abierto (motor frío, carga o corte de
+// inyección, falla o apagado), lambda y la sonda post quedan fijas (E24).
+bool lazoRegulando(uint8_t estado);
 
 // PID 13: si hay sonda de oxígeno en esa posición. banco 1-2, sensor 1-4.
 bool sondaPresente(uint8_t mapa, uint8_t banco, uint8_t sensor);

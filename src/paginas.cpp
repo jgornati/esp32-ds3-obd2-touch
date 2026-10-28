@@ -11,7 +11,6 @@
 
 enum : uint8_t {
   PAGINA_MOTOR,
-  PAGINA_AIRE,
   PAGINA_CARGA,
   PAGINA_MEZCLA,
   PAGINA_FALLAS,
@@ -23,8 +22,8 @@ enum : uint8_t {
   CANT_PAGINAS
 };
 
-static const Magnitud DE_MOTOR[] = {RPM, REFRIGERANTE, VELOCIDAD};
-static const Magnitud DE_AIRE[] = {ADMISION, VOLT_ELM};
+// El voltaje sale de ATRV, cada PERIODO_ATRV_MS se vea o no (sondeo.h)
+static const Magnitud DE_MOTOR[] = {RPM, REFRIGERANTE, VELOCIDAD, VOLT_ELM};
 static const Magnitud DE_CARGA[] = {CARGA, AVANCE, ACELERADOR};
 static const Magnitud DE_MEZCLA[] = {LAZO, AJ_CORTO, AJ_LARGO, LAMBDA, SONDA_POST};
 
@@ -43,7 +42,6 @@ static constexpr uint8_t largo(const Magnitud (&)[N]) {
 // En el orden del enum
 static const Definicion PAGINAS[] = {
     {"MOTOR", DE_MOTOR, largo(DE_MOTOR)},
-    {"AIRE/VOLT", DE_AIRE, largo(DE_AIRE)},
     {"CARGA", DE_CARGA, largo(DE_CARGA)},
     {"MEZCLA", DE_MEZCLA, largo(DE_MEZCLA)},
     {"FALLAS", nullptr, 0},
@@ -75,8 +73,7 @@ static int8_t lugarSinDatos(uint8_t pagina) {
 // Escalas de las barras
 static const float RPM_MAXIMA = 7000;
 static const float RPM_ZONA_ROJA = 6000;
-static const float ADMISION_MAXIMA = 80; // °C, desde 0
-static const float AVANCE_MINIMO = -10;  // grados
+static const float AVANCE_MINIMO = -10; // grados
 static const float AVANCE_MAXIMO = 40;
 static const float SONDA_MAXIMA = 1; // V, desde 0
 // Lambda: rica a la izquierda, pobre a la derecha y 1 en el medio. La
@@ -89,6 +86,9 @@ static const float LAMBDA_TOLERANCIA = 0.03f;
 // roja de las RPM y Olvidar van en ROJO_OSCURO, de dibujo.h.
 static const lv_color_t AMBAR_OSCURO = lv_color_hex(0x3D2A00);
 static const lv_color_t CIAN_OSCURO = lv_color_hex(0x0E3238);
+// La zona ámbar del reloj del refrigerante (E24): más clara, en un arco fino
+// el de lambda casi no se ve
+static const lv_color_t AMBAR_RELOJ = lv_color_hex(0x5A4100);
 
 // Medidas de la maqueta de E4, en el área de 640x144 debajo de la barra.
 // Las y de los textos son de la base de las letras: así quedan alineados
@@ -98,15 +98,43 @@ static const int32_t ALTO = 144;
 static const int32_t ALTO_COMPLETA = 172; // DS3, sin la barra
 static const int32_t MARGEN = 8;
 static const int32_t BORDE_DERECHO = ANCHO - MARGEN;
-// Motor y Aire: el número grande alineado a la derecha en 310 px, para que
-// no salte al cambiar de cifras, y una barra a lo ancho abajo
-static const int32_t BORDE_GRANDE = MARGEN + 310;
-static const int32_t BASE_GRANDE = 89;
-static const int32_t X_JUNTO_GRANDE = 326;
-static const int32_t Y_BARRA_ANCHA = 106;
-static const int32_t ALTO_BARRA_ANCHA = 12;
-static const int32_t ANCHO_BARRA_ANCHA = ANCHO - 2 * MARGEN;
-static const int32_t BASE_ESCALA_ANCHA = 136;
+// Motor (E24, la C de la maqueta). Arriba, las RPM en luces de RPM_POR_LUZ a
+// lo ancho, con los miles debajo.
+static const int CANT_LUCES = 14;
+static const float RPM_POR_LUZ = RPM_MAXIMA / CANT_LUCES;
+static const float RPM_LUZ_AMBAR = 4500;
+static const int32_t Y_LUCES = 8;
+static const int32_t ALTO_LUCES = 16;
+static const int32_t ANCHO_LUCES = ANCHO - 2 * MARGEN;
+static const int32_t ENTRE_LUCES = 4;
+static const int32_t BASE_ESCALA_LUCES = 42;
+// A la izquierda, el reloj del refrigerante: 270°, abierto abajo, de
+// REFRIGERANTE_MINIMO a REFRIGERANTE_MAXIMO. Normal hasta REFRIGERANTE_AMBAR,
+// ámbar hasta REFRIGERANTE_ROJO y después rojo (lo eligió el usuario).
+static const float REFRIGERANTE_MINIMO = 40; // °C
+static const float REFRIGERANTE_MAXIMO = 130;
+static const float REFRIGERANTE_AMBAR = 110;
+static const float REFRIGERANTE_ROJO = 115;
+static const int32_t X_RELOJ = 64; // el centro
+static const int32_t Y_RELOJ = 98;
+static const int32_t RADIO_RELOJ = 40; // al medio del arco
+static const int32_t ANCHO_ARCO = 9;
+static const int32_t INICIO_RELOJ = 135; // grados de LVGL: abajo a la izquierda
+static const int32_t GIRO_RELOJ = 270;
+static const int32_t BASE_RELOJ = 105;
+static const int32_t BASE_UNIDAD_RELOJ = 128;
+// La marcha en un recuadro, y a la derecha las RPM, la velocidad y el voltaje
+static const int32_t X_MARCHA = 124;
+static const int32_t Y_MARCHA = 44;
+static const int32_t ANCHO_MARCHA = 92;
+static const int32_t ALTO_MARCHA = 96;
+static const int32_t BASE_MARCHA = 132;
+static const int32_t BASE_MARCHA_CHICA = 108; // "--", "..." y "N/D"
+static const int32_t X_RPM = 232;
+static const int32_t BASE_RPM = 100;
+static const int32_t X_VELOCIDAD = 440;
+static const int32_t BASE_VELOCIDAD = 88;
+static const int32_t BASE_VOLTAJE = 126;
 // Carga: tres columnas
 static const int32_t ANCHO_COLUMNA = ANCHO / 3;
 static const int32_t RELLENO_COLUMNA = 16;
@@ -183,15 +211,17 @@ static bool entraEnNumeros(const char *texto) {
   return strspn(texto, " %+,-./0123456789:") == strlen(texto);
 }
 
-// Un valor actual va en blanco, o en rojo si tiene una alarma
-static void ponerValor(Valor &v, const char *texto, bool actual, bool enAlarma = false) {
+// Un valor actual va en blanco, o en rojo si tiene una alarma. Atenuado (un
+// valor actual que no dice mucho: lambda con el lazo abierto), en gris.
+static void ponerValor(Valor &v, const char *texto, bool actual, bool enAlarma = false,
+                       bool atenuado = false) {
   const lv_font_t *fuente = v.fuente;
   if (fuente == &fuente_numeros_110 && !entraEnNumeros(texto)) {
     fuente = &lv_font_montserrat_48;
   }
   ponerFuente(v.numero, fuente);
   ponerTexto(v.numero, texto);
-  ponerColor(v.numero, !actual ? GRIS : (enAlarma ? ROJO : BLANCO));
+  ponerColor(v.numero, !actual || atenuado ? GRIS : (enAlarma ? ROJO : BLANCO));
 
   int32_t ancho = lv_text_get_width(texto, strlen(texto), fuente, 0);
   bool conUnidad = v.unidad != nullptr && actual;
@@ -215,10 +245,11 @@ static uint16_t enAlarma = 0;
 
 // El texto de la magnitud según las convenciones de pantalla. true si es un
 // valor actual, y entonces queda en valor.
-static bool ponerMagnitud(Valor &v, Magnitud m, uint32_t ahora, float *valor = nullptr) {
+static bool ponerMagnitud(Valor &v, Magnitud m, uint32_t ahora, float *valor = nullptr,
+                          bool atenuado = false) {
   char texto[16];
   bool actual = textoValor(m, ahora, texto, sizeof(texto));
-  ponerValor(v, texto, actual, (enAlarma >> m) & 1);
+  ponerValor(v, texto, actual, (enAlarma >> m) & 1, atenuado);
   float leido;
   return actual && valorActual(m, ahora, valor != nullptr ? valor : &leido);
 }
@@ -261,73 +292,169 @@ static float fraccion(float valor, float minimo, float maximo) {
   return f < 0 ? 0 : (f > 1 ? 1 : f);
 }
 
-// Motor: RPM en grande con una barra de 0 a RPM_MAXIMA, como una aguja
+// Motor (E24, la C de la maqueta): arriba las RPM en luces, como las de
+// cambio de un auto de carrera; abajo el reloj del refrigerante, la marcha
+// (calculada), las RPM, la velocidad y el voltaje
 
-static Valor rpm, refrigerante, velocidad;
-static Barra barraRpm;
+static lv_obj_t *luces[CANT_LUCES];
+static lv_obj_t *arcoRefrigerante;
+static lv_color_t colorArco;
+static lv_obj_t *textoRefrigerante;
+static lv_obj_t *textoMarcha;
+static Valor rpm, velocidad, voltaje;
+
+// La x de la luz i; con CANT_LUCES, donde terminaría la siguiente
+static int32_t xDeLuz(int i) {
+  return MARGEN + i * (ANCHO_LUCES + ENTRE_LUCES) / CANT_LUCES;
+}
+
+// Las luces desde RPM_LUZ_AMBAR van en ámbar, y desde la zona roja, en rojo.
+// Apagadas, las de la zona roja quedan en rojo oscuro.
+static lv_color_t colorDeLuz(int i, bool prendida) {
+  float desde = i * RPM_POR_LUZ;
+  if (!prendida) {
+    return desde >= RPM_ZONA_ROJA ? ROJO_OSCURO : FONDO_ESCALA;
+  }
+  if (desde >= RPM_ZONA_ROJA) {
+    return ROJO;
+  }
+  return desde >= RPM_LUZ_AMBAR ? AMBAR : VERDE;
+}
+
+// Un pedazo del reloj, sin recibir toques (si no, el arco de LVGL se mueve
+// con el dedo y se come los deslizamientos)
+static lv_obj_t *arcoReloj(lv_obj_t *padre, lv_color_t color, bool redondeado) {
+  int32_t lado = 2 * RADIO_RELOJ + ANCHO_ARCO;
+  lv_obj_t *a = lv_arc_create(padre);
+  lv_obj_remove_style_all(a);
+  lv_obj_remove_flag(a, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_pos(a, X_RELOJ - lado / 2, Y_RELOJ - lado / 2);
+  lv_obj_set_size(a, lado, lado);
+  lv_obj_set_style_arc_width(a, ANCHO_ARCO, LV_PART_MAIN);
+  lv_obj_set_style_arc_color(a, color, LV_PART_MAIN);
+  lv_obj_set_style_arc_rounded(a, redondeado, LV_PART_MAIN);
+  return a;
+}
+
+// El ángulo de LVGL (0 a la derecha, en el sentido del reloj) de una temperatura
+static int32_t anguloDe(float grados) {
+  return INICIO_RELOJ +
+         lroundf(GIRO_RELOJ * fraccion(grados, REFRIGERANTE_MINIMO, REFRIGERANTE_MAXIMO));
+}
 
 static void armarMotor(lv_obj_t *v) {
-  rpm = crearValor(v, &fuente_numeros_110, BORDE_GRANDE, BASE_GRANDE, true);
-  fijo(v, "RPM", NORMAL, ETIQUETA, X_JUNTO_GRANDE, 81);
-  fijo(v, "Refrig.", NORMAL, ETIQUETA, 400, 43);
-  refrigerante = crearValor(v, &lv_font_montserrat_36, BORDE_DERECHO, 43, true, " °C");
-  fijo(v, "Vel.", NORMAL, ETIQUETA, 400, 93);
-  velocidad = crearValor(v, &lv_font_montserrat_36, BORDE_DERECHO, 93, true, " km/h");
-
-  barraRpm = crearBarra(v, MARGEN, Y_BARRA_ANCHA, ANCHO_BARRA_ANCHA, ALTO_BARRA_ANCHA);
-  // Zona roja debajo del relleno, con el extremo derecho redondeado como el fondo
-  int32_t zona = lroundf(ANCHO_BARRA_ANCHA * RPM_ZONA_ROJA / RPM_MAXIMA);
-  rectangulo(v, MARGEN + zona, Y_BARRA_ANCHA, ANCHO_BARRA_ANCHA - zona - ALTO_BARRA_ANCHA / 2,
-             ALTO_BARRA_ANCHA, ROJO_OSCURO);
-  rectangulo(v, BORDE_DERECHO - ALTO_BARRA_ANCHA, Y_BARRA_ANCHA, ALTO_BARRA_ANCHA, ALTO_BARRA_ANCHA,
-             ROJO_OSCURO, ALTO_BARRA_ANCHA / 2);
-  lv_obj_move_to_index(barraRpm.relleno, -1);
-
+  for (int i = 0; i < CANT_LUCES; i++) {
+    luces[i] = rectangulo(v, xDeLuz(i), Y_LUCES, xDeLuz(i + 1) - xDeLuz(i) - ENTRE_LUCES,
+                          ALTO_LUCES, colorDeLuz(i, false), 3);
+  }
+  // Los miles, entre dos luces
   for (int miles = 1; miles * 1000 < RPM_MAXIMA; miles++) {
     char texto[8];
     snprintf(texto, sizeof(texto), "%d", miles);
-    fijo(v, texto, CHICA, ETIQUETA, MARGEN + lroundf(ANCHO_BARRA_ANCHA * miles * 1000 / RPM_MAXIMA),
-         BASE_ESCALA_ANCHA, Alineacion::CENTRO);
+    int luz = lroundf(miles * 1000 / RPM_POR_LUZ);
+    fijo(v, texto, CHICA, ETIQUETA, xDeLuz(luz) - ENTRE_LUCES / 2, BASE_ESCALA_LUCES,
+         Alineacion::CENTRO);
   }
-  fijo(v, "x1000", CHICA, ETIQUETA, BORDE_DERECHO, BASE_ESCALA_ANCHA, Alineacion::DERECHA);
+
+  // El reloj: la pista, las zonas ámbar y roja, y encima el valor. El ámbar
+  // va después del rojo, que es redondeado, para tapar su punta.
+  lv_arc_set_bg_angles(arcoReloj(v, FONDO_ESCALA, true), INICIO_RELOJ, INICIO_RELOJ + GIRO_RELOJ);
+  lv_arc_set_bg_angles(arcoReloj(v, ROJO_OSCURO, true), anguloDe(REFRIGERANTE_ROJO),
+                       INICIO_RELOJ + GIRO_RELOJ);
+  lv_arc_set_bg_angles(arcoReloj(v, AMBAR_RELOJ, false), anguloDe(REFRIGERANTE_AMBAR),
+                       anguloDe(REFRIGERANTE_ROJO));
+  colorArco = BLANCO;
+  arcoRefrigerante = arcoReloj(v, colorArco, true);
+  lv_arc_set_bg_angles(arcoRefrigerante, INICIO_RELOJ, INICIO_RELOJ + 1);
+  lv_obj_add_flag(arcoRefrigerante, LV_OBJ_FLAG_HIDDEN);
+  textoRefrigerante = etiqueta(v, NORMAL, BLANCO);
+  fijo(v, "°C", CHICA, ETIQUETA, X_RELOJ, BASE_UNIDAD_RELOJ, Alineacion::CENTRO);
+
+  rectangulo(v, X_MARCHA, Y_MARCHA, ANCHO_MARCHA, ALTO_MARCHA, FONDO_BARRA, 8);
+  textoMarcha = etiqueta(v, &fuente_numeros_110, BLANCO);
+
+  rpm = crearValor(v, &lv_font_montserrat_48, X_RPM, BASE_RPM, false, " rpm");
+  velocidad = crearValor(v, &lv_font_montserrat_48, X_VELOCIDAD, BASE_VELOCIDAD, false, " km/h");
+  voltaje = crearValor(v, &lv_font_montserrat_28, X_VELOCIDAD, BASE_VOLTAJE, false, " V");
 }
 
-static void dibujarMotor(uint32_t ahora) {
+static void dibujarLuces(bool actual, float valor) {
+  for (int i = 0; i < CANT_LUCES; i++) {
+    ponerFondo(luces[i], colorDeLuz(i, actual && valor > i * RPM_POR_LUZ));
+  }
+}
+
+// En blanco hasta REFRIGERANTE_AMBAR, después en ámbar, y en rojo desde
+// REFRIGERANTE_ROJO o con la alarma
+static void dibujarRefrigerante(uint32_t ahora) {
+  char texto[16];
+  float grados = 0;
+  bool actual = textoValor(REFRIGERANTE, ahora, texto, sizeof(texto)) &&
+                valorActual(REFRIGERANTE, ahora, &grados);
+  lv_color_t color = GRIS;
+  if (actual) {
+    bool enRojo = ((enAlarma >> REFRIGERANTE) & 1) || grados >= REFRIGERANTE_ROJO;
+    color = enRojo ? ROJO : (grados >= REFRIGERANTE_AMBAR ? AMBAR : BLANCO);
+  }
+  ponerTexto(textoRefrigerante, texto);
+  ponerColor(textoRefrigerante, color);
+  int32_t ancho = lv_text_get_width(texto, strlen(texto), NORMAL, 0);
+  ponerPosicion(textoRefrigerante, X_RELOJ - ancho / 2, yDeBase(NORMAL, BASE_RELOJ));
+
+  // Sin un valor actual, o en el mínimo, sin arco: con el mismo ángulo de
+  // inicio y de fin, LVGL no dibuja nada
+  int32_t fin = anguloDe(grados);
+  bool conArco = actual && fin > INICIO_RELOJ;
+  mostrar(arcoRefrigerante, conArco);
+  if (conArco) {
+    // Cambiar los ángulos redibuja solo lo que cambió, y nada si son los mismos
+    lv_arc_set_bg_angles(arcoRefrigerante, INICIO_RELOJ, fin);
+    if (!lv_color_eq(color, colorArco)) {
+      colorArco = color;
+      lv_obj_set_style_arc_color(arcoRefrigerante, color, LV_PART_MAIN);
+    }
+  }
+}
+
+// El número en grande; sin marcha "-" en gris. Si la RPM o la velocidad no
+// tienen un valor actual, como cualquier dato: "...", "--" o "N/D", más chico.
+static void dibujarMarcha(uint32_t ahora, const Marcha &marcha) {
+  EstadoDato estadoRpm = dato(RPM).estado;
+  EstadoDato estadoVelocidad = dato(VELOCIDAD).estado;
+  bool soportada =
+      estadoRpm != EstadoDato::NO_SOPORTADO && estadoVelocidad != EstadoDato::NO_SOPORTADO;
+  bool actual = soportada && marcha.actual(ahora);
+  char texto[8];
+  lv_color_t color = GRIS;
+  if (actual && marcha.numero() > 0) {
+    snprintf(texto, sizeof(texto), "%u", marcha.numero());
+    color = BLANCO;
+  } else if (actual) {
+    strlcpy(texto, "-", sizeof(texto));
+    color = ETIQUETA;
+  } else if (!soportada) {
+    strlcpy(texto, "N/D", sizeof(texto));
+  } else if (estadoRpm == EstadoDato::ESPERANDO || estadoVelocidad == EstadoDato::ESPERANDO) {
+    strlcpy(texto, "...", sizeof(texto));
+  } else {
+    strlcpy(texto, "--", sizeof(texto));
+  }
+  const lv_font_t *fuente = actual ? &fuente_numeros_110 : &lv_font_montserrat_48;
+  ponerFuente(textoMarcha, fuente);
+  ponerTexto(textoMarcha, texto);
+  ponerColor(textoMarcha, color);
+  int32_t ancho = lv_text_get_width(texto, strlen(texto), fuente, 0);
+  ponerPosicion(textoMarcha, X_MARCHA + (ANCHO_MARCHA - ancho) / 2,
+                yDeBase(fuente, actual ? BASE_MARCHA : BASE_MARCHA_CHICA));
+}
+
+static void dibujarMotor(uint32_t ahora, const Marcha &marcha) {
   float valor = 0;
   bool actual = ponerMagnitud(rpm, RPM, ahora, &valor);
-  ponerBarra(barraRpm, actual, 0, fraccion(valor, 0, RPM_MAXIMA));
-  ponerMagnitud(refrigerante, REFRIGERANTE, ahora);
+  dibujarLuces(actual, valor);
+  dibujarRefrigerante(ahora);
+  dibujarMarcha(ahora, marcha);
   ponerMagnitud(velocidad, VELOCIDAD, ahora);
-}
-
-// Aire/Volt: como Motor, con la admisión en grande y el voltaje del ELM
-
-static Valor admision, voltaje;
-static Barra barraAdmision;
-
-static void armarAire(lv_obj_t *v) {
-  admision = crearValor(v, &fuente_numeros_110, BORDE_GRANDE, BASE_GRANDE, true);
-  // Dos renglones a 24 px, como en la maqueta
-  lv_obj_t *nombre = fijo(v, "°C\nadmision", NORMAL, ETIQUETA, X_JUNTO_GRANDE, 57);
-  lv_obj_set_style_text_line_space(nombre, 24 - NORMAL->line_height, 0);
-  fijo(v, "Voltaje", NORMAL, ETIQUETA, BORDE_DERECHO, 33, Alineacion::DERECHA);
-  voltaje = crearValor(v, &lv_font_montserrat_36, BORDE_DERECHO, 73, true, " V");
-
-  barraAdmision = crearBarra(v, MARGEN, Y_BARRA_ANCHA, ANCHO_BARRA_ANCHA, ALTO_BARRA_ANCHA);
-  fijo(v, "0", CHICA, ETIQUETA, MARGEN, BASE_ESCALA_ANCHA);
-  for (int grados = 20; grados < ADMISION_MAXIMA; grados += 20) {
-    char texto[8];
-    snprintf(texto, sizeof(texto), "%d", grados);
-    fijo(v, texto, CHICA, ETIQUETA, MARGEN + lroundf(ANCHO_BARRA_ANCHA * grados / ADMISION_MAXIMA),
-         BASE_ESCALA_ANCHA, Alineacion::CENTRO);
-  }
-  fijo(v, "80 °C", CHICA, ETIQUETA, BORDE_DERECHO, BASE_ESCALA_ANCHA, Alineacion::DERECHA);
-}
-
-static void dibujarAire(uint32_t ahora) {
-  float valor = 0;
-  bool actual = ponerMagnitud(admision, ADMISION, ahora, &valor);
-  ponerBarra(barraAdmision, actual, 0, fraccion(valor, 0, ADMISION_MAXIMA));
   ponerMagnitud(voltaje, VOLT_ELM, ahora);
 }
 
@@ -381,11 +508,27 @@ static void dibujarCarga(uint32_t ahora) {
 }
 
 // Mezcla: lazo y ajustes a la izquierda; lambda (barra rica/pobre) y sonda
-// post a la derecha
+// post a la derecha. Con el lazo abierto la ECU no regula con las sondas, y
+// lambda y la sonda quedan fijas (con el motor frío, 0,995 y 0,46 V; con el
+// corte de inyección, 2,000): van en gris y dice "sin regular" (E24). Si no,
+// la página parecía trabada.
+
+static const int32_t SEPARACION_SIN_REGULAR = 10; // de la etiqueta
 
 static Valor lazo, ajusteCorto, ajusteLargo, lambda, sondaPost;
 static lv_obj_t *marcaLambda = nullptr;
 static Barra barraSonda;
+static lv_obj_t *sinRegularLambda, *sinRegularSonda;
+
+// La etiqueta de la columna derecha y, después, "sin regular" (oculto)
+static lv_obj_t *conSinRegular(lv_obj_t *padre, const char *texto, int32_t base) {
+  fijo(padre, texto, NORMAL, ETIQUETA, X_DERECHA, base);
+  int32_t x =
+      X_DERECHA + lv_text_get_width(texto, strlen(texto), NORMAL, 0) + SEPARACION_SIN_REGULAR;
+  lv_obj_t *e = fijo(padre, "sin regular", CHICA, ETIQUETA, x, base);
+  lv_obj_add_flag(e, LV_OBJ_FLAG_HIDDEN);
+  return e;
+}
 
 static void armarMezcla(lv_obj_t *v) {
   // Renglones de 48 px con la etiqueta y el valor centrados en su alto
@@ -397,7 +540,7 @@ static void armarMezcla(lv_obj_t *v) {
   ajusteLargo = crearValor(v, &lv_font_montserrat_28, 300, 130, true, " %");
   rectangulo(v, 316, 6, 1, 132, FONDO_ESCALA);
 
-  fijo(v, "Lambda", NORMAL, ETIQUETA, X_DERECHA, 29);
+  sinRegularLambda = conSinRegular(v, "Lambda", 29);
   lambda = crearValor(v, &lv_font_montserrat_28, BORDE_DERECHO, 29, true);
   // Mitad rica y mitad pobre, redondeadas solo en los extremos
   int32_t medio = X_DERECHA + ANCHO_DERECHA / 2;
@@ -412,7 +555,7 @@ static void armarMezcla(lv_obj_t *v) {
   fijo(v, "1.00", CHICA, ETIQUETA, medio, 74, Alineacion::CENTRO);
   fijo(v, "Pobre", CHICA, CIAN, BORDE_DERECHO, 74, Alineacion::DERECHA);
 
-  fijo(v, "Sonda post", NORMAL, ETIQUETA, X_DERECHA, 113);
+  sinRegularSonda = conSinRegular(v, "Sonda post", 113);
   sondaPost = crearValor(v, &lv_font_montserrat_28, BORDE_DERECHO, 113, true, " V");
   barraSonda = crearBarra(v, X_DERECHA, 126, ANCHO_DERECHA, 10);
 }
@@ -422,15 +565,22 @@ static void dibujarMezcla(uint32_t ahora) {
   ponerMagnitud(ajusteCorto, AJ_CORTO, ahora);
   ponerMagnitud(ajusteLargo, AJ_LARGO, ahora);
 
+  float estado = 0;
+  bool sinRegular = valorActual(LAZO, ahora, &estado) && !lazoRegulando((uint8_t)estado);
+  mostrar(sinRegularLambda, sinRegular);
+  mostrar(sinRegularSonda, sinRegular);
+
   float valor = 0;
-  bool actual = ponerMagnitud(lambda, LAMBDA, ahora, &valor);
+  bool actual = ponerMagnitud(lambda, LAMBDA, ahora, &valor, sinRegular);
   mostrar(marcaLambda, actual);
   if (actual) {
     int32_t centro =
         X_DERECHA + lroundf(ANCHO_DERECHA * fraccion(valor, LAMBDA_RICA, LAMBDA_POBRE));
     ponerPosicion(marcaLambda, centro - 4, 36);
     lv_color_t color = VERDE;
-    if (valor < 1 - LAMBDA_TOLERANCIA) {
+    if (sinRegular) {
+      color = GRIS;
+    } else if (valor < 1 - LAMBDA_TOLERANCIA) {
       color = AMBAR;
     } else if (valor > 1 + LAMBDA_TOLERANCIA) {
       color = CIAN;
@@ -438,8 +588,9 @@ static void dibujarMezcla(uint32_t ahora) {
     ponerFondo(marcaLambda, color);
   }
 
-  actual = ponerMagnitud(sondaPost, SONDA_POST, ahora, &valor);
+  actual = ponerMagnitud(sondaPost, SONDA_POST, ahora, &valor, sinRegular);
   ponerBarra(barraSonda, actual, 0, fraccion(valor, 0, SONDA_MAXIMA));
+  ponerFondo(barraSonda.relleno, sinRegular ? GRIS : BLANCO);
 }
 
 // Fallas: a la izquierda la luz y la cantidad de cada tipo, a la derecha los
@@ -1103,7 +1254,6 @@ void Paginas::iniciar() {
     lv_obj_add_flag(vistas[i], LV_OBJ_FLAG_HIDDEN);
   }
   armarMotor(vistas[PAGINA_MOTOR]);
-  armarAire(vistas[PAGINA_AIRE]);
   armarCarga(vistas[PAGINA_CARGA]);
   armarMezcla(vistas[PAGINA_MEZCLA]);
   armarFallas(vistas[PAGINA_FALLAS]);
@@ -1229,8 +1379,9 @@ Accion Paginas::tomarAccion(uint32_t ahora) {
 }
 
 void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-                      uint32_t reintento, const Viaje &viaje, const Anteriores &anteriores,
-                      const DatosFuerzaG &fuerzaG, const AlarmaALaVista &alarma) {
+                      uint32_t reintento, const Viaje &viaje, const Marcha &marcha,
+                      const Anteriores &anteriores, const DatosFuerzaG &fuerzaG,
+                      const AlarmaALaVista &alarma) {
   if (!armadas || actual == ESPERA) {
     return;
   }
@@ -1243,10 +1394,7 @@ void Paginas::dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas
   MarcaSd sd = marcaSd(info.tarjeta);
   switch (actual) {
   case PAGINA_MOTOR:
-    dibujarMotor(ahora);
-    break;
-  case PAGINA_AIRE:
-    dibujarAire(ahora);
+    dibujarMotor(ahora, marcha);
     break;
   case PAGINA_CARGA:
     dibujarCarga(ahora);

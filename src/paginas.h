@@ -5,6 +5,7 @@
 #include <anteriores.h>
 #include <dtc.h>
 #include <fuerza_g.h>
+#include <marcha.h>
 #include <registro.h>
 #include <viaje.h>
 
@@ -49,9 +50,10 @@ enum class Accion : uint8_t {
 // Magnitudes de una página: entran en una sola consulta de varios PIDs
 constexpr uint8_t MAX_VISIBLES = 6;
 
-// Las páginas de LEYENDO, como en la maqueta de E4: Motor, Aire/Volt,
-// Carga, Mezcla, Fallas e Info, después Viaje (E10), Anteriores (E22) y
-// Fuerza G (E12), y al final DS3 (E9), una animación a pantalla completa. Se
+// Las páginas de LEYENDO, como en la maqueta de E4: Motor (desde E24, con la
+// marcha y el reloj del refrigerante), Carga, Mezcla, Fallas e Info, después
+// Viaje (E10), Anteriores (E22) y Fuerza G (E12), y al final DS3 (E9), una
+// animación a pantalla completa. Aire/Volt salió en E24. Se
 // pasa a la siguiente deslizando el dedo hacia la izquierda, y a la anterior
 // hacia la derecha (E16), en cualquier parte de la pantalla, también sobre
 // los botones de Info, que entonces no se aprietan; después de la última
@@ -112,8 +114,9 @@ public:
   // va en la barra, en lugar del título, también en DS3. info.tarjeta da
   // también la marca "SD" de la barra.
   void dibujar(uint32_t ahora, const DatosInfo &info, const LecturaFallas &fallas,
-               uint32_t reintento, const Viaje &viaje, const Anteriores &anteriores,
-               const DatosFuerzaG &fuerzaG, const AlarmaALaVista &alarma);
+               uint32_t reintento, const Viaje &viaje, const Marcha &marcha,
+               const Anteriores &anteriores, const DatosFuerzaG &fuerzaG,
+               const AlarmaALaVista &alarma);
   // Sin datos, Anteriores o DS3; en la espera, nada. tarjeta: para la marca
   // "SD" de la barra.
   void dibujarSinDatos(const Anteriores &anteriores, EstadoTarjeta tarjeta);

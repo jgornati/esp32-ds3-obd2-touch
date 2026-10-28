@@ -16,16 +16,15 @@ verlo en la PC.
 
 ## Qué muestra
 
-Seis páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
+Cinco páginas con los datos que da el DS3 VTI 1.6 16v por OBD genérico
 (17 PIDs del servicio 01, CAN 11 bit a 500 kbaud), una con el viaje en curso,
 otra con los anteriores, otra con la fuerza G y al final una animación:
 
 | Página    | Datos |
 | --------- | ----- |
-| MOTOR     | RPM en grande, con una barra de 0 a 7000 (zona roja desde 6000); temperatura del refrigerante y velocidad |
-| AIRE/VOLT | Temperatura del aire de admisión en grande, con una barra de 0 a 80 °C; voltaje medido por el ELM327 |
+| MOTOR     | Arriba, las RPM en 14 luces de 500 rpm: verdes, ámbar desde 4500 y rojas desde 6000. Abajo, el reloj del refrigerante, la marcha, las RPM, la velocidad y el voltaje medido por el ELM327 (ver **La marcha y el reloj**) |
 | CARGA     | Carga del motor, avance del encendido y acelerador, cada uno con su barra |
-| MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador |
+| MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador. Con el lazo abierto (el motor frío, el corte de inyección al soltar el acelerador) la ECU no regula con las sondas y quedan fijas: lambda y la sonda van en gris y dicen `sin regular` |
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
 | INFO      | Adaptador y señal (RSSI), la microSD, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
 | VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
@@ -44,6 +43,23 @@ Cómo se ve cada dato:
 
 En MEZCLA, la marca de lambda va en verde entre 0,97 y 1,03; más rica, en
 ámbar; más pobre, en cian.
+
+La temperatura del aire de admisión ya no tiene página (hasta E24 estaba en
+AIRE/VOLT, con el voltaje): se sigue leyendo y queda en el registro de la
+microSD.
+
+### La marcha y el reloj
+
+- **La marcha** no la da la ECU: sale de la velocidad sobre las RPM, que en
+  cada marcha es fija (en km/h por 1000 rpm: 8,1 en 1ª, 14,6 en 2ª, 21,0 en
+  3ª, 27,2 en 4ª y 33,7 en 5ª, medidas en el auto). Con el embrague apretado,
+  en punto muerto, cambiando o a menos de 5 km/h no coincide con ninguna:
+  `-`, en gris. Cambia con dos lecturas seguidas iguales (~0,3 s), para no
+  saltar en el medio de un cambio. Si la RPM o la velocidad no tienen un valor
+  actual, como cualquier dato: `...` o `--`.
+- **El reloj del refrigerante** va de 40 a 130 °C: el valor en blanco hasta
+  110 °C, en ámbar hasta 115 y en rojo desde ahí, y en rojo también con la
+  alarma. La zona ámbar y la roja se ven en el arco aunque no se llegue.
 
 ## Uso
 
@@ -238,6 +254,7 @@ no se detecta después.
 | `Seg` | Segundos desde la primera lectura de la ECU. Salta si la placa estuvo trabada conectando con el adaptador (hasta 30 s) |
 | `Hora` | La del reloj: `2026-10-27 14:35:12`. Vacía si el reloj no tiene la hora |
 | `RPM` a `Acelerador %` | Los 14 datos, con la unidad en el nombre (`Refrig C`, `Vel km/h`); `Lazo`, en texto. Vacío sin un valor actual: la ECU no lo da, no contestó en los últimos 3 s o no hay conexión |
+| `Marcha` | Después de `Vel km/h`: la calculada, de 1 a 5, o 0 sin marcha (ver **La marcha y el reloj**). Vacía sin un valor actual |
 | `Consultas/s` | Las consultas a la ECU del último segundo |
 | `Distancia km`, `En marcha s` | Las del viaje, como en VIAJE: la última línea tiene el total |
 | `G lateral`, `G long.` | La fuerza G en ese momento: la lateral, positiva en una curva a la derecha; la longitudinal, positiva acelerando y negativa frenando. Vacías sin calibrar o sin sensor |
@@ -324,10 +341,10 @@ de frenar la placa.
 | `!escanear`   | Busca dispositivos BLE durante 10 s |
 | `!explorar N` | Muestra los servicios del dispositivo N de la búsqueda |
 
-Cada segundo, con la ECU conectada, imprime una línea con todos los datos,
-las consultas por segundo (~6), lo que tardan los cuadros de la pantalla, la
-distancia y el tiempo en marcha del viaje y la fuerza G. Cada cambio de la
-tarjeta también sale ahí.
+Cada segundo, con la ECU conectada, imprime una línea con todos los datos y
+la marcha, las consultas por segundo (~6), lo que tardan los cuadros de la
+pantalla, la distancia y el tiempo en marcha del viaje y la fuerza G. Cada
+cambio de la tarjeta también sale ahí.
 
 Lo de la pantalla es cuántos cuadros se mandaron en el último segundo y, de
 cada tiempo, el promedio y el máximo de esos cuadros, en ms
@@ -408,9 +425,9 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
 del ELM, PIDs, fallas, el viaje, los viajes anteriores, las alarmas, la fuerza
-G, el registro y el reloj)
+G, el registro, el reloj y la marcha)
 tiene tests que corren en la PC, con respuestas reales del DS3 y del
-adaptador:
+adaptador (la marcha, con lecturas de los registros de la microSD):
 
 ```text
 ~/.platformio/penv/bin/pio test -e native

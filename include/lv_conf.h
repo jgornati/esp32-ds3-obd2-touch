@@ -35,9 +35,10 @@
 
 #define LV_THEME_DEFAULT_DARK 1
 
-/* Widgets: solo la etiqueta (el objeto base siempre está) */
+/* Widgets: la etiqueta (el objeto base siempre está) y el arco, para el reloj
+   del refrigerante de Motor (E24) */
 #define LV_USE_ANIMIMG 0
-#define LV_USE_ARC 0
+#define LV_USE_ARC 1
 #define LV_USE_BAR 0
 #define LV_USE_BUTTON 0
 #define LV_USE_BUTTONMATRIX 0
