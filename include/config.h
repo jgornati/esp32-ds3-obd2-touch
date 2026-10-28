@@ -215,6 +215,14 @@ constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // estabilice. Si el arranque anterior terminó en brownout, se espera más.
 constexpr uint32_t ESPERA_ANTES_DE_BT_MS = 1000;
 constexpr uint32_t ESPERA_TRAS_BROWNOUT_MS = 3000;
+// El USB (E23). En el auto va al de la radio, que es un host: si no lee (recién
+// despierta, o la PC sin el monitor abierto), cada escritura esperaba hasta 2 s
+// y la pantalla quedaba quieta ~1 min al arrancar. Ahora no espera nunca: lo
+// que no entra en TAM_SALIDA_USB bytes se pierde.
+constexpr size_t TAM_SALIDA_USB = 4096;
+// El guardián (E23): si LVGL pasa GUARDIAN_MS sin atenderse, o la tarea de
+// envío no termina una imagen en ese tiempo, la placa se reinicia sola
+constexpr uint32_t GUARDIAN_MS = 10000;
 
 // Fallas seguidas de consultas a la ECU en LEYENDO para pasar a SIN_ECU,
 // con SILENCIO_PARA_SIN_ECU_MS sin ninguna respuesta buena
