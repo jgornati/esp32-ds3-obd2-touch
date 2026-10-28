@@ -66,9 +66,10 @@ constexpr uint8_t PIN_EXPANSOR_AMPLIFICADOR = 7;
 // PERIODO_IMU_MS. Sus interrupciones (pines 2 y 3 del TCA9554) no se usan.
 // EJE_DERECHA_IMU es el eje del sensor (x, y, z) que va a lo largo de la
 // pantalla, hacia la derecha, con PANTALLA_GIRADA = false (girada, el
-// contrario). Sin verificar en la placa: con la placa parada sobre su lado
-// izquierdo (el derecho para arriba), !imu da ~+1 g en ese eje.
-constexpr float EJE_DERECHA_IMU[3] = {1, 0, 0};
+// contrario). Es el -x: con +x (una suposición de E12), en los registros del
+// 2026-10-27 la longitudinal daba al revés (al acelerar, frenada). Con la placa
+// parada sobre su lado izquierdo (el derecho para arriba), !imu da ~-1 g en x.
+constexpr float EJE_DERECHA_IMU[3] = {-1, 0, 0};
 constexpr uint32_t PERIODO_IMU_MS = 20;
 // Las vibraciones: un filtro de primer orden con esta constante de tiempo
 constexpr uint32_t FILTRO_FUERZA_G_MS = 300;
