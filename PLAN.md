@@ -36,7 +36,7 @@ que corresponda antes de portar un módulo.
 | E10   | Viaje: máximos y recorrido             | E9         | Hecha (falta verificar en hardware) |
 | E11   | Alarmas                                | E9         | Hecha (el parlante pita; faltan las alarmas en el auto) |
 | E12   | Fuerza G                               | E10        | Hecha (falta verificar en hardware) |
-| E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo un viaje andando) |
+| E13   | Registro del viaje en la microSD       | E10        | Verificada |
 | E14   | Reloj                                  | —          | Verificada |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
 | E16   | Cambiar de página deslizando el dedo   | E4         | Verificada |
@@ -157,9 +157,8 @@ En el auto, con el motor andando y la microSD:
 - **FUERZA G a 50 ms (E17):** con el punto moviéndose (andando, o moviendo la
   placa con la mano), ~20 cuadros/s y las consultas en 6–7. Si bajan, volver
   a 100 (`git revert 7176bbd`).
-- **Registro (E13):** un viaje andando.
-- **Reloj (E14):** la columna `Hora` del CSV y la fecha de los archivos en la
-  PC; después de unas semanas, cuánto se corrió.
+- **Reloj (E14):** después de unas semanas, cuánto se corrió (la columna `Hora`
+  y la fecha de los archivos ya se vieron en los registros del 2026-10-27).
 - **Brillo (E15):** que el nivel se mantenga al apagar y prender, y verlo de
   día en el auto (el nivel 1, 100, queda cerca del corte de 90–97).
 - **Viajes anteriores (E22):** ver sus **Pruebas del usuario**, en las notas
@@ -1364,7 +1363,7 @@ De esta placa y el adaptador nuevo:
 | Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
 | Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); desde E15 el firmware usa los de la V2. Según los ejemplos y el esquemático de la V2, sin medir | E11, E15 |
-| microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01 | E13   |
+| microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01. Los 6 registros del mismo día, con el reloj (E14), también enteros con el corte del final, y con la creación y la modificación en hora (la primera y la última línea) | E13, E14 |
 | IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: E12 supuso x; los registros del 2026-10-27 dicen que la derecha es −x (la longitudinal daba al revés, ver **Pendiente de probar**) | E12   |
 | RTC (PCF85063)                | Según el datasheet del PCF85063A y el ejemplo `02_I2C_PCF85063` de la V2 (SensorLib), sin probar en la placa: `0x51`. La hora en BCD, de `0x04` (segundos) a `0x0A` (año, de 2000 a 2099), con el día de la semana en `0x08`; el bit 7 de los segundos (`OS`) dice que el oscilador se detuvo y se borra al escribirlos. En `CONTROL_1` (`0x00`), el bit 5 lo detiene y el 1 lo pasa a 12 h: de fábrica, los dos en 0 | E14   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). **Confirmado el 2026-10-27:** la hora se mantuvo una noche con el auto apagado (C32 no se midió) | E14   |
@@ -3551,6 +3550,17 @@ el 2026-10-27, y también lo del banco ("en el banco funciona perfecto": las
 pruebas 1 a 3, `!sd`, sin tarjeta y con una exFAT); un viaje andando, todavía
 no.
 
+**Un viaje andando, verificado** (2026-10-28, el agente con los registros del
+2026-10-27, `VIAJE0003` a `VIAJE0008`). `VIAJE0004` (8,4 km, hasta 145 km/h) y
+`VIAJE0007` (34 km) son viajes andando, con una línea por segundo y sin saltos
+mientras hubo datos (2530 y 1907 s). Los 6 archivos están enteros: sin bytes
+nulos, 32 columnas en todas las filas y la última línea completa. Cada uno
+termina con el corte de luz: cinco, de 31 s a 4 min 15 s después de sacar la
+llave (ya en `BT_PERDIDO`, con los saltos de 10 s de los intentos de conexión),
+y `VIAJE0003` con el motor andando. La fecha de modificación de cada archivo
+cae a 3 s o menos de su última línea: se perdió como mucho el bloque que
+faltaba grabar. Con eso E13 queda verificada.
+
 Lo decidió el agente, sin objeción del usuario: un archivo por encendido,
 abierto con la primera lectura de la ECU (prender la placa en el banco no
 deja archivos); el número, el siguiente al más alto de la tarjeta (no en
@@ -3823,6 +3833,14 @@ desde anoche" (la prueba 4, una noche con el auto apagado). Así que la batería
 alimenta al RTC con la placa apagada, como dice el esquemático; C32 no se
 midió. Falta ver la columna `Hora` del CSV, la fecha de los archivos y cuánto
 se corre en unas semanas.
+
+**La columna `Hora` y la fecha de los archivos, verificadas** (2026-10-28, el
+agente con los registros del 2026-10-27, `VIAJE0003` a `VIAJE0008`). En los 6,
+`Hora` está llena en todas las líneas y avanza con `Seg` (la diferencia entre
+las dos se mueve 1 s como mucho en todo el archivo). En la Mac, la fecha de
+creación de cada archivo es la de su primera línea (1 s antes) y la de
+modificación, la de la última (3 s o menos después: el último bloque grabado;
+la FAT guarda los segundos de a 2). Falta cuánto se corre en unas semanas.
 
 ### E15
 
