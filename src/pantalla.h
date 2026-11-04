@@ -45,6 +45,12 @@ public:
   // entonces va "--:--" en gris. Se pide cada medio segundo desde LVGL, que
   // puede ser la otra tarea.
   void alPedirHora(bool (*funcion)(char *texto, size_t tam));
+  // El aviso de cambio (E25): con activo, toda la pantalla parpadea arriba de
+  // cualquier vista (también la barra), y cada PARPADEO_CAMBIO_MS pasa del
+  // azul con "CAMBIO" en negro al negro con "CAMBIO" en azul, y vuelve.
+  // Empieza en azul. No recibe toques: se sigue deslizando. Lo de abajo no se
+  // dibuja mientras tanto (LVGL dibuja solo lo de arriba si lo tapa entero).
+  void avisoCambio(bool activo);
 
   // Para Paginas: la barra con el título y un punto por página (numero, de
   // 0 a total - 1, en blanco), y debajo el área de las páginas. mantenida,

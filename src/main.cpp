@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <alarmas.h>
+#include <aviso_cambio.h>
 #include <comandos.h>
 #include <dtc.h>
 #include <marcha.h>
@@ -33,6 +34,7 @@
 #include "sondeo.h"
 #include "sonido.h"
 #include "tarjeta.h"
+#include "umbral_cambio.h"
 
 // Máquina de estados de la conexión, portada del anterior. INICIO es setup().
 //
@@ -73,9 +75,14 @@ static const ReglaAlarma REGLAS_ALARMAS[CANT_ALARMAS] = {
      REFRIGERANTE_ALARMA_MS},
     {VOLTAJE_BAJO_ALARMA, VOLTAJE_BAJO_NORMAL, false, VOLTAJE_ALARMA_MS, VOLTAJE_ALARMA_MS},
     {VOLTAJE_ALTO_ALARMA, VOLTAJE_ALTO_NORMAL, true, VOLTAJE_ALARMA_MS, VOLTAJE_ALARMA_MS},
-    {RPM_ALARMA, RPM_NORMAL, true, 0, 0},
 };
 Alarmas alarmas(REGLAS_ALARMAS);
+// El aviso de cambio (E25), con la marcha de E24
+static const ReglasAvisoCambio REGLAS_CAMBIO = {REARME_CAMBIO_RPM, DURACION_CAMBIO_MS,
+                                                CANT_MARCHAS,      CAMBIO_MINIMO_RPM,
+                                                CAMBIO_MAXIMO_RPM, PASO_CAMBIO_RPM};
+AvisoCambio avisoCambio(REGLAS_CAMBIO);
+UmbralCambio umbralCambio(REGLAS_CAMBIO);
 Sonido sonido;
 Brillo brillo;
 Imu imu;
@@ -277,8 +284,11 @@ static void imprimirInfo() {
                 soportados.cantidad());
   Serial.printf("Placa: I2C %s; brillo %u de %u\n", busPlaca() != nullptr ? "listo" : "no anda",
                 brillo.nivel(), CANT_NIVELES_BRILLO);
-  Serial.printf("Sonido: %s; alarmas activas: %u%s\n", sonido.iniciado() ? "listo" : "no anda",
-                alarmas.activas(), ALARMAS_DE_PRUEBA ? " (umbrales de prueba)" : "");
+  char cambio[16];
+  textoUmbralCambio(umbralCambio.rpm(), cambio, sizeof(cambio));
+  Serial.printf("Sonido: %s; alarmas activas: %u%s; aviso de cambio: %s\n",
+                sonido.iniciado() ? "listo" : "no anda", alarmas.activas(),
+                ALARMAS_DE_PRUEBA ? " (umbrales de prueba)" : "", cambio);
   if (imu.iniciado()) {
     Serial.printf("IMU: listo; %lu calibraciones, %lu lecturas fallidas\n",
                   (unsigned long)imu.calibraciones(), (unsigned long)imu.lecturasFallidas());
@@ -318,8 +328,6 @@ static Magnitud magnitudDe(TipoAlarma tipo) {
   switch (tipo) {
   case REFRIGERANTE_ALTO:
     return REFRIGERANTE;
-  case RPM_ALTA:
-    return RPM;
   default:
     return VOLT_ELM;
   }
@@ -371,11 +379,15 @@ static void sinDatos(const char *texto, bool problema = false) {
   }
 }
 
-// La pantalla de !descubrir la pone ese paso
+// La pantalla de !descubrir la pone ese paso. El aviso de cambio (E25) tapa
+// todo: mientras parpadea, la página no se toca, y al terminar se dibuja con
+// lo último.
 static void dibujar() {
   uint32_t ahora = millis();
   ultimoDibujo = ahora;
-  if (descubriendo) {
+  bool cambio = estado == Estado::LEYENDO && !descubriendo && avisoCambio.activo(ahora);
+  pantalla.avisoCambio(cambio);
+  if (descubriendo || cambio) {
     return;
   }
 
@@ -396,7 +408,7 @@ static void dibujar() {
   case Estado::LEYENDO:
     paginas.dibujar(ahora,
                     {version, protocolo, soportados.cantidad(), consultasPorSegundo, rssi,
-                     brillo.nivel(), tarjeta.estado(), tarjeta.viaje()},
+                     brillo.nivel(), umbralCambio.rpm(), tarjeta.estado(), tarjeta.viaje()},
                     fallas, segundosHasta(proximaLecturaFallas), viaje, marcha,
                     guardados.anteriores(), {imu.iniciado(), imu.lectura(ahora)},
                     alarmaALaVista(ahora));
@@ -1414,7 +1426,7 @@ static void revisarAlarma(TipoAlarma tipo, bool hay, float valor, uint32_t momen
   if (cambio == CambioAlarma::SE_PRENDIO) {
     Serial.printf("Alarma: %s\n", texto);
     anotar("Alarma: %s", texto);
-    sonido.pitar(PITIDOS_ALARMA);
+    sonido.pitarAlarma();
   } else {
     Serial.printf("Alarma: termino (%s)\n", texto);
     anotar("Alarma: termino (%s)", texto);
@@ -1435,8 +1447,23 @@ static void revisarAlarmas() {
         viaje.enMarchaDesdeHace(ahora, ESPERA_VOLTAJE_VIAJE_MS);
   revisarAlarma(VOLTAJE_BAJO, hay, valor, dato(VOLT_ELM).actualizadoMs);
   revisarAlarma(VOLTAJE_ALTO, hay, valor, dato(VOLT_ELM).actualizadoMs);
-  hay = leyendo && valorActual(RPM, ahora, &valor);
-  revisarAlarma(RPM_ALTA, hay, valor, dato(RPM).actualizadoMs);
+}
+
+// El aviso de cambio (E25), con la RPM y la marcha que se muestra. Como las
+// alarmas, revisar la misma lectura otra vez no cambia nada. Al empezar, el
+// pitido, y la pantalla parpadea enseguida.
+static void revisarCambio() {
+  uint32_t ahora = millis();
+  bool leyendo = estado == Estado::LEYENDO && !descubriendo;
+  float rpm = 0;
+  bool hay = leyendo && valorActual(RPM, ahora, &rpm);
+  uint8_t numero = marcha.actual(ahora) ? marcha.numero() : 0;
+  if (avisoCambio.revisar(hay, rpm, numero, dato(RPM).actualizadoMs)) {
+    Serial.printf("Cambio: %.0f rpm en %uª\n", rpm, numero);
+    anotar("Aviso de cambio: %.0f rpm en %uª", rpm, numero);
+    sonido.pitarCambio();
+    dibujar();
+  }
 }
 
 // Con la ECU en 0 km/h, el IMU recalibra si la placa está quieta
@@ -1471,6 +1498,32 @@ static void cambiarBrillo(uint8_t nivel) {
   Serial.printf("Pantalla: brillo %u de %u\n", brillo.nivel(), CANT_NIVELES_BRILLO);
 }
 
+// De Info (- y +) o de la consola (!cambio N). No usa el ELM. Un umbral
+// nuevo queda listo para avisar.
+static void cambiarUmbralCambio(uint16_t rpm) {
+  if (umbralCambio.poner(rpm)) {
+    avisoCambio.ponerUmbral(rpm);
+    dibujar();
+  }
+  char texto[16];
+  textoUmbralCambio(umbralCambio.rpm(), texto, sizeof(texto));
+  Serial.printf("Aviso de cambio: %s\n", texto);
+}
+
+// !cambio: sin número lo muestra; con un número que no vale, dice cuáles valen
+static void atenderCambioPedido(int32_t rpm) {
+  if (rpm < 0) {
+    char texto[16];
+    textoUmbralCambio(umbralCambio.rpm(), texto, sizeof(texto));
+    Serial.printf("Aviso de cambio: %s\n", texto);
+  } else if (rpm > UINT16_MAX || !umbralCambioValido(REGLAS_CAMBIO, rpm)) {
+    Serial.printf("Consola: el aviso de cambio va de %u a %u rpm, de a %u, o 0 (apagado)\n",
+                  CAMBIO_MINIMO_RPM, CAMBIO_MAXIMO_RPM, PASO_CAMBIO_RPM);
+  } else {
+    cambiarUmbralCambio(rpm);
+  }
+}
+
 // !luz V: un valor de la luz, de 0 a 255, sin guardar, para medir los
 // niveles en el banco
 static void probarLuz(uint8_t valor) {
@@ -1480,29 +1533,39 @@ static void probarLuz(uint8_t valor) {
 
 // Reconectar y Olvidar, de Info (que se ve solo en LEYENDO) o de la
 // consola. Acá y no mientras se espera al ELM: los dos lo sueltan. Y
-// reiniciar el viaje, de la página Viaje, y el brillo, de Info, que no usan
-// el ELM.
+// reiniciar el viaje, de la página Viaje, y el brillo y el aviso de cambio, de
+// Info, que no usan el ELM. De la pantalla, todos los pedidos desde la vuelta
+// anterior, en orden: desde E25, tocar rápido no pierde ninguno.
 static void atenderAcciones() {
-  Accion accion = paginas.tomarAccion(millis());
-  if (estado != Estado::LEYENDO || descubriendo) {
-    accion = Accion::NINGUNA;
-  }
-  if (accion == Accion::RECONECTAR) {
-    Serial.println("Pantalla: reconectando");
-  } else if (accion == Accion::OLVIDAR) {
-    Serial.println("Pantalla: olvidando el adaptador");
-  } else if (accion == Accion::REINICIAR_VIAJE) {
-    Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
-                  (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
-    // Si llegó a guardarse, pasa a Anteriores
-    guardados.terminar(viaje);
-    viaje.reiniciar();
-    empezarViaje();
-    imu.reiniciarMaximos();
-    anotar("Viaje reiniciado");
-    dibujar();
-  } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
-    cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
+  bool reconectar = false;
+  bool olvidar = false;
+  for (Accion accion = paginas.tomarAccion(millis()); accion != Accion::NINGUNA;
+       accion = paginas.tomarAccion(millis())) {
+    if (estado != Estado::LEYENDO || descubriendo) {
+      continue;
+    }
+    if (accion == Accion::RECONECTAR) {
+      Serial.println("Pantalla: reconectando");
+      reconectar = true;
+    } else if (accion == Accion::OLVIDAR) {
+      Serial.println("Pantalla: olvidando el adaptador");
+      olvidar = true;
+    } else if (accion == Accion::REINICIAR_VIAJE) {
+      Serial.printf("Pantalla: viaje reiniciado (llevaba %.2f km en %lu s)\n", viaje.distanciaKm(),
+                    (unsigned long)(viaje.tiempoEnMarchaMs() / 1000));
+      // Si llegó a guardarse, pasa a Anteriores
+      guardados.terminar(viaje);
+      viaje.reiniciar();
+      empezarViaje();
+      imu.reiniciarMaximos();
+      anotar("Viaje reiniciado");
+      dibujar();
+    } else if (accion == Accion::BAJAR_BRILLO || accion == Accion::SUBIR_BRILLO) {
+      cambiarBrillo(brillo.nivel() + (accion == Accion::SUBIR_BRILLO ? 1 : -1));
+    } else if (accion == Accion::BAJAR_CAMBIO || accion == Accion::SUBIR_CAMBIO) {
+      cambiarUmbralCambio(otroUmbralCambio(REGLAS_CAMBIO, umbralCambio.rpm(),
+                                           accion == Accion::SUBIR_CAMBIO ? 1 : -1));
+    }
   }
   uint8_t valorLuz;
   if (consola.luzPedida(&valorLuz)) {
@@ -1514,10 +1577,14 @@ static void atenderAcciones() {
   } else if (nivel > 0) {
     cambiarBrillo(nivel);
   }
-  if (consola.reconexionPedida() || accion == Accion::RECONECTAR) {
+  int32_t rpmCambio;
+  if (consola.cambioPedido(&rpmCambio)) {
+    atenderCambioPedido(rpmCambio);
+  }
+  if (consola.reconexionPedida() || reconectar) {
     volverAConectar(false);
   }
-  if (consola.olvidoPedido() || accion == Accion::OLVIDAR) {
+  if (consola.olvidoPedido() || olvidar) {
     volverAConectar(true);
   }
 }
@@ -1538,6 +1605,8 @@ void setup() {
   guardados.iniciar();
   empezarViaje();
   brillo.iniciar();
+  umbralCambio.iniciar();
+  avisoCambio.ponerUmbral(umbralCambio.rpm());
   bool conPantalla = pantallaHw.iniciar(brillo.valor());
   pantalla.iniciar();
   paginas.iniciar();
@@ -1582,8 +1651,8 @@ void setup() {
   actualizarVisibles();
   imprimirInfo();
   Serial.println("Escribi un comando para el ELM, !reconectar, !olvidar, !descubrir, !log, "
-                 "!info, !pitar, !brillo N, !luz V, !imu, !sd, !viajes, !hora AAAA-MM-DD HH:MM, "
-                 "!trabar, !escanear o !explorar N.");
+                 "!info, !pitar, !pitar cambio, !brillo N, !cambio N, !luz V, !imu, !sd, "
+                 "!viajes, !hora AAAA-MM-DD HH:MM, !trabar, !escanear o !explorar N.");
 
   cambiarA(Estado::CONECTANDO_BT);
 }
@@ -1614,7 +1683,12 @@ void loop() {
   }
   if (consola.pitidoPedido()) {
     Serial.println(sonido.iniciado() ? "Consola: pitando" : "Consola: el sonido no anda");
-    sonido.pitar(PITIDOS_ALARMA);
+    sonido.pitarAlarma();
+  }
+  if (consola.pitidoCambioPedido()) {
+    Serial.println(sonido.iniciado() ? "Consola: el pitido del aviso de cambio"
+                                     : "Consola: el sonido no anda");
+    sonido.pitarCambio();
   }
   if (consola.trabaPedida()) {
     // Con LVGL tomado y sin atenderlo: el guardián tiene que reiniciar la placa
@@ -1651,10 +1725,13 @@ void loop() {
     break;
   }
   revisarAlarmas();
+  revisarCambio();
   avisarParado();
   revisarTarjeta();
   registrarSegundo();
   guardados.actualizar(viaje, millis());
+  brillo.guardar();
+  umbralCambio.guardar();
 
   if (millis() - ultimoDibujo >= periodoDibujo()) {
     dibujar();

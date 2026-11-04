@@ -20,6 +20,7 @@ struct DatosInfo {
   int16_t consultasPorSegundo; // -1: todavía no se midió
   int16_t rssi;                // dBm; 0: sin medir (siempre es negativo)
   uint8_t brillo;              // nivel, de 1 a CANT_NIVELES_BRILLO
+  uint16_t cambio;             // las RPM del aviso de cambio (E25); 0 apagado
   EstadoTarjeta tarjeta;       // la microSD (E13); también la marca de la barra
   uint16_t viaje;              // el número del archivo; 0 sin archivo
 };
@@ -32,7 +33,7 @@ struct DatosFuerzaG {
 
 // La alarma que se ve en la barra (E11) y las magnitudes que van en rojo
 struct AlarmaALaVista {
-  const char *texto;   // "REFRIGERANTE 106 °C"; nullptr si no hay ninguna
+  const char *texto;   // "REFRIGERANTE 112 °C"; nullptr si no hay ninguna
   uint16_t magnitudes; // un bit por Magnitud (1 << REFRIGERANTE)
 };
 static_assert(CANT_MAGNITUDES <= 16, "un bit por Magnitud en AlarmaALaVista");
@@ -44,6 +45,8 @@ enum class Accion : uint8_t {
   OLVIDAR,
   BAJAR_BRILLO,
   SUBIR_BRILLO,
+  BAJAR_CAMBIO, // el aviso de cambio (E25)
+  SUBIR_CAMBIO,
   REINICIAR_VIAJE
 };
 
@@ -103,11 +106,13 @@ public:
   // pantalla). Así la página cambia enseguida. Con datos, los pedidos
   // esperan a quien llama.
   void alPedirSinDatos(void (*funcion)());
-  // Lo que se pidió desde la última llamada. Reconectar y el brillo cuentan
-  // al soltarlos (si no fue un deslizamiento); Olvidar, una vez por
-  // apretada, cuando lleva MANTENER_OLVIDAR_MS apretado, y reiniciar el
-  // viaje, cuando la página Viaje lleva MANTENER_VIAJE_MS apretada con el
-  // dedo quieto (ahora es la hora de millis()).
+  // Lo pedido desde la última vez, de a uno y en orden: quien llama repite
+  // hasta NINGUNA (desde E25 cada toque cuenta, aunque haya varios entre dos
+  // llamadas). Reconectar, el brillo y el aviso de cambio cuentan al soltarlos
+  // (si no fue un deslizamiento); Olvidar, una vez por apretada, cuando lleva
+  // MANTENER_OLVIDAR_MS apretado, y reiniciar el viaje, cuando la página
+  // Viaje lleva MANTENER_VIAJE_MS apretada con el dedo quieto (ahora es la
+  // hora de millis()).
   Accion tomarAccion(uint32_t ahora);
   // fallas: la última lectura de la página Fallas. reintento: segundos
   // hasta volver a leerla, que se muestran si falló y no hay códigos. alarma:

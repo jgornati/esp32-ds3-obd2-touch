@@ -36,7 +36,7 @@ que corresponda antes de portar un módulo.
 | E10   | Viaje: máximos y recorrido             | E9         | Hecha (falta verificar en hardware) |
 | E11   | Alarmas                                | E9         | Hecha (el parlante pita; faltan las alarmas en el auto) |
 | E12   | Fuerza G                               | E10        | Hecha (falta verificar en hardware) |
-| E13   | Registro del viaje en la microSD       | E10        | Verificada (salvo un viaje andando) |
+| E13   | Registro del viaje en la microSD       | E10        | Verificada |
 | E14   | Reloj                                  | —          | Verificada |
 | E15   | La placa V2: pines de la pantalla y brillo | E11    | Verificada (salvo que el brillo se mantenga al apagar y prender) |
 | E16   | Cambiar de página deslizando el dedo   | E4         | Verificada |
@@ -47,7 +47,7 @@ que corresponda antes de portar un módulo.
 | E22   | Viajes anteriores, también sin conexión | E10       | Hecha (falta verificar en hardware) |
 | E23   | Que no se cuelgue al prender y apagar el auto | —    | Hecha (falta verificar en hardware) |
 | E24   | Pantalla principal: RPM, marcha, refrigerante, velocidad y voltaje | E22 | Hecha (falta verificar en hardware) |
-| E25   | Aviso de cambio y umbrales del refrigerante | E24   | Pendiente |
+| E25   | Aviso de cambio y umbrales del refrigerante | E24   | Hecha (falta verificar en hardware) |
 
 Estados posibles: Pendiente, En curso, Hecha (falta verificar en
 hardware), Verificada, Descartada.
@@ -95,6 +95,10 @@ probar algo, anotarlo en la etapa y sacarlo de acá.
 **Para la próxima prueba** (la lista para el 2026-10-29, con E23, el arreglo de
 la fuerza G y E24 en `main`; en orden):
 
+E25 (las pruebas 6, 11, 12 y 13) va en el PR de la rama `e25-aviso-de-cambio`:
+para hacerlas, subir el firmware de esa rama, o el de `main` después de
+mergearlo.
+
 En el banco, con la Mac y sin el adaptador:
 
 1. Subir el firmware de `main` y desenchufar la placa.
@@ -107,25 +111,47 @@ En el banco, con la Mac y sin el adaptador:
 4. **E23:** `!escanear`: durante los 10 s la espera sigue respondiendo y la
    placa no se reinicia.
 5. **E22:** desde la espera, deslizar a ANTERIORES y a DS3, sin demora.
+6. **E25, consola:** `!pitar cambio`: un pitido corto y más agudo, distinto de
+   los tres de `!pitar` (si no gusta, decir cómo: más largo, más grave...).
+   `!cambio` dice `Aviso de cambio: 6000 rpm`; `!cambio 2600` dice cuáles
+   valen; `!cambio 2500` lo pone. Esperar un segundo, apretar RESET y
+   `!cambio` sigue en 2500.
 
 En el auto:
 
-6. **E23:** al abrir la puerta, el DS3 entra entero; con la llave, llega a
+7. **E23:** al abrir la puerta, el DS3 entra entero; con la llave, llega a
    MOTOR. Unos días sin desenchufar la placa.
-7. **E24, MOTOR:** la marcha coincide con la palanca en las 5 y da `-` con el
+8. **E24, MOTOR:** la marcha coincide con la palanca en las 5 y da `-` con el
    embrague apretado o en punto muerto; las luces suben con las RPM; el reloj
    del refrigerante, en blanco hasta 110 °C; el voltaje.
-8. **E24, MEZCLA:** con el motor frío dice `sin regular` en gris, y al cerrarse
+9. **E24, MEZCLA:** con el motor frío dice `sin regular` en gris, y al cerrarse
    el lazo los valores se mueven.
-9. **Fuerza G:** al acelerar la bolita va para abajo, al frenar para arriba y
-   en una curva a la derecha, a la izquierda.
-10. Con la notebook en el auto, si se puede: `!info` con el motor andando (RAM
+10. **Fuerza G:** al acelerar la bolita va para abajo, al frenar para arriba y
+    en una curva a la derecha, a la izquierda.
+11. **E25, INFO** (con el contacto, parado; INFO se ve solo con la ECU): la
+    fila `Aviso de cambio` en `2500 rpm` (la 6); `-` y `+` de 250 en 250,
+    `Apagado` (en gris) debajo de 2000 y no más de 6500. Tocar `-` y `+` del
+    brillo y del aviso varias veces seguido, y también cerca del borde: cada
+    toque cuenta (antes, en el brillo, se perdían algunos). Dejarlo en 2500.
+    Reconectar, Olvidar (mantener 3 s) y el brillo andan en su lugar nuevo.
+12. **E25, refrigerante:** en un viaje normal, también parado en el tráfico,
+    `REFRIGERANTE` no salta.
+13. **E25, aviso de cambio,** en 2500 y en MOTOR: al llegar a 2500 en 1ª a 4ª
+    toda la pantalla parpadea en azul y negro y suena el pitido, una vez por
+    marcha (en la siguiente, otra vez); en 5ª no, ni acelerando parado o con
+    el embrague apretado. Se va al pasar el cambio, o a los 2 s. Deslizar
+    mientras parpadea cambia de página. Con la notebook, la línea de la tabla
+    de esos segundos: las consultas/s (6–7) y los `cuadros/s` (~8). Al
+    terminar, dejarlo en el que se quiera (de fábrica, 6000).
+14. Con la notebook en el auto, si se puede: `!info` con el motor andando (RAM
     interna, `LCD_TE N barridos/s`) y las consultas por segundo en MOTOR (6–7).
-11. Al volver: pasar los CSV de la microSD a la Mac (la columna `Marcha`
-    contra lo que se vio, y el `Inicio de la placa` de cada uno).
+15. Al volver: pasar los CSV de la microSD a la Mac (la columna `Marcha`
+    contra lo que se vio, y el `Inicio de la placa` de cada uno; con E25, los
+    `Aviso de cambio` en `Eventos`).
 
-La alarma del refrigerante sigue en 105 °C hasta E25 (va a seguir saltando
-con el motor regulando en 103–108).
+La alarma del refrigerante salta en 110 °C desde E25. Con un firmware sin E25
+(el de `main` hasta el 2026-10-28) sigue en 105 °C, y va a saltar con el motor
+regulando en 103–108.
 
 Lo demás, por etapa:
 
@@ -137,7 +163,9 @@ En el auto, con el motor andando y la microSD:
   motor andando. `!pitar` ya suena bien (con `VOLUMEN_PITIDO` en 1). En los
   registros del 2026-10-27, con `false`, `REFRIGERANTE` saltó y se apagó bien,
   pero en cada viaje caliente (el motor regula en 103–108 °C): E25 la sube a
-  110 °C. `ZONA ROJA` saltó una vez, a 6004 rpm, y se apagó al segundo.
+  110 °C y la apaga en 108 (falta verlo en el auto). `ZONA ROJA` saltó una
+  vez, a 6004 rpm, y se apagó al segundo; desde E25 no está (la reemplaza el
+  aviso de cambio).
 - **Viaje (E10):** la distancia contra el parcial del tablero en un viaje
   andando, y los máximos contra lo que se vio. Mantener apretada VIAJE 3 s la
   reinicia; menos, no. Sacar la llave y volver a ponerla: empieza de cero. (En
@@ -157,11 +185,12 @@ En el auto, con el motor andando y la microSD:
 - **FUERZA G a 50 ms (E17):** con el punto moviéndose (andando, o moviendo la
   placa con la mano), ~20 cuadros/s y las consultas en 6–7. Si bajan, volver
   a 100 (`git revert 7176bbd`).
-- **Registro (E13):** un viaje andando.
-- **Reloj (E14):** la columna `Hora` del CSV y la fecha de los archivos en la
-  PC; después de unas semanas, cuánto se corrió.
+- **Reloj (E14):** después de unas semanas, cuánto se corrió (la columna `Hora`
+  y la fecha de los archivos ya se vieron en los registros del 2026-10-27).
 - **Brillo (E15):** que el nivel se mantenga al apagar y prender, y verlo de
-  día en el auto (el nivel 1, 100, queda cerca del corte de 90–97).
+  día en el auto (el nivel 1, 100, queda cerca del corte de 90–97). Desde E25
+  se guarda un segundo después del último toque, y `-` y `+` ya no pierden
+  toques (ver las notas de E25).
 - **Viajes anteriores (E22):** ver sus **Pruebas del usuario**, en las notas
   de E22. Lo principal: que un viaje aparezca en ANTERIORES al volver a poner
   el contacto, y que sin el adaptador (llave en accesorios, o en el banco) se
@@ -177,6 +206,11 @@ En el auto, con el motor andando y la microSD:
   E23. Lo principal: enchufada a la Mac sin el monitor, que el DS3 entre sin
   trabarse; `!trabar` reinicia la placa a los ~10 s; y unos días en el auto
   sin desenchufarla.
+- **Aviso de cambio y refrigerante (E25):** ver sus **Pruebas del usuario**, en
+  las notas de E25. Lo principal: con el aviso en 2500, que parpadee y suene
+  una vez por marcha, no en 5ª ni parado; las consultas por segundo mientras
+  parpadea; y que `REFRIGERANTE` no salte en un viaje normal. Además, confirmar
+  o cambiar las **Decisiones a confirmar por el usuario** de esas notas.
 
 El cuelgue ocasional al prender y apagar el auto (E7; E8, que lo iba a
 investigar, se descartó) se encontró y se arregló en E23.
@@ -215,9 +249,10 @@ Prevalecen sobre el README si hay diferencias. Las marcadas
 | Fallas                 | Solo OBD genérico (motor y emisiones). Heredada.                                               |
 | Alimentación           | 5 V desde un USB del auto que se corta con la llave. Sin deep sleep (confirmado en E7). El 2026-10-26 el usuario decidió ponerle una batería de 3,7 V, para que el RTC no pierda la hora (ver **Hardware de la placa**). La placa se sigue apagando con la llave: el firmware no activa `SYS_EN` |
 | Alimentación del adaptador | Con el contacto, desde el pin 1 del conector OBD (en el DS3 se corta con la llave), no desde el 16 (permanente). Lo modificó el usuario el 2026-10-26: le sacó la pata 16 y puenteó la 1 al pad. Con la llave sacada el adaptador se apaga y la placa queda en `SIN ADAPTADOR` (hasta E5, `SIN CONEXION` en rojo), no en `SIN ECU`. |
-| Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15). Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
+| Brillo                 | En 5 niveles, con - y + en Info, guardado en `Preferences` (E15); desde E25, un segundo después del último toque. Hasta E15 quedaba siempre al máximo: el firmware usaba el pin de la luz de la V1 (GPIO8) y la placa es la V2 (GPIO42). |
 | Imágenes del DS3       | Las animaciones que trajo el usuario (2026-10-26, hechas aparte): un DS3 rojo con techo negro que entra a la pantalla de espera, y otro andando con nubes y camino para una página al final. Las fuentes, en `herramientas/imagenes/fuentes/` |
 | Viajes anteriores      | Desde E22, un resumen de cada viaje (lo de VIAJE y cuándo empezó) en la flash, con `Preferences`, no en la microSD: los últimos 10 que llegan a 1 min en marcha. Se ven en ANTERIORES, después de VIAJE, también sin conexión. Lo eligió el usuario (2026-10-27) |
+| Aviso de cambio        | Desde E25, en lugar de la alarma `ZONA ROJA`: a las RPM que elija el usuario, toda la pantalla parpadea en cualquier página, con un pitido distinto del de las alarmas (lo decidió el usuario, 2026-10-28). *Propuestas* sin confirmar: dónde se elige, de cuánto a cuánto, el de fábrica (6000), cuánto dura, cuándo no avisa, los colores y el pitido (ver **Decisiones a confirmar por el usuario**, en las notas de E25) |
 | Hardware sin usar      | No inicializar microSD, audio, IMU, RTC ni el expansor TCA9554 hasta que una etapa lo pida. Los piden E11 (audio y TCA9554), E12 (IMU), E13 (microSD) y E14 (RTC). Desde E11 se inician el I2C de la placa y el audio, y desde E15 se usan **solo los pines 1 (luz), 5 (reset de la pantalla) y 7 (amplificador)** del TCA9554; los demás no se tocan. Desde E12 se inicia el IMU, solo el acelerómetro y sin sus interrupciones (EXIO2 y EXIO3 no se tocan). Desde E13 se monta la microSD, en modo SD de 1 bit. Desde E14 se lee el RTC al arrancar, sin su interrupción (EXIO4 no se toca). |
 
 ## Hardware de la placa
@@ -274,8 +309,9 @@ src/
   tarjeta.h/.cpp    la microSD y la tarea que escribe el registro (E13)
   rtc.h/.cpp        el reloj PCF85063, que pone la hora del sistema (E14)
   guardados.h/.cpp  los viajes anteriores en la flash, con Preferences (E22)
+  umbral_cambio.h/.cpp  las RPM del aviso de cambio, en Preferences (E25)
   datos, sondeo, descubrimiento   portados del anterior (E3)
-lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13), reloj (E14), viajes anteriores (E22) y la marcha (E24)
+lib/obd/src/        igual que el anterior: lógica pura, SIN Arduino.h; más viaje (E10), alarmas (E11), fuerza G (E12), registro (E13), reloj (E14), viajes anteriores (E22), la marcha (E24) y el aviso de cambio (E25)
 lib/axs15231b/      driver del panel, del ejemplo de Waveshare (E1)
 src/fuentes/         números grandes generados con lv_font_conv (E1)
 test/               igual que el anterior, más lo nuevo de lib/obd
@@ -1227,11 +1263,14 @@ a 110 grados (5 s seguidos) y que se apague a 108".
 - El aviso de cambio hace parpadear **toda la pantalla**, en cualquier página,
   con un pitido distinto del de las alarmas.
 
-**Propuestas, a confirmar antes de programar:**
+**Propuestas, a confirmar antes de programar** (el usuario pidió, el
+2026-10-28, hacerla con estas mismas sin confirmarlas, y que quedaran
+anotadas: ver **Decisiones a confirmar por el usuario**, en las notas de E25):
 
 - **Dónde se configura:** en INFO, con `-` y `+` como el brillo, de 250 en 250
   rpm (de 2000 a 6500, o apagado), guardado en `Preferences`; y `!cambio N` en
-  la consola. INFO está llena: maqueta antes.
+  la consola. INFO está llena: maqueta antes. (No hubo maqueta: el arreglo lo
+  eligió el agente, con los PNG del render.)
 - **Cómo parpadea:** la pantalla alterna con un color fuerte unas 4 veces por
   segundo mientras las RPM están en el umbral o más, hasta 2 s. Vuelve a avisar
   cuando las RPM bajan 300 del umbral (al pasar el cambio). Cada parpadeo es un
@@ -1364,7 +1403,7 @@ De esta placa y el adaptador nuevo:
 | Página Fallas en el DS3 | `01011` 102–150 ms, `03` 135–164, `07` 135–165, `0A` 120–150 (`NO DATA`): ~0,6 s la lectura entera. Luz apagada, sin códigos guardados ni pendientes: `Sin fallas` | E5    |
 | Adaptador alimentado por el pin 1 | Al sacar la llave con el motor andando: dos consultas sin respuesta (timeout de 1 s), el BLE se corta a los ~3 s (`SIN CONEXION`) y el adaptador deja de anunciarse. Sin medir: si el pin 1 se corta al dar arranque (con el 16, en E3, el BLE no se cortaba) y cuánto tarda en conectar al poner el contacto | E5    |
 | Versión de la placa           | 3.49B **V2** (`Rev1.1`, lo confirmó el usuario el 2026-10-26), con parlante. Cambian la luz (GPIO42), `EXIO_INT` (GPIO8), `LCD_TE` (GPIO21) y el reset de la pantalla (EXIO5); desde E15 el firmware usa los de la V2. Según los ejemplos y el esquemático de la V2, sin medir | E11, E15 |
-| microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01 | E13   |
+| microSD                       | Según el esquemático y el ejemplo `04_SD_Card` de la V2: modo SD de 1 bit en CLK 41, CMD 39 y D0 40 (el ejemplo, a 40 MHz; el firmware, a 20); D3 (GPIO38) con 10 kΩ a 3,3 V, que deja la tarjeta en modo SD. Sin detección de tarjeta (`CD` a masa). Probado en el auto el 2026-10-27: monta, graba, y dos cortes de luz con el motor andando dejaron los archivos enteros. Sin reloj, la FAT les pone 1980-01-01. Los 6 registros del mismo día, con el reloj (E14), también enteros con el corte del final, y con la creación y la modificación en hora (la primera y la última línea) | E13, E14 |
 | IMU (QMI8658)                 | Según el datasheet del QMI8658A y el ejemplo `03_I2C_QMI8658` de la V2 (2026-10-26, sin probar en la placa): `0x6B`, `WHO_AM_I` `0x05`; se reinicia con `0xB0` en `0x60` y queda `0x80` en `0x4D` (~15 ms); `CTRL1` arranca en big-endian (el firmware pone little-endian). Solo el acelerómetro, a 125 Hz, ±4 g y con su filtro de 4,5 Hz. Qué eje va a lo largo de la pantalla: E12 supuso x; los registros del 2026-10-27 dicen que la derecha es −x (la longitudinal daba al revés, ver **Pendiente de probar**) | E12   |
 | RTC (PCF85063)                | Según el datasheet del PCF85063A y el ejemplo `02_I2C_PCF85063` de la V2 (SensorLib), sin probar en la placa: `0x51`. La hora en BCD, de `0x04` (segundos) a `0x0A` (año, de 2000 a 2099), con el día de la semana en `0x08`; el bit 7 de los segundos (`OS`) dice que el oscilador se detuvo y se borra al escribirlos. En `CONTROL_1` (`0x00`), el bit 5 lo detiene y el 1 lo pasa a 12 h: de fábrica, los dos en 0 | E14   |
 | RTC y batería (esquemático)   | Según el esquemático de la wiki (2026-10-26, sin medir en la placa): el VDD del RTC llega por un diodo desde `3V3` y por otro desde `VBAT`, así que con la batería puesta no pierde la hora con la placa apagada. Con la placa apagada la batería alimenta solo al RTC, la protección, el cargador y el divisor de `BAT_ADC` (~20 µA en total). **Confirmado el 2026-10-27:** la hora se mantuvo una noche con el auto apagado (C32 no se midió) | E14   |
@@ -1372,7 +1411,7 @@ De esta placa y el adaptador nuevo:
 | Reloj del QSPI                | El SPI del S3 sale de los 80 MHz del APB (o de los 40 del cristal) dividido por un entero: 80, 40 o 26,7 MHz. 60 no se puede. Queda en 40 (decisión del usuario); 80 sin probar | E17   |
 | Volumen del parlante          | Probado por el usuario con E19 (2026-10-27): grabó y reprodujo, pero se oye bajo. La grabación se reproducía tal cual (micrófonos a 30 dB, el DAC del ES8311 a 0 dB y sin subirle el nivel), así que no se sabe cuánto es el parlante y cuánto la grabación. Los pitidos de E11 pasaron de 0,5 a 1 (el DAC sigue a 0 dB), y con eso `!pitar` "pita perfecto" (2026-10-27); con el motor andando, sin probar | E11, E19 |
 | Micrófonos (esquemático)      | Según el esquemático y el ejemplo `08_Audio_Test` de la V2: ES7210 en `0x40`; los dos micrófonos de la placa (MEMS analógicos) en MIC1 y MIC2, y su `SDOUT1` al GPIO6 por 51 Ω; `SDOUT2` y el `ASDOUT` del ES8311 no van a ningún pin. Con el I2S en full duplex (16 kHz, 16 bits, MCLK de 256 veces) y el ES7210 como esclavo sin TDM, grabó (E19, descartada) | E19   |
-| Partición NVS (`Preferences`) | 20 KB (`nvs` en `0x9000`, tabla `app3M_fat9M_16MB.csv`): 5 páginas de 4 KB, una siempre libre. La usan la dirección del adaptador (`obd`, E2), el brillo (`pantalla`, E15) y los viajes (`viajes`, E22: `ultimo` y `v0` a `v9`, de 40 bytes). Sin medir lo que tarda una escritura en la placa: `Viajes: guardado ... en N ms` lo dice | E22   |
+| Partición NVS (`Preferences`) | 20 KB (`nvs` en `0x9000`, tabla `app3M_fat9M_16MB.csv`): 5 páginas de 4 KB, una siempre libre. La usan la dirección del adaptador (`obd`, E2), el brillo (`pantalla`, E15), los viajes (`viajes`, E22: `ultimo` y `v0` a `v9`, de 40 bytes) y el aviso de cambio (`cambio`, E25: `rpm`, 2 bytes). Sin medir lo que tarda una escritura en la placa: `Viajes: guardado ... en N ms` lo dice | E22, E25 |
 | `LCD_TE` (V2)                 | Los ejemplos de Waveshare no lo usan ni mandan `TEON` (`0x35`). El firmware lo prende con `0x35 0x00` y lo lee en el GPIO21. Sin medir en la placa: si llega y a qué frecuencia barre el panel (`!info`, `LCD_TE N barridos/s`; en la prueba en el auto no se pasó) | E17   |
 | Pantalla en el auto (E17)     | Con la rama de E17, estacionado en ralentí (`VIAJE0003.CSV`, 2026-10-27). Por cuadro: giro ~7,2 ms (máximo 11; a `-O0`, ~20), envío ~13,8 (máximo 17,4), espera 0. Dibujo: DS3 ~14 ms, 20 cuadros/s; Motor ~9 ms, 4–6 cuadros/s; Info ~3 ms; al cambiar de página, 11–29 ms | E17   |
 | Consultas por segundo y pantalla (E17) | Mismo registro: Motor 6,4 (6–7 en 30 s, como en E3), Info 6,6, Aire/Volt, Carga, Mezcla y Viaje 6–7. DS3 5,6 (4–7 en 38 s): 20 cuadros/s de ~14 ms, ~280 ms de cada segundo dibujando. FUERZA G 6–7, pero sin redibujar (auto y placa quietos: 0 cuadros/s). Fallas, 3 los dos segundos de la entrada (la lectura de las fallas, E5) | E17   |
@@ -3551,6 +3590,17 @@ el 2026-10-27, y también lo del banco ("en el banco funciona perfecto": las
 pruebas 1 a 3, `!sd`, sin tarjeta y con una exFAT); un viaje andando, todavía
 no.
 
+**Un viaje andando, verificado** (2026-10-28, el agente con los registros del
+2026-10-27, `VIAJE0003` a `VIAJE0008`). `VIAJE0004` (8,4 km, hasta 145 km/h) y
+`VIAJE0007` (34 km) son viajes andando, con una línea por segundo y sin saltos
+mientras hubo datos (2530 y 1907 s). Los 6 archivos están enteros: sin bytes
+nulos, 32 columnas en todas las filas y la última línea completa. Cada uno
+termina con el corte de luz: cinco, de 31 s a 4 min 15 s después de sacar la
+llave (ya en `BT_PERDIDO`, con los saltos de 10 s de los intentos de conexión),
+y `VIAJE0003` con el motor andando. La fecha de modificación de cada archivo
+cae a 3 s o menos de su última línea: se perdió como mucho el bloque que
+faltaba grabar. Con eso E13 queda verificada.
+
 Lo decidió el agente, sin objeción del usuario: un archivo por encendido,
 abierto con la primera lectura de la ECU (prender la placa en el banco no
 deja archivos); el número, el siguiente al más alto de la tarjeta (no en
@@ -3823,6 +3873,14 @@ desde anoche" (la prueba 4, una noche con el auto apagado). Así que la batería
 alimenta al RTC con la placa apagada, como dice el esquemático; C32 no se
 midió. Falta ver la columna `Hora` del CSV, la fecha de los archivos y cuánto
 se corre en unas semanas.
+
+**La columna `Hora` y la fecha de los archivos, verificadas** (2026-10-28, el
+agente con los registros del 2026-10-27, `VIAJE0003` a `VIAJE0008`). En los 6,
+`Hora` está llena en todas las líneas y avanza con `Seg` (la diferencia entre
+las dos se mueve 1 s como mucho en todo el archivo). En la Mac, la fecha de
+creación de cada archivo es la de su primera línea (1 s antes) y la de
+modificación, la de la última (3 s o menos después: el último bloque grabado;
+la FAT guarda los segundos de a 2). Falta cuánto se corre en unas semanas.
 
 ### E15
 
@@ -4566,3 +4624,269 @@ probado en la placa.**
 7. MEZCLA con el motor frío: `sin regular` en gris, y al cerrarse el lazo
    (~30–90 s) los valores en blanco y moviéndose. Soltando el acelerador
    andando (corte de inyección), otra vez `sin regular`.
+
+### E25
+
+**Decisiones a confirmar por el usuario.** El usuario pidió (2026-10-28) que
+E25 se hiciera con las propuestas de la etapa sin confirmarlas, y que quedaran
+anotadas acá. Ya decidido por él: la alarma del refrigerante en 110/108, que
+las RPM del aviso se elijan, que parpadee toda la pantalla en cualquier página
+y que el pitido sea distinto. Lo demás, con cómo cambiarlo:
+
+1. **Dónde se elige:** en INFO, con `-` y `+` de 250 en 250 rpm, de 2000 a
+   6500, y debajo de 2000 apagado; guardado en `Preferences` (espacio `cambio`,
+   clave `rpm`). En la consola, `!cambio N` (0 apagado). Los límites y el paso:
+   `CAMBIO_MINIMO_RPM`, `CAMBIO_MAXIMO_RPM` y `PASO_CAMBIO_RPM` en `config.h`.
+2. **El de fábrica, 6000** (`CAMBIO_DE_FABRICA_RPM`): así sigue avisando donde
+   saltaba la `ZONA ROJA`, que el aviso reemplaza. Las luces rojas de MOTOR
+   desde 6000 quedan (`RPM_ZONA_ROJA` en `paginas.cpp`). Si ya hay uno
+   guardado, vale el guardado: cambiar el de fábrica no lo pisa.
+3. **Cuánto dura y cuándo vuelve:** mientras las RPM estén en el umbral o más,
+   hasta 2 s (`DURACION_CAMBIO_MS`), cambiando cada 125 ms
+   (`PARPADEO_CAMBIO_MS`, 4 parpadeos por segundo). Vuelve a avisar cuando las
+   RPM bajan 300 del umbral (`REARME_CAMBIO_RPM`), lo que pasa al poner la
+   siguiente (de 1ª a 2ª a 6000 caen a ~3300; de 4ª a 5ª, a ~4850).
+4. **El pitido:** uno de 80 ms a 4000 Hz (`PITIDO_CAMBIO_MS`,
+   `FRECUENCIA_CAMBIO_HZ`), contra los tres de 150 ms a 2500 Hz de las
+   alarmas. Se prueba con `!pitar cambio`. Si el cambio llega mientras suenan
+   los de una alarma, suena después de ellos (hasta ~0,75 s tarde).
+5. **Cuándo no avisa:** en 5ª ni sin marcha (`-` en MOTOR: punto muerto,
+   embrague apretado, cambiando o a menos de 5 km/h), así no suena acelerando
+   parado; tampoco sin un valor actual de la RPM. Para que avise también en 5ª:
+   en `REGLAS_CAMBIO` de `main.cpp`, `CANT_MARCHAS + 1` en lugar de
+   `CANT_MARCHAS`.
+6. **Los colores (los eligió el agente):** la pantalla entera en azul
+   (`AZUL`, `0x2A7FFF`, en `dibujo.h`) con `CAMBIO` en negro, y en negro con
+   `CAMBIO` en azul: distinto del rojo de las alarmas, y las luces de MOTOR van
+   de verde a ámbar a rojo, así que el azul es "lo que sigue". En la fase negra
+   no se ve la página: así ningún cuadro del aviso la dibuja (ver **Lo que
+   cuesta**). El texto y los colores, en `Pantalla::iniciar()` y `ponerAzul()`
+   (`pantalla.cpp`).
+7. **INFO (la eligió el agente, sin maqueta):** a la izquierda los 4 renglones
+   de datos (de 22 px; eran de 24) y debajo Reconectar y Olvidar adaptador,
+   uno al lado del otro, de 44 px de alto (eran de 56, uno arriba del otro, a
+   la derecha); a la derecha el brillo y el aviso de cambio, uno arriba del
+   otro, con el nombre arriba en chico y `-` y `+` de 48×46 (los del brillo
+   eran de 56×38). Los PNG del render: `5-info`, `n-info-reconectar-apretado`,
+   `o-info-olvidar-a-la-mitad`, `p-info-brillo-maximo`, `q-info-cambio-6500` y
+   `q-info-cambio-apagado`. Las medidas, al principio de la parte de Info de
+   `paginas.cpp`.
+8. **El registro (lo agregó el agente):** cada aviso queda en la columna
+   `Eventos` del CSV (`Aviso de cambio: 6215 rpm en 3ª`) y en el monitor
+   (`Cambio: 6215 rpm en 3ª`), para ver después si avisó una vez por marcha.
+
+Rama `e25-aviso-de-cambio`, desde `main` con E24. Va en tres commits: el
+primero, del PLAN (E13 y E14 con los registros del 2026-10-27); el segundo, la
+alarma del refrigerante, que se puede llevar solo a `main`; y el tercero, el
+aviso de cambio.
+
+**La alarma del refrigerante,** como la decidió el usuario (2026-10-28):
+
+- `config.h`: `REFRIGERANTE_ALARMA` en 110 °C y `REFRIGERANTE_NORMAL` en 108
+  (eran 105 y 102), con los mismos 5 s para prenderse y para apagarse. Los de
+  `ALARMAS_DE_PRUEBA` (40 y 37) quedan como estaban.
+- `test/test_alarmas`: la regla de los tests pasa a 110/108; 108 °C (el motor
+  regulando) un minuto no la prende, 109 tampoco, y prendida, 109 no la apaga.
+- Render: `w-alarma-refrigerante` y `z-alarma-ds3` con 112 °C (106 ya no
+  saltaría), y revisa que en MOTOR, con la alarma, el valor vaya en rojo (a
+  112 °C sin la alarma va en ámbar).
+- README: la tabla de alarmas.
+
+Con los registros del 2026-10-27 (una línea por segundo, la misma regla): con
+105/102 saltaba 10 veces en `VIAJE0004`, `VIAJE0007` y `VIAJE0008`, como pasó;
+con 110/108, ninguna (el máximo fue 108 °C).
+
+Verificado por el agente, con ese commit solo: `pio run` compila (RAM 11,6 %,
+flash 59,7 %), sin warnings propios con `-Wall -Wextra -Wshadow -Wvolatile`;
+`pio test -e native` 127/127; render, 230 revisiones bien (una nueva).
+
+**El aviso de cambio,** como lo pidió el usuario (2026-10-28) y con las
+decisiones de arriba. Reemplaza la alarma `ZONA ROJA`.
+
+- **`lib/obd/src/aviso_cambio.h/.cpp`** (nuevo, sin Arduino), como `marcha` y
+  `alarmas`:
+
+  ```cpp
+  struct ReglasAvisoCambio {
+    float rearme;        // rpm debajo del umbral para volver a avisar
+    uint32_t duracionMs; // lo que dura el aviso como mucho
+    uint8_t marchas;     // cuántas hay: en la última no avisa
+    uint16_t minimo, maximo, paso; // los umbrales que se pueden elegir
+  };
+  class AvisoCambio {
+    void ponerUmbral(uint16_t rpm); // 0 apagado; termina el aviso y queda listo
+    uint16_t umbral() const;
+    // marcha: la que se muestra (0 sin marcha o sin valor actual). true si
+    // con esta lectura empieza un aviso; la misma lectura otra vez, nada.
+    bool revisar(bool hay, float rpm, uint8_t marcha, uint32_t momento);
+    bool activo(uint32_t ahora) const; // < duracionMs y las condiciones siguen
+  };
+  // - y + de Info: el de al lado; debajo del mínimo, 0
+  uint16_t otroUmbralCambio(const ReglasAvisoCambio &reglas, uint16_t actual,
+                            int8_t paso);
+  bool umbralCambioValido(const ReglasAvisoCambio &reglas, uint16_t rpm);
+  // "6000 rpm" o "Apagado"
+  void textoUmbralCambio(uint16_t rpm, char *salida, size_t tam);
+  ```
+
+  Sin un valor actual el aviso termina, pero no vuelve a avisar hasta que las
+  RPM bajen: si la ECU deja de contestar en el medio, al volver no avisa de
+  nuevo por lo mismo.
+- **`test/test_aviso_cambio`:** 10 tests: avisa una vez al llegar y dura hasta
+  2 s, termina al bajar del umbral, vuelve a avisar 300 rpm debajo (y no con
+  menos), la pasada en 3ª de `VIAJE0007.CSV` (avisa a 6215 rpm y no en 4ª, que
+  entra a 4767), en cada marcha con 2500 (filas de `VIAJE0004.CSV`), no en 5ª
+  ni sin marcha y termina si se pasa a 5ª o se aprieta el embrague, sin valor
+  actual, apagado y otro umbral, `millis()` dando la vuelta, y los umbrales y
+  textos de Info.
+- **Sale la `ZONA ROJA`:** `RPM_ALTA` de `TipoAlarma` (quedan 3 alarmas),
+  `RPM_ALARMA` y `RPM_NORMAL` de `config.h`, su fila de `REGLAS_ALARMAS` y su
+  texto. En `test_alarmas`, `test_varias` pasa a refrigerante y voltaje alto, y
+  `test_al_instante` queda con una regla sin espera (la clase lo sigue
+  permitiendo).
+- **`config.h`:** `CAMBIO_MINIMO_RPM`, `CAMBIO_MAXIMO_RPM`, `PASO_CAMBIO_RPM`,
+  `CAMBIO_DE_FABRICA_RPM`, `REARME_CAMBIO_RPM`, `DURACION_CAMBIO_MS`,
+  `PARPADEO_CAMBIO_MS`, `PITIDO_CAMBIO_MS` y `FRECUENCIA_CAMBIO_HZ`.
+- **`src/umbral_cambio.h/.cpp`** (nuevo), como `brillo`: `iniciar()` (sin nada
+  guardado o con algo que no vale, el de fábrica), `rpm()` y `poner(rpm)`, que
+  lo guarda solo si vale y cambió.
+- **`sonido`:** `pitar(veces)` pasa a `pitarAlarma()` y `pitarCambio()`. Los
+  pedidos van en bits de la notificación de la tarea (`eSetBits`), así uno no
+  pisa al otro; si llegan juntos, primero el del cambio. `pitido()` recibe la
+  duración y la frecuencia.
+- **`pantalla`:** `avisoCambio(bool activo)`. Una capa de 640×172 arriba de
+  todo (también de la barra y de DS3), sin toques: deslizar sigue andando y
+  lo de abajo no se aprieta. Un timer de LVGL la pasa de azul a negro cada
+  `PARPADEO_CAMBIO_MS`; al empezar, en azul y con el timer desde cero; al
+  terminar, se oculta y el timer se pausa.
+- **`paginas`:** INFO nueva (ver la decisión 7); `Accion::BAJAR_CAMBIO` y
+  `SUBIR_CAMBIO`; `DatosInfo` suma `cambio`. En el medio, `6000 rpm` en blanco
+  o `Apagado` en gris.
+- **`main.cpp`:** `revisarCambio()` en cada vuelta, después de las alarmas, con
+  la RPM actual y la marcha que se muestra (`marcha.numero()` si
+  `marcha.actual()`, si no 0). Al empezar un aviso: el pitido, el evento del
+  CSV, la línea del monitor y `dibujar()`, para que se vea en esa misma vuelta.
+  `dibujar()` llama a `pantalla.avisoCambio()` con `avisoCambio.activo()` (solo
+  en `LEYENDO`) y, mientras está, no dibuja la página: al terminar (las RPM
+  bajan o pasan los 2 s) la siguiente llamada, en la consulta que sigue, la
+  dibuja con lo último. `cambiarUmbralCambio()` (de Info y de la consola),
+  `!cambio` sin número muestra el umbral, con uno que no vale dice cuáles
+  valen; `!pitar cambio`; `!info` dice el umbral en la línea del sonido.
+- **`consola`:** `!pitar cambio` (`pitidoCambioPedido()`) y `!cambio [N]`
+  (`cambioPedido(&rpm)`, -1 sin número). `!pitar` con otra palabra ya no pita:
+  dice que no lo conoce.
+- **Render:** INFO con las coordenadas nuevas (los toques, los deslizamientos
+  sobre los botones, que los datos no lleguen a la columna de la derecha),
+  `q-info-cambio-6500` y `q-info-cambio-apagado`, y que `-` y `+` pidan lo
+  suyo una vez y se vea el valor de al lado; el parpadeo (`r-cambio-azul` y
+  `r-cambio-negro`): toda la pantalla, también la barra; antes de 125 ms no
+  redibuja nada y a los 125 cambia de color; con la capa, LVGL no dibuja el
+  área de las páginas (cuenta los `LV_EVENT_DRAW_MAIN_BEGIN`); deslizar sigue
+  cambiando de página; en DS3 también tapa todo; al terminar, MOTOR igual que
+  antes y no sigue parpadeando. Sale `x-alarma-zona-roja`; `y-alarma-dos`
+  pasa a voltaje alto y refrigerante.
+- README: alarmas, **Aviso de cambio** (nueva), INFO, la consola, la columna
+  `Eventos` y los tests.
+
+**Los toques de `-` y `+` que se perdían** (lo contó el usuario el 2026-10-28,
+después del PR: el brillo "responde a algunos click y a otros no"; los botones
+del aviso son iguales, así que les iba a pasar lo mismo). Reproducido en la PC
+con el render, tres causas:
+
+1. **Tocar seguido.** Cada botón dejaba un solo pedido, que `loop()` toma una
+   vez por vuelta (~150 ms, una consulta): dos toques en la misma vuelta
+   contaban uno.
+2. **El dedo cae apenas afuera.** LVGL manda `CLICKED` solo si el toque
+   empezó sobre el botón: si el touch marca el apoyo 3 px afuera y después el
+   dedo entra, no cuenta (el toque queda en la página, que tiene
+   `PRESS_LOCK`).
+3. **El dedo tiembla en el borde.** Sin `PRESS_LOCK` en los botones (a
+   propósito, para cancelar corriendo el dedo), una lectura 3 px afuera es un
+   `PRESS_LOST`, y al soltar no cuenta.
+
+Los del brillo eran de 56×38: con 38 px de alto el borde quedaba muy a mano.
+Lo que se hizo (lo aprobó el usuario):
+
+- **`paginas`:** los pedidos van a una cola de 8 (`pedir()`), y
+  `tomarAccion()` los da de a uno y en orden; `atenderAcciones()` (en
+  `main.cpp`) los atiende todos en cada vuelta.
+- **Los `-` y `+`** del brillo y del aviso aceptan el toque hasta 6 px afuera
+  (`lv_obj_set_ext_click_area()`, `MARGEN_TOQUE` en `paginas.cpp`): se ven
+  igual. No se pisan con nada: entre el `-` del aviso (x 400) y Olvidar (hasta
+  391) quedan 8 px, y entre las dos filas, 28. Reconectar y Olvidar quedan
+  como estaban.
+- **El guardado, después:** `Brillo` y `UmbralCambio` cambian el valor
+  enseguida y lo escriben en la flash `ESPERA_GUARDAR_AJUSTE_MS` (1 s) después
+  del último cambio (`guardar()`, en cada vuelta de `loop()`). Antes escribían
+  en cada toque, con `loop()` y el touch quietos mientras tanto. Si se corta
+  la luz (o se reinicia) en ese segundo, queda el anterior.
+
+Queda una cuarta, sin tocar: el touch se lee cada 33 ms (`LV_DEF_REFR_PERIOD`,
+el de LVGL), así que un toque de menos de eso puede no leerse. Debería ser
+raro (un toque dura ~100 ms); leerlo más seguido le saca tiempo a las
+consultas (cada lectura es una transacción I2C de ~1 ms).
+
+Verificado en la PC: render, 249 revisiones bien. Las 7 nuevas: dos y tres
+toques seguidos dan dos y tres pedidos en orden; el dedo que cae 3 px afuera
+y entra, y el que tiembla 3 px afuera, cuentan; 6 px afuera cuenta, 8 no; y
+entre el `-` del aviso y Olvidar, cada uno lo suyo. Con el margen en 0 y la
+cola de un solo pedido, 6 de ellas fallan. Sin probar en la placa.
+
+**Lo que cuesta el parpadeo.** Cada cambio de color es un cuadro entero (cambia
+toda la pantalla): 8 por segundo, como mucho 2 s. Pero la capa tapa todo, y
+LVGL dibuja desde el objeto de más arriba que cubre el área entera: no dibuja
+la página de abajo (lo revisa el render). Y mientras está, `main.cpp` no toca
+la página, así que tampoco hay cuadros por los datos de MOTOR. Medido en la PC
+(el render, LVGL a `-O1`): un cuadro del aviso tarda 0,05 ms y MOTOR entero
+0,14 ms, un tercio. En la placa, con MOTOR a ~9 ms por cuadro (E17), cada
+cuadro del aviso serían ~3 ms de `loop()` (24 ms por segundo, menos que los
+4–6 cuadros/s de MOTOR que reemplaza); el giro (~7 ms) y el envío (~14 ms) van
+en la otra tarea, y con 125 ms entre cuadros `loop()` no los espera. No
+debería bajar las consultas por segundo, pero **no está medido en la placa**.
+En el auto, con la notebook y el aviso en 2500: en la tabla del monitor de los
+segundos que parpadea, `consultas/s` (6–7, como en MOTOR), `cuadros/s` (~8) y
+`espera` (~0).
+
+**En MEZCLA el aviso puede llegar tarde o no llegar:** la RPM se lee cada
+~2,5 s (no entra entre las 6 de la página), y la marcha se calcula solo cuando
+la RPM y la velocidad llegan en la misma respuesta y se confirma con dos
+lecturas, así que un cambio rápido puede pasar sin aviso. En FALLAS, mientras
+lee los códigos (~0,6 s), tampoco hay RPM. En las demás páginas la RPM va en
+cada consulta (~6 por segundo).
+
+Verificado por el agente: `pio run` compila (RAM 11,6 %, flash 59,9 % de 3 MB),
+sin warnings propios con `-Wall -Wextra -Wshadow -Wvolatile`; `pio test -e
+native` 137/137 (10 nuevos); render, 242 revisiones bien. Ninguna toca el auto:
+`comandoPermitido()`, la lista blanca y lo que se le manda al ELM quedan igual.
+**Nada probado en la placa:** ni el parpadeo en el panel (los colores, si se
+ve cortado), ni el pitido, ni que el umbral quede guardado, ni INFO con el
+dedo, ni las consultas por segundo mientras parpadea.
+
+**Pruebas del usuario** (subir el firmware de esta rama, o el de `main` después
+de mergearla; están también, en orden, en **Para la próxima prueba**):
+
+1. En el banco, por la consola: `!pitar cambio` suena un pitido corto y
+   agudo, distinto de los tres de `!pitar`. `!cambio` dice `Aviso de cambio:
+   6000 rpm`; `!cambio 2600` dice cuáles valen; `!cambio 2500` lo pone.
+   Esperar un segundo y apretar RESET: `!cambio` sigue en 2500. `!info` lo
+   dice en la línea del sonido.
+2. En el auto, con el contacto, en INFO (se ve solo con la ECU): la fila
+   `Aviso de cambio` en `2500 rpm`; `-` y `+` de 250 en 250; `Apagado` en gris
+   debajo de 2000; no pasa de 6500. Reconectar, Olvidar (mantener 3 s) y el
+   brillo andan en su lugar nuevo; deslizar sobre los botones cambia de página
+   sin apretarlos. Tocando `-` y `+` seguido, o cerca del borde, cada toque
+   cuenta. Si alguno se sigue perdiendo, contar cómo (rápido, en el borde, un
+   toque muy corto).
+3. Andando, con el aviso en 2500: al llegar a 2500 en 1ª a 4ª toda la pantalla
+   parpadea en azul y negro y suena el pitido; una vez por marcha (al poner la
+   siguiente y llegar otra vez, de nuevo); en 5ª no; acelerando parado, en
+   punto muerto o con el embrague apretado, no. Se va al pasar el cambio o a
+   los 2 s. Deslizar mientras parpadea cambia de página.
+4. Con la notebook: en la tabla del monitor de esos segundos, `consultas/s`
+   (6–7), `cuadros/s` (~8) y `espera` (~0). Anotarlo acá.
+5. La alarma del refrigerante: en un viaje normal, también parado en el
+   tráfico (con el electroventilador), `REFRIGERANTE` no salta. Si llegara a
+   110 °C 5 s, salta con sus tres pitidos y se apaga al bajar a 108.
+6. Al volver, en el CSV: un `Aviso de cambio` por marcha en `Eventos`.
+7. Dejar el aviso en el valor que se quiera (de fábrica, 6000), y confirmar o
+   cambiar las **Decisiones a confirmar por el usuario** de arriba.

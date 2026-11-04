@@ -26,7 +26,7 @@ otra con los anteriores, otra con la fuerza G y al final una animación:
 | CARGA     | Carga del motor, avance del encendido y acelerador, cada uno con su barra |
 | MEZCLA    | Lazo (`Cerrado`, `Abierto frio`, `Abierto carga`...), ajustes de combustible corto y largo, lambda con una barra rica/pobre y la sonda post-catalizador. Con el lazo abierto (el motor frío, el corte de inyección al soltar el acelerador) la ECU no regula con las sondas y quedan fijas: lambda y la sonda van en gris y dicen `sin regular` |
 | FALLAS    | Luz de falla y códigos guardados, pendientes y permanentes, con su descripción |
-| INFO      | Adaptador y señal (RSSI), la microSD, versión del ELM y protocolo, PIDs y consultas por segundo; brillo; botones Reconectar y Olvidar adaptador |
+| INFO      | Adaptador y señal (RSSI), la microSD, versión del ELM y protocolo, PIDs y consultas por segundo; botones Reconectar y Olvidar adaptador; brillo y aviso de cambio, con `-` y `+` |
 | VIAJE     | Distancia, tiempo con el motor en marcha y velocidad promedio; velocidad, RPM y refrigerante máximos, y voltaje mínimo y máximo con el motor en marcha |
 | ANTERIORES | Lo mismo de un viaje guardado, con el día y la hora en que empezó. Tocar la página pasa al anterior |
 | FUERZA G  | Un punto en un círculo de 1 g con la aceleración del auto; la frenada o aceleración y la lateral de ahora, y los máximos del viaje para cada lado |
@@ -260,7 +260,7 @@ no se detecta después.
 | `G lateral`, `G long.` | La fuerza G en ese momento: la lateral, positiva en una curva a la derecha; la longitudinal, positiva acelerando y negativa frenando. Vacías sin calibrar o sin sensor |
 | `Pagina` | La página a la vista (`MOTOR`, `FUERZA G`...). Vacía sin datos, con la pantalla de espera |
 | `Cuadros/s` a `Envio max ms` | Lo que tardan los cuadros de la pantalla en el último segundo, como en la tabla del monitor: cuántos se mandaron y el promedio y el máximo de cada tiempo, en ms (ver **Consola**) |
-| `Eventos` | Lo que pasó en ese segundo, separado por ` \| `: el inicio de la placa y por qué (`encendido`, `brownout`...), los cambios de la conexión (`LEYENDO`, `SIN_ECU (No responde)`...), las alarmas, las fallas leídas en FALLAS cuando cambian, `Viaje reiniciado`, los errores de la tarjeta y `Reloj puesto en hora` (la columna `Hora` salta) |
+| `Eventos` | Lo que pasó en ese segundo, separado por ` \| `: el inicio de la placa y por qué (`encendido`, `brownout`...), los cambios de la conexión (`LEYENDO`, `SIN_ECU (No responde)`...), las alarmas, los avisos de cambio (`Aviso de cambio: 6215 rpm en 3ª`), las fallas leídas en FALLAS cuando cambian, `Viaje reiniciado`, los errores de la tarjeta y `Reloj puesto en hora` (la columna `Hora` salta) |
 
 Los máximos del viaje salen en la planilla (`MAX()` de la columna).
 
@@ -281,23 +281,45 @@ PCF85063), que sigue andando con la placa apagada gracias a la batería.
 ### Alarmas
 
 En cualquier página, la barra de arriba se pone roja con un triángulo, la
-alarma y el valor (`REFRIGERANTE 106 °C`), y el valor va en rojo en su
+alarma y el valor (`REFRIGERANTE 112 °C`), y el valor va en rojo en su
 página. Al aparecer cada una suenan tres pitidos, sin repetir. Deslizar sigue
 cambiando de página: no hay nada que aceptar, y la alarma se va sola.
 
 | Alarma                | Se prende                                   | Se apaga |
 | --------------------- | ------------------------------------------- | -------- |
-| `REFRIGERANTE`        | 105 °C o más, 5 s seguidos                  | 102 °C o menos, 5 s |
+| `REFRIGERANTE`        | 110 °C o más, 5 s seguidos (el motor caliente regula en 103–108) | 108 °C o menos, 5 s |
 | `VOLTAJE BAJO` / `ALTO` | Con el motor en marcha (desde 5 s después de arrancar): 13,0 V o menos, o 15,0 V o más, 10 s seguidos (falla de carga) | 13,2 V o más / 14,8 V o menos, 10 s |
-| `ZONA ROJA`           | 6000 rpm o más, al instante                 | 5800 rpm o menos |
 
 - Con varias a la vez, se alternan cada 3 s y la barra dice `1/2`.
 - Sin un valor actual (la ECU dejó de contestar, el motor se paró para el
   voltaje) la alarma se apaga: nunca muestra un valor viejo.
-- En MEZCLA la RPM se lee cada ~2,5 s, así que la zona roja puede tardar.
 - Los umbrales están en `include/config.h`. Con `ALARMAS_DE_PRUEBA = true`
-  saltan manejando normal (40 °C, 2000 rpm y los voltajes de marcha), para
-  probarlas.
+  saltan manejando normal (40 °C y los voltajes de marcha), para probarlas.
+- Hasta E25 había una más, `ZONA ROJA`, desde 6000 rpm: la reemplaza el aviso
+  de cambio. Las luces de MOTOR siguen rojas desde 6000.
+
+### Aviso de cambio
+
+Un aviso de "pasá el cambio", como en un auto de carrera: al llegar las RPM
+al valor elegido, en cualquier página, toda la pantalla parpadea (azul con
+`CAMBIO` en negro, y negro con `CAMBIO` en azul, ~4 veces por segundo) y suena
+un pitido corto y agudo, distinto de los de las alarmas.
+
+- **Cuánto dura:** mientras las RPM sigan en ese valor o más, hasta 2 s. Al
+  pasar el cambio las RPM bajan y se va.
+- **Una vez por marcha:** vuelve a avisar cuando las RPM bajan 300 del valor
+  (lo que pasa al poner la siguiente).
+- **No avisa** sin marcha (en punto muerto o con el embrague apretado: así no
+  suena acelerando parado) ni en 5ª. La marcha es la de MOTOR (ver **La marcha
+  y el reloj**); sin un valor actual de la RPM, tampoco.
+- **Dónde se elige:** en INFO, o con `!cambio N` en la consola: de 2000 a 6500
+  rpm, de 250 en 250, o apagado. Queda guardado; sin nada guardado, 6000.
+- Mientras parpadea, la página de abajo no se dibuja, y deslizar sigue
+  cambiando de página.
+- En MEZCLA la RPM se lee cada ~2,5 s (y la marcha solo cuando la RPM y la
+  velocidad llegan juntas), así que ahí el aviso puede llegar tarde o no
+  llegar.
+- Nada de esto le manda nada al auto.
 
 ### Info
 
@@ -307,7 +329,15 @@ cambiando de página: no hay nada que aceptar, y la alarma se va sola.
   dirección guardada y busca el adaptador de cero.
 - **Brillo:** `-` y `+` lo cambian en 5 niveles (los segmentos del medio). El
   más bajo se sigue leyendo de noche: por debajo, la luz se apaga del todo.
-  Queda guardado para el próximo arranque; sin nada guardado, al máximo.
+  Queda guardado para el próximo arranque, un segundo después del último
+  toque; sin nada guardado, al máximo.
+- **Aviso de cambio:** `-` y `+` lo cambian de 250 en 250 rpm, de 2000 a 6500;
+  con `-` desde 2000 queda `Apagado`, en gris (ver **Aviso de cambio**). Se
+  guarda como el brillo; sin nada guardado, 6000.
+- Cada toque de `-` y `+` cuenta, aunque se toque seguido, y aceptan el toque
+  hasta 6 px afuera del borde. Hasta E25 se perdían algunos.
+- Desde E25, Reconectar y Olvidar van abajo a la izquierda, y el brillo y el
+  aviso de cambio a la derecha, uno arriba del otro.
 - **Tarjeta:** la microSD (ver **Registro en la microSD**). Hasta E13 ese
   renglón era la dirección del adaptador, que ahora sale en `!info`.
 
@@ -329,8 +359,9 @@ de frenar la placa.
 | `!reconectar` | Como el botón Reconectar |
 | `!olvidar`    | Como Olvidar adaptador, sin mantener apretado |
 | `!log`        | Prende o apaga el detalle de cada consulta |
-| `!pitar`      | Los tres pitidos de una alarma, para probar el parlante |
+| `!pitar`      | Los tres pitidos de una alarma, para probar el parlante. `!pitar cambio`: el del aviso de cambio |
 | `!brillo N`   | El brillo, de 1 a 5, como en Info (anda también sin la ECU) |
+| `!cambio N`   | Las RPM del aviso de cambio, de 2000 a 6500 de 250 en 250, o 0 para apagarlo, como en Info (anda también sin la ECU). Sin nada, dice cuál está |
 | `!luz V`      | La luz con un valor de 0 a 255, sin guardar, para medir los niveles (con 90 o menos se apaga). `!brillo N` vuelve a un nivel |
 | `!imu`        | La última medición del IMU en sus ejes (para ver cómo está montado), la fuerza G que sale de ella, los máximos y cuántas veces calibró |
 | `!sd`         | La microSD: tamaño y espacio libre, el archivo del viaje, cuánto lleva grabado, líneas perdidas y errores |
@@ -425,7 +456,7 @@ Desde la carpeta del proyecto (`pio` no está en el PATH):
 
 La lógica que no depende del hardware (`lib/obd`: lista blanca, respuestas
 del ELM, PIDs, fallas, el viaje, los viajes anteriores, las alarmas, la fuerza
-G, el registro, el reloj y la marcha)
+G, el registro, el reloj, la marcha y el aviso de cambio)
 tiene tests que corren en la PC, con respuestas reales del DS3 y del
 adaptador (la marcha, con lecturas de los registros de la microSD):
 
@@ -443,7 +474,8 @@ make -C herramientas/render -j8
 Deja un PNG por pantalla en `herramientas/render/salida/` y revisa que
 dibujar dos veces lo mismo no redibuje nada, que los textos no se pasen de
 su lugar, que los toques y los deslizamientos hagan lo que corresponde (con
-la ECU y sin conexión) y que las animaciones se muevan.
+la ECU y sin conexión), que las animaciones se muevan y que el aviso de cambio
+tape todo y parpadee.
 
 ## Las animaciones
 

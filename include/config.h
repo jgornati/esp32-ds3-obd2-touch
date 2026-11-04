@@ -199,19 +199,19 @@ constexpr uint32_t PERIODO_GUARDAR_VIAJE_MS = 60000;
 // apaga. El voltaje, solo con el motor en marcha desde hace
 // ESPERA_VOLTAJE_VIAJE_MS. Con varias, se alternan cada PERIODO_ALARMAS_MS.
 // ALARMAS_DE_PRUEBA pone umbrales que saltan manejando normal (motor tibio,
-// 13,6-14,1 V en marcha, 2000 rpm), para probarlas en el auto.
+// 13,6-14,1 V en marcha), para probarlas en el auto. La de las RPM (ZONA ROJA)
+// salió en E25: la reemplaza el aviso de cambio.
 constexpr bool ALARMAS_DE_PRUEBA = false;
-constexpr float REFRIGERANTE_ALARMA = ALARMAS_DE_PRUEBA ? 40 : 105; // °C
-constexpr float REFRIGERANTE_NORMAL = ALARMAS_DE_PRUEBA ? 37 : 102;
+// El refrigerante, en 110 °C y se apaga en 108 (lo eligió el usuario, E25): el
+// motor caliente regula en 103-108, y con 105 saltaba en cada viaje
+constexpr float REFRIGERANTE_ALARMA = ALARMAS_DE_PRUEBA ? 40 : 110; // °C
+constexpr float REFRIGERANTE_NORMAL = ALARMAS_DE_PRUEBA ? 37 : 108;
 constexpr uint32_t REFRIGERANTE_ALARMA_MS = 5000;
 constexpr float VOLTAJE_BAJO_ALARMA = ALARMAS_DE_PRUEBA ? 14.5f : 13.0f; // V
 constexpr float VOLTAJE_BAJO_NORMAL = ALARMAS_DE_PRUEBA ? 14.7f : 13.2f;
 constexpr float VOLTAJE_ALTO_ALARMA = ALARMAS_DE_PRUEBA ? 13.5f : 15.0f;
 constexpr float VOLTAJE_ALTO_NORMAL = ALARMAS_DE_PRUEBA ? 13.3f : 14.8f;
 constexpr uint32_t VOLTAJE_ALARMA_MS = 10000;
-// La zona roja de la barra de Motor
-constexpr float RPM_ALARMA = ALARMAS_DE_PRUEBA ? 2000 : 6000;
-constexpr float RPM_NORMAL = ALARMAS_DE_PRUEBA ? 1800 : 5800;
 constexpr uint32_t PERIODO_ALARMAS_MS = 3000;
 // Al prenderse cada alarma: PITIDOS_ALARMA pitidos de PITIDO_MS, separados
 // por SILENCIO_PITIDO_MS, a FRECUENCIA_PITIDO_HZ y VOLUMEN_PITIDO (de 0 a 1).
@@ -222,6 +222,29 @@ constexpr uint32_t PITIDO_MS = 150;
 constexpr uint32_t SILENCIO_PITIDO_MS = 100;
 constexpr uint32_t FRECUENCIA_PITIDO_HZ = 2500;
 constexpr float VOLUMEN_PITIDO = 1.0f;
+// El aviso de cambio (E25): al llegar las RPM al umbral, en cualquier página
+// toda la pantalla parpadea (cambia cada PARPADEO_CAMBIO_MS) hasta
+// DURACION_CAMBIO_MS o hasta que las RPM bajen del umbral, con un pitido de
+// PITIDO_CAMBIO_MS a FRECUENCIA_CAMBIO_HZ, más corto y agudo que los de las
+// alarmas. Vuelve a avisar cuando las RPM bajan REARME_CAMBIO_RPM del umbral
+// (al pasar el cambio). No avisa sin marcha ni en la última. El umbral se
+// elige en Info o con !cambio N, de CAMBIO_MINIMO_RPM a CAMBIO_MAXIMO_RPM de a
+// PASO_CAMBIO_RPM, o apagado, y queda guardado; sin nada guardado,
+// CAMBIO_DE_FABRICA_RPM, donde estaba la ZONA ROJA. Propuestas a confirmar
+// por el usuario (notas de E25).
+constexpr uint16_t CAMBIO_MINIMO_RPM = 2000;
+constexpr uint16_t CAMBIO_MAXIMO_RPM = 6500;
+constexpr uint16_t PASO_CAMBIO_RPM = 250;
+constexpr uint16_t CAMBIO_DE_FABRICA_RPM = 6000;
+constexpr float REARME_CAMBIO_RPM = 300;
+constexpr uint32_t DURACION_CAMBIO_MS = 2000;
+constexpr uint32_t PARPADEO_CAMBIO_MS = 125; // ~4 parpadeos por segundo
+constexpr uint32_t PITIDO_CAMBIO_MS = 80;
+constexpr uint32_t FRECUENCIA_CAMBIO_HZ = 4000;
+// El brillo y el aviso de cambio se guardan en la flash cuando pasa esto sin
+// cambiarlos (E25): tocando - y + seguido, no frena la placa en cada toque. Si
+// se corta la luz antes, queda el anterior.
+constexpr uint32_t ESPERA_GUARDAR_AJUSTE_MS = 1000;
 // Al arrancar, para no perder el informe si el monitor serie todavía no abrió el USB
 constexpr uint32_t ESPERA_MONITOR_MS = 2000;
 // Desde el arranque hasta prender el BLE, para que la alimentación se

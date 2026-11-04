@@ -33,8 +33,8 @@ CambioAlarma Alarma::revisar(bool hay, float valor, uint32_t momento) {
 
 Alarmas::Alarmas(const ReglaAlarma (&reglas)[CANT_ALARMAS])
     : lista{Alarma(reglas[REFRIGERANTE_ALTO]), Alarma(reglas[VOLTAJE_BAJO]),
-            Alarma(reglas[VOLTAJE_ALTO]), Alarma(reglas[RPM_ALTA])} {
-  static_assert(CANT_ALARMAS == 4, "una Alarma por tipo, en el orden de TipoAlarma");
+            Alarma(reglas[VOLTAJE_ALTO])} {
+  static_assert(CANT_ALARMAS == 3, "una Alarma por tipo, en el orden de TipoAlarma");
 }
 
 CambioAlarma Alarmas::revisar(TipoAlarma tipo, bool hay, float valor, uint32_t momento) {
@@ -80,9 +80,6 @@ void textoAlarma(TipoAlarma tipo, float valor, char *salida, size_t tam) {
     break;
   case VOLTAJE_ALTO:
     snprintf(salida, tam, "VOLTAJE ALTO %.1f V", valor);
-    break;
-  case RPM_ALTA:
-    snprintf(salida, tam, "ZONA ROJA %.0f RPM", valor);
     break;
   default:
     snprintf(salida, tam, "ALARMA");
