@@ -498,6 +498,10 @@ python3 herramientas/imagenes/convertir.py
 
 ## Licencia
 
-[MIT](LICENSE) © 2026 Joel Gornati. Se puede usar, modificar y redistribuir,
-también con fines comerciales, siempre que se mantenga el aviso de copyright.
-`lib/axs15231b` conserva su propia licencia (Apache 2.0).
+Copyright (C) 2026 Joel Gornati.
+
+Este proyecto es software libre bajo la [GNU GPL v3](LICENSE): se puede
+usar, modificar y redistribuir, también con fines comerciales, siempre que se
+mantenga el aviso de copyright y que cualquier versión modificada que se
+distribuya se publique con su código fuente bajo la misma licencia.
+`lib/axs15231b` conserva su propia licencia (Apache 2.0, compatible con GPL v3).
