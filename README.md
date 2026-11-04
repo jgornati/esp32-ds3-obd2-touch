@@ -495,3 +495,13 @@ python3 herramientas/imagenes/convertir.py
 - `PLAN.md`: decisiones, arquitectura, etapas, datos medidos en el auto y
   notas de cada etapa.
 - `docs/descubrimiento/`: los logs de las sesiones en el auto.
+
+## Licencia
+
+Copyright (C) 2026 Joel Gornati.
+
+Este proyecto es software libre bajo la [GNU GPL v3](LICENSE): se puede
+usar, modificar y redistribuir, también con fines comerciales, siempre que se
+mantenga el aviso de copyright y que cualquier versión modificada que se
+distribuya se publique con su código fuente bajo la misma licencia.
+`lib/axs15231b` conserva su propia licencia (Apache 2.0, compatible con GPL v3).
